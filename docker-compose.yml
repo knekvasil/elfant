@@ -1,0 +1,14 @@
+services:
+  app:
+    image: knekvasil/elfant:latest
+    container_name: elfant
+    ports:
+      - "8008:8008"
+    env_file: .env
+    restart: unless-stopped
+    networks:
+      - db-net
+
+networks:
+  db-net:
+    external: true

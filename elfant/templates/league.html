@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+{% block title %}{{ league.name }}{% endblock %}
+{% block content %}
+
+<div class="flex" style="align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+  <div>
+    <h2 style="font-size: 1.5rem;">{{ league.name }}</h2>
+    <p class="text-muted text-sm">
+      {{ league.season }} season · 
+      <span class="badge badge-{% if league.status == 'complete' %}green{% elif league.status == 'in_season' %}yellow{% else %}blue{% endif %}">
+        {{ league.status }}
+      </span>
+      · {{ rosters|length }} teams
+    </p>
+  </div>
+  <div class="flex">
+    <a href="/league/{{ league.league_id }}/refresh" class="btn btn-outline" hx-get="/league/{{ league.league_id }}/refresh" hx-target="body" hx-indicator="#spinner">⟳ Refresh</a>
+  </div>
+</div>
+
+{% if previous or next %}
+<div class="flex" style="margin-bottom: 1rem;">
+  {% if previous %}
+  <a href="/league/{{ previous.league_id }}" class="btn btn-outline text-sm">← {{ previous.season }}</a>
+  {% endif %}
+  {% if next %}
+  <a href="/league/{{ next.league_id }}" class="btn btn-outline text-sm">{{ next.season }} →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Standings</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Team</th><th>Owner</th><th class="align-right">W</th><th class="align-right">L</th><th class="align-right">T</th><th class="align-right">PF</th><th class="align-right">PA</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rosters %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ r.team_name or "Team " + r.roster_id|string }}</td>
+        <td class="text-sm">{{ r.owner_display or r.owner_id }}</td>
+        <td class="align-right">{{ r.wins }}</td>
+        <td class="align-right">{{ r.losses }}</td>
+        <td class="align-right">{{ r.ties }}</td>
+        <td class="align-right">{{ "%.2f"|format(r.fpts) }}</td>
+        <td class="align-right">{{ "%.2f"|format(r.fpts_against) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if drafts %}
+<div class="card">
+  <h2>Draft</h2>
+  <p class="text-muted text-sm mb-2">{{ drafts|length }} draft(s) available</p>
+  {% for d in drafts %}
+  <details style="margin-bottom: 0.5rem;">
+    <summary style="cursor: pointer; font-weight: 600; color: #38bdf8;">
+      {{ d.season }} Draft ({{ d.type }}) · {{ d.picks|length }} picks
+    </summary>
+    <table class="mt-2">
+      <thead><tr><th>Pick</th><th>Round</th><th>Player</th><th>Team</th><th>Position</th></tr></thead>
+      <tbody>
+        {% for p in d.picks %}
+        <tr>
+          <td>{{ p.pick_no }}</td>
+          <td>{{ p.round }}</td>
+          <td>{{ p.first_name }} {{ p.last_name }}</td>
+          <td>{{ p.team }}</td>
+          <td>{{ p.position }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if matchups %}
+<div class="card">
+  <h2>Matchups</h2>
+  <p class="text-muted text-sm mb-2">Select a week:</p>
+  <div class="flex mb-2" style="flex-wrap: wrap;">
+    {% for w in week_range %}
+    <a href="/league/{{ league.league_id }}/matchups/{{ w }}" class="btn btn-outline text-sm" style="padding: 0.3rem 0.7rem;" hx-get="/league/{{ league.league_id }}/matchups/{{ w }}" hx-target="#matchups" hx-indicator="#spinner">{{ w }}</a>
+    {% endfor %}
+  </div>
+  {% if active_week %}
+  <div id="matchups" hx-get="/league/{{ league.league_id }}/matchups/{{ active_week }}" hx-trigger="load">
+    <p class="text-muted text-sm">Loading week {{ active_week }}…</p>
+  </div>
+  {% else %}
+  <div id="matchups"><p class="text-muted text-sm">Select a week above.</p></div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div id="spinner" class="htmx-indicator" style="position: fixed; top: 1rem; right: 1rem; background: #1e293b; padding: 0.5rem 1rem; border-radius: 0.375rem; border: 1px solid #334155; font-size: 0.85rem;">Loading…</div>
+
+{% endblock %}

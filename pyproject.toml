@@ -1,0 +1,22 @@
+[project]
+name = "elfant"
+version = "0.1.0"
+description = "Sleeper fantasy football league data sync & query tool"
+requires-python = ">=3.11"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "requests>=2.31",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+]
+
+[project.scripts]
+elfant = "elfant.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["elfant*"]

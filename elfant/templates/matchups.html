@@ -1,0 +1,70 @@
+<div class="flex" style="flex-direction: column; gap: 1rem;">
+{% for m in matchups %}
+<div style="background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem;">
+  <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
+    <div>
+      <strong style="font-size: 1rem;">{{ m.team_name }}</strong>
+      <span class="badge badge-blue">{{ m.roster_id }}</span>
+    </div>
+    <div style="font-size: 1.5rem; font-weight: 700; color: #38bdf8;">{{ "%.2f"|format(m.points) }}</div>
+  </div>
+  {% if m.starters %}
+  <table style="font-size: 0.8rem;">
+    <thead><tr><th>Pos</th><th>Starter</th><th>Team</th></tr></thead>
+    <tbody>
+    {% for p in m.starters %}
+    <tr><td>{{ p.position }}</td><td>{{ p.name }}</td><td>{{ p.team }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% if m.bench %}
+  <details style="margin-top: 0.5rem;">
+    <summary style="cursor: pointer; font-size: 0.75rem; color: #64748b;">Bench ({{ m.bench|length }})</summary>
+    <table style="font-size: 0.75rem;">
+      <thead><tr><th>Pos</th><th>Player</th><th>Team</th></tr></thead>
+      <tbody>
+      {% for p in m.bench %}
+      <tr><td>{{ p.position }}</td><td>{{ p.name }}</td><td>{{ p.team }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+
+  {% if m.opp_name %}
+  <hr style="border: none; border-top: 1px solid #334155; margin: 0.75rem 0;">
+  <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
+    <div>
+      <strong style="font-size: 1rem;">{{ m.opp_name }}</strong>
+      <span class="badge badge-red">{{ m.opp_roster_id }}</span>
+    </div>
+    <div style="font-size: 1.5rem; font-weight: 700; color: #f87171;">{{ "%.2f"|format(m.opp_points) }}</div>
+  </div>
+  {% if m.opp_starters %}
+  <table style="font-size: 0.8rem;">
+    <thead><tr><th>Pos</th><th>Starter</th><th>Team</th></tr></thead>
+    <tbody>
+    {% for p in m.opp_starters %}
+    <tr><td>{{ p.position }}</td><td>{{ p.name }}</td><td>{{ p.team }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% if m.opp_bench %}
+  <details style="margin-top: 0.5rem;">
+    <summary style="cursor: pointer; font-size: 0.75rem; color: #64748b;">Bench ({{ m.opp_bench|length }})</summary>
+    <table style="font-size: 0.75rem;">
+      <thead><tr><th>Pos</th><th>Player</th><th>Team</th></tr></thead>
+      <tbody>
+      {% for p in m.opp_bench %}
+      <tr><td>{{ p.position }}</td><td>{{ p.name }}</td><td>{{ p.team }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+  {% endif %}
+</div>
+{% endfor %}
+</div>

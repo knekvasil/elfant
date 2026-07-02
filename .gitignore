@@ -1,0 +1,8 @@
+.env
+.venv/
+elfant.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+frontend/node_modules/
+elfant-cloudflared.yml

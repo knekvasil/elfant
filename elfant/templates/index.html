@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+  <div class="card" style="width: 100%; max-width: 500px;">
+    <h2>Enter a Sleeper League</h2>
+    <p class="text-muted text-sm mb-2">Paste a league ID to view standings, rosters, matchups, and more.</p>
+    <form action="/league" method="get">
+      <div class="form-group">
+        <label for="league_id">League ID</label>
+        <input type="text" name="league_id" id="league_id" placeholder="e.g. 1250519825399169024" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Go</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

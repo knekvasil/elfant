@@ -1,0 +1,238 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { Skeleton } from '../components/ui/skeleton'
+import Standings from '../components/Standings'
+import DraftGrid from '../components/DraftGrid'
+import Matchups from '../components/Matchups'
+import PlayoffBracket from '../components/PlayoffBracket'
+import RankingsChart from '../components/RankingsChart'
+import PointsDiffChart from '../components/PointsDiffChart'
+import TransactionsTimeline from '../components/TransactionsTimeline'
+import PlayerSearch from '../components/PlayerSearch'
+import { fetchLeague, refreshLeague } from '../lib/api'
+import type { LeagueData } from '../types'
+
+export default function League() {
+  const { leagueId } = useParams<{ leagueId: string }>()
+  const [data, setData] = useState<LeagueData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState('standings')
+  const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
+  const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
+
+  const handleHover = (id: number | null) => setHoveredRosterId(id)
+  const activeHighlightIds = hoveredRosterId != null
+    ? new Set([...selectedRosterIds, hoveredRosterId])
+    : selectedRosterIds
+  const handleClick = (id: number) => {
+    setSelectedRosterIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const load = useCallback(async (id: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const d = await fetchLeague(id)
+      setData(d)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load league')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (leagueId) load(leagueId)
+  }, [leagueId, load])
+
+  const handleRefresh = async () => {
+    if (!leagueId) return
+    await refreshLeague(leagueId)
+    await load(leagueId)
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="max-w-6xl mx-auto p-4">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-destructive">{error || 'League not found'}</p>
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center gap-1.5 text-sm font-medium h-9 px-4 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors mt-4"
+            >
+              Back
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const { league, rosters, previous, next, drafts, max_week } = data
+  const statusColor =
+    league.status === 'complete'
+      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+      : league.status === 'in_season'
+        ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+        : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+
+  return (
+    <div className="max-w-6xl mx-auto p-4 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold truncate">{league.name}</h1>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mt-0.5">
+            <span>{league.season}</span>
+            <span className="text-border">·</span>
+            <Badge variant="outline" className={statusColor}>
+              {league.status}
+            </Badge>
+            <span className="text-border">·</span>
+            <span>{rosters.length} teams</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {previous && (
+            <Link
+              to={`/league/${previous.league_id}`}
+              className="inline-flex items-center justify-center gap-1 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <ChevronLeft className="size-3.5" />
+              {previous.season}
+            </Link>
+          )}
+          {next && (
+            <Link
+              to={`/league/${next.league_id}`}
+              className="inline-flex items-center justify-center gap-1 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              {next.season}
+              <ChevronRight className="size-3.5" />
+            </Link>
+          )}
+          <Button size="sm" variant="outline" onClick={handleRefresh}>
+            <RefreshCw className="size-3.5 mr-1" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="standings">
+            <Table2 className="size-3.5 mr-1.5" />
+            Standings
+          </TabsTrigger>
+          {drafts.length > 0 && (
+            <TabsTrigger value="draft">
+              <ScrollText className="size-3.5 mr-1.5" />
+              Draft
+            </TabsTrigger>
+          )}
+          {max_week > 0 && (
+            <TabsTrigger value="matchups">
+              <Swords className="size-3.5 mr-1.5" />
+              Matchups
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="playoffs">
+            <Trophy className="size-3.5 mr-1.5" />
+            Playoffs
+          </TabsTrigger>
+          <TabsTrigger value="players">
+            <Users className="size-3.5 mr-1.5" />
+            Players
+          </TabsTrigger>
+          <TabsTrigger value="transactions">
+            <ArrowLeftRight className="size-3.5 mr-1.5" />
+            Activity
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="standings">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Standings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} />
+              </CardContent>
+            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Weekly Placement</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Points For/Against Diff</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+        {drafts.length > 0 && (
+          <TabsContent value="draft">
+            <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} />
+          </TabsContent>
+        )}
+        {max_week > 0 && (
+          <TabsContent value="matchups">
+            <Matchups leagueId={league.league_id} maxWeek={max_week} />
+          </TabsContent>
+        )}
+        <TabsContent value="playoffs">
+          <PlayoffBracket leagueId={league.league_id} />
+        </TabsContent>
+        <TabsContent value="players">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Player Search</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PlayerSearch leagueId={league.league_id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">League Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TransactionsTimeline leagueId={league.league_id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
