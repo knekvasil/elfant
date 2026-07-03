@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3 } from 'lucide-react'
+import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import Tooltip from '../components/ui/tooltip'
@@ -27,6 +27,7 @@ import PlayerSearch from '../components/PlayerSearch'
 import WeeklyBarChart from '../components/WeeklyBarChart'
 import EfficiencyBarChart from '../components/EfficiencyBarChart'
 import RangeBarChart from '../components/RangeBarChart'
+import PowerRankings from '../components/PowerRankings'
 import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
 
@@ -193,6 +194,10 @@ export default function League() {
             <BarChart3 className="size-3.5 mr-1.5" />
             Charts
           </TabsTrigger>
+          <TabsTrigger value="power">
+            <Gauge className="size-3.5 mr-1.5" />
+            Power
+          </TabsTrigger>
           <TabsTrigger value="players">
             <Users className="size-3.5 mr-1.5" />
             Players
@@ -319,6 +324,9 @@ export default function League() {
               </div>
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="power">
+          <PowerRankings leagueId={league.league_id} rosters={rosters} />
         </TabsContent>
         <TabsContent value="playoffs">
           <PlayoffBracket leagueId={league.league_id} />
