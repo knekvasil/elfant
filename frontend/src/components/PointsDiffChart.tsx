@@ -60,48 +60,33 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
           <text key={w} x={xScale(w)} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
         ))}
-        {mode === 'efficiency' ? rosters.map((roster, ri) => {
+        {rosters.map((roster, ri) => {
           const hl = isHighlighted(roster.roster_id)
           const dm = isDimmed(roster.roster_id)
           const color = COLORS[ri % COLORS.length]
           const pts = roster.pf_diffs.map((v, i) => `${xScale(i + 1)},${yScale(v)}`).join(' ')
-          const y0 = yScale(0)
-          const area = `${xScale(1)},${y0} L ${pts} L ${xScale(numWeeks)},${y0} Z`
           return (
-            <g key={roster.roster_id} className="transition-all duration-200 pointer-events-none" opacity={dm ? 0.05 : hl ? 0.35 : 0.15}>
-              <path d={`M ${area}`} fill={color} stroke="none" />
-              {hl && (
-                <circle cx={xScale(numWeeks)} cy={yScale(roster.pf_diffs[roster.pf_diffs.length - 1])} r={3.5}
-                  fill={color} stroke="currentColor" strokeWidth={1.5} className="text-background" />
+            <g key={roster.roster_id} className="transition-all duration-200 pointer-events-none">
+              {mode === 'efficiency' && (
+                <path d={`M ${xScale(1)},${yScale(0)} L ${pts} L ${xScale(numWeeks)},${yScale(0)} Z`}
+                  fill={color} stroke="none" opacity={dm ? 0.05 : hl ? 0.35 : 0.15} />
               )}
+              <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth={hl ? 2.5 : 1.5}
+                strokeLinejoin="round" strokeLinecap="round" opacity={dm ? 0.08 : hl ? 1 : 0.35} />
             </g>
           )
-        }) : (
-          <>
-            {rosters.map((roster, ri) => {
-              const hl = isHighlighted(roster.roster_id)
-              const dm = isDimmed(roster.roster_id)
-              const color = COLORS[ri % COLORS.length]
-              const pts = roster.pf_diffs.map((v, i) => `${xScale(i + 1)},${yScale(v)}`).join(' ')
-              return (
-                <path key={roster.roster_id} d={`M ${pts}`} fill="none" stroke={color} strokeWidth={hl ? 2.5 : 1.5}
-                  strokeLinejoin="round" strokeLinecap="round" opacity={dm ? 0.08 : hl ? 1 : 0.35}
-                  className="transition-all duration-200 pointer-events-none" />
-              )
-            })}
-            {rosters.map((roster, ri) => {
-              const hl = isHighlighted(roster.roster_id)
-              const dm = isDimmed(roster.roster_id)
-              if (dm) return null
-              const lastV = roster.pf_diffs[roster.pf_diffs.length - 1]
-              return (
-                <circle key={`dot-${roster.roster_id}`} cx={xScale(numWeeks)} cy={yScale(lastV)} r={hl ? 4 : 2.5}
-                  fill={hl ? COLORS[ri % COLORS.length] : 'currentColor'} className="text-foreground/60 transition-all duration-200"
-                  opacity={dm ? 0.08 : hl ? 1 : 0.6} />
-              )
-            })}
-          </>
-        )}
+        })}
+        {rosters.map((roster, ri) => {
+          const hl = isHighlighted(roster.roster_id)
+          const dm = isDimmed(roster.roster_id)
+          if (dm) return null
+          const lastV = roster.pf_diffs[roster.pf_diffs.length - 1]
+          return (
+            <circle key={`dot-${roster.roster_id}`} cx={xScale(numWeeks)} cy={yScale(lastV)} r={hl ? 4 : 2.5}
+              fill={hl ? COLORS[ri % COLORS.length] : 'currentColor'} className="text-foreground/60 transition-all duration-200"
+              opacity={dm ? 0.08 : hl ? 1 : 0.6} />
+          )
+        })}
       </svg>
     </div>
   )
