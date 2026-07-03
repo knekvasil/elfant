@@ -177,6 +177,36 @@ async def api_league(league_id: str):
     }
 
 
+@app.get("/api/league/{league_id}/chain")
+async def api_league_chain(league_id: str):
+    with get_session() as session:
+        existing = session.get(League, league_id)
+        if not existing:
+            sync_league(league_id)
+
+    with get_session() as session:
+        chain = _get_league_chain(league_id, session)
+        if not chain:
+            raise HTTPException(404, "League not found")
+
+        seasons = [
+            {
+                "league_id": lg.league_id,
+                "name": lg.name,
+                "season": lg.season,
+                "status": lg.status,
+                "total_rosters": lg.total_rosters,
+            }
+            for lg in reversed(chain)
+        ]
+
+        return {
+            "league_id": league_id,
+            "name": chain[0].name,
+            "seasons": seasons,
+        }
+
+
 @app.post("/api/league/{league_id}/refresh")
 async def api_league_refresh(league_id: str):
     sync_league_all(league_id)

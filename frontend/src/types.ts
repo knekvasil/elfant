@@ -102,6 +102,20 @@ export interface PlayoffData {
   losers: BracketMatch[]
 }
 
+export interface SeasonRef {
+  league_id: string
+  name: string
+  season: string
+  status: string
+  total_rosters: number
+}
+
+export interface LeagueChain {
+  league_id: string
+  name: string
+  seasons: SeasonRef[]
+}
+
 export interface LeagueData {
   league: League
   rosters: Roster[]
