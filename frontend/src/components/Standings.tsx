@@ -88,7 +88,6 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-16">PF</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">Avg/W</div>}
-        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">Bust%</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
@@ -186,9 +185,6 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               <>
                 <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                   {(t.all_play_wins / t.weekly.length).toFixed(1)}
-                </div>
-                <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', t.bust_rate <= 0.15 ? 'text-emerald-400' : t.bust_rate <= 0.3 ? 'text-amber-400' : 'text-red-400')}>
-                  {(t.bust_rate * 100).toFixed(0)}%
                 </div>
                 <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                   {t.season_std.toFixed(1)}
