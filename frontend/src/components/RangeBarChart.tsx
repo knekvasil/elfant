@@ -60,11 +60,11 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
 
   const allMins = displayRows.map(r => r.avg - r.std)
   const allMaxs = displayRows.map(r => r.avg + r.std)
-  const dataMin = Math.min(...allMins, 0)
+  const dataMin = Math.min(...allMins)
   const dataMax = Math.max(...allMaxs)
-  const absMax = Math.max(Math.abs(dataMin), Math.abs(dataMax), 1)
-  const xMin = -absMax
-  const xMax = absMax
+  const pad = (dataMax - dataMin) * 0.05 || 1
+  const xMin = Math.min(0, dataMin - pad)
+  const xMax = dataMax + pad
   const xRange = xMax - xMin
 
   const barH = compact ? 20 : 22
