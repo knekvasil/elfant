@@ -79,16 +79,13 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         <div className="w-6 flex-shrink-0" />
         <div className="size-8 flex-shrink-0" />
         <div className="flex-1 min-w-0">Team</div>
-        {mode === 'all_play' ? (
-          <div className="text-right flex-shrink-0 w-14">AP-W</div>
-        ) : mode === 'efficiency' ? (
-          <div className="text-right flex-shrink-0 w-14">Opt W-L</div>
-        ) : (
-          <div className="text-right flex-shrink-0 w-14">Record</div>
-        )}
-        {mode !== 'all_play' && <div className="text-right flex-shrink-0 w-16">PF</div>}
-        {mode !== 'all_play' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
-        {(mode === 'all_play' || mode === 'efficiency') && <div className="text-right flex-shrink-0 w-14">σ</div>}
+        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
+        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Opt W-L</div>}
+        {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">Record</div>}
+        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">W-L</div>}
+        {(mode === 'standard' || mode === 'median') && <div className="text-right flex-shrink-0 w-16">PF</div>}
+        {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
+        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
 
@@ -154,19 +151,19 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               {displayRecord}
             </div>
 
-            {mode !== 'all_play' && (
+            {(mode === 'standard' || mode === 'median') && (
               <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
                 {r.fpts.toFixed(1)}
               </div>
             )}
 
-            {mode !== 'all_play' && (
+            {mode === 'standard' && (
               <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
                 {diff > 0 ? '+' : ''}{diff.toFixed(1)}
               </div>
             )}
 
-            {(mode === 'all_play' || mode === 'efficiency') && t && (
+            {mode === 'all_play' && t && (
               <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                 {t.season_std.toFixed(1)}
               </div>
