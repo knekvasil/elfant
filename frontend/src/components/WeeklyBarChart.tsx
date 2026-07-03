@@ -99,9 +99,6 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
                   <rect key={wi} x={x} y={h} width={barW} height={yScale(0) - h} fill={color} rx={2} opacity={0.6} />
                 )
               })}
-              <text x={PAD.left + 4} y={H + 14 + ri * 12} className="fill-muted-foreground text-[8px]">
-                <tspan fill={color} fontSize="10">●</tspan> {roster.name}
-              </text>
             </g>
           )
         })}

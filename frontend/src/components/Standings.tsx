@@ -7,6 +7,12 @@ import { Skeleton } from '../components/ui/skeleton'
 
 const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
 
+const TEAM_COLORS = [
+  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24',
+  '#fb923c', '#f87171', '#2dd4bf', '#818cf8', '#c084fc',
+  '#4ade80', '#fde68a',
+]
+
 export type StandingsMode = 'standard' | 'median' | 'all_play' | 'efficiency'
 
 interface Props {
@@ -72,6 +78,10 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         return b.fpts - a.fpts
       })
     : sorted
+
+  const rosterColorMap = new Map<number, string>()
+  const sortedById = [...rosters].sort((a, b) => a.roster_id - b.roster_id)
+  sortedById.forEach((r, i) => rosterColorMap.set(r.roster_id, TEAM_COLORS[i % TEAM_COLORS.length]))
 
   return (
     <div className="space-y-1">
@@ -146,6 +156,8 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
                 </div>
               )}
             </div>
+
+            <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: rosterColorMap.get(r.roster_id) }} />
 
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold truncate">{r.team_name || `Team ${r.roster_id}`}</div>

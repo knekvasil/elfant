@@ -60,7 +60,7 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds, com
 
     return (
       <div className="w-full h-full">
-        <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full h-full text-foreground">
+        <svg viewBox={`0 0 ${W} ${H + 26}`} className="w-full h-full text-foreground">
           {[minEff, (minEff + maxEff) / 2, maxEff].map((v) => (
             <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v}%</text>
           ))}
@@ -86,7 +86,7 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds, com
               />
             )
           })}
-          <text x={PAD.left + 4} y={H + 14} className="fill-muted-foreground text-[8px]">
+          <text x={PAD.left + 4} y={H + 20} className="fill-muted-foreground text-[8px]">
             <tspan fill="#22c55e" fontSize="10">■</tspan> ≥90%
             <tspan fill="#f59e0b" fontSize="10" dx={8}>■</tspan> ≥80%
             <tspan fill="#ef4444" fontSize="10" dx={8}>■</tspan> &lt;80%
