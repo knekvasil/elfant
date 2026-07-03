@@ -326,7 +326,14 @@ export default function League() {
           </div>
         </TabsContent>
         <TabsContent value="power">
-          <PowerRankings leagueId={league.league_id} rosters={rosters} />
+          <PowerRankings
+            leagueId={league.league_id}
+            rosters={rosters}
+            hoveredRosterId={hoveredRosterId}
+            onHover={handleHover}
+            onClick={handleClick}
+            highlightedRosterIds={activeHighlightIds}
+          />
         </TabsContent>
         <TabsContent value="playoffs">
           <PlayoffBracket leagueId={league.league_id} />
