@@ -38,7 +38,7 @@ export default function League() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || 'power'
+  const tab = searchParams.get('tab') || 'standings'
   const [standingsMode, setStandingsMode] = useState<StandingsMode>('standard')
   const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
@@ -168,12 +168,8 @@ export default function League() {
         </BreadcrumbList>
       </BreadcrumbRoot>
 
-      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'power' ? {} : { tab: v })}>
+      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'standings' ? {} : { tab: v })}>
         <TabsList>
-          <TabsTrigger value="power">
-            <Gauge className="size-3.5 mr-1.5" />
-            Power
-          </TabsTrigger>
           <TabsTrigger value="standings">
             <Table2 className="size-3.5 mr-1.5" />
             Standings
@@ -211,17 +207,6 @@ export default function League() {
             Activity
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="power">
-          <PowerRankings
-            leagueId={league.league_id}
-            rosters={rosters}
-            hoveredRosterId={hoveredRosterId}
-            onHover={handleHover}
-            onClick={handleClick}
-            selectedRosterIds={selectedRosterIds}
-            highlightedRosterIds={activeHighlightIds}
-          />
-        </TabsContent>
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-lg border border-border/40 bg-card/30 p-3 self-start">
@@ -339,6 +324,9 @@ export default function League() {
               </div>
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="power">
+          <PowerRankings leagueId={league.league_id} rosters={rosters} />
         </TabsContent>
         <TabsContent value="playoffs">
           <PlayoffBracket leagueId={league.league_id} />
