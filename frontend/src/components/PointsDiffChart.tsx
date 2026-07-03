@@ -41,21 +41,39 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
   const yMin = mode === 'efficiency' ? 0 : -Math.max(...allDiffs.map(Math.abs), 100) - 20
   const yMax = Math.max(...allDiffs, 100) + 20
 
-  const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
+  const rightPad = mode === 'efficiency' ? 36 : 12
+  const PAD = { top: 10, right: rightPad, bottom: 22, left: 38 }
   const W = compact ? 380 : 520
+  const Wadj = mode === 'efficiency' ? W + 24 : W
   const H = compact ? 150 : 240
-  const innerW = W - PAD.left - PAD.right
+  const innerW = Wadj - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
 
   const xScale = (week: number) => PAD.left + ((week - 1) / (numWeeks - 1)) * innerW
   const yScale = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH
 
+  let highlightedRoster: typeof rosters[0] | undefined
+  let weeklyVals: number[] = []
+  let weeklyMin = 0, weeklyMax = 100
+  if (mode === 'efficiency' && hasActive) {
+    highlightedRoster = rosters.find(r => isHighlighted(r.roster_id))
+    if (highlightedRoster) {
+      weeklyVals = highlightedRoster.pf_diffs.map((v, i) => i === 0 ? v : v - highlightedRoster!.pf_diffs[i - 1])
+      weeklyMin = 0
+      weeklyMax = Math.max(...weeklyVals, 100)
+    }
+  }
+  const weeklyScale = (v: number) => PAD.top + (1 - (v - weeklyMin) / (weeklyMax - weeklyMin)) * innerH
+
   return (
     <div className="w-full h-full">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
-        <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
+      <svg viewBox={`0 0 ${Wadj} ${H}`} className="w-full h-full text-foreground">
+        <line x1={PAD.left} y1={yScale(0)} x2={Wadj - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
         {(mode === 'efficiency' ? [0, Math.round(yMax / 2), yMax] : [yMin, 0, yMax]).map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{v}</text>
+        ))}
+        {mode === 'efficiency' && highlightedRoster && [weeklyMin, Math.round(weeklyMax / 2), weeklyMax].map((v) => (
+          <text key={`r-${v}`} x={Wadj - PAD.right + 6} y={weeklyScale(v) + 3} textAnchor="start" className="fill-muted-foreground text-[8px] font-mono">{v}</text>
         ))}
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
           <text key={w} x={xScale(w)} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
@@ -73,6 +91,10 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
               )}
               <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth={hl ? 2.5 : 1.5}
                 strokeLinejoin="round" strokeLinecap="round" opacity={dm ? 0.08 : hl ? 1 : 0.35} />
+              {mode === 'efficiency' && hl && (
+                <path d={`M ${weeklyVals.map((v, i) => `${xScale(i + 1)},${weeklyScale(v)}`).join(' ')}`} fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="4 2"
+                  strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
+              )}
             </g>
           )
         })}
