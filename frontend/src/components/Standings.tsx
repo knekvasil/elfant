@@ -83,6 +83,8 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Opt W-L</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">Record</div>}
         {mode === 'median' && <div className="text-right flex-shrink-0 w-14">W-L</div>}
+        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
+        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-16">PF</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
@@ -160,6 +162,21 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
             {mode === 'standard' && (
               <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
                 {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+              </div>
+            )}
+
+            {mode === 'median' && rankData && rankData.pf_diffs.length > 0 && (() => {
+              const medDiff = rankData.pf_diffs[rankData.pf_diffs.length - 1]
+              return (
+                <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', medDiff > 0 ? 'text-emerald-400' : medDiff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                  {medDiff > 0 ? '+' : ''}{medDiff.toFixed(1)}
+                </div>
+              )
+            })()}
+
+            {mode === 'median' && t && (
+              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                {t.season_std.toFixed(1)}
               </div>
             )}
 
