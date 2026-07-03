@@ -21,11 +21,13 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     fetchRankings(leagueId, mode)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
+      .then((d) => { if (!cancelled) setData(d) })
+      .catch(() => { if (!cancelled) setData(null) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [leagueId, mode])
 
   if (loading) return <Skeleton className="h-48 w-full" />
@@ -43,9 +45,9 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
     const weeklyAll = rosters.flatMap(r =>
       r.pf_diffs.map((v, i) => i === 0 ? v : v - r.pf_diffs[i - 1])
     )
-    const maxOpt = Math.max(...weeklyAll, 100) + 10
+    const rawMax = Math.max(...weeklyAll, 100)
     const yMin = 0
-    const yMax = maxOpt
+    const yMax = Math.min(rawMax + 10, 10000)
 
     const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
     const W = compact ? 380 : 520
