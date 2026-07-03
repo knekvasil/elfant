@@ -237,6 +237,27 @@ async def api_league_overview(league_id: str):
         group_id = chain[-1].league_id
         name = chain[-1].name
 
+        def _resolve_roster(league_id, roster_id):
+            if roster_id is None:
+                return None
+            roster = session.query(Roster).filter_by(league_id=league_id, roster_id=roster_id).first()
+            if not roster:
+                return None
+            owner = session.get(User, roster.owner_id) if roster.owner_id else None
+            lu = session.query(LeagueUser).filter_by(
+                league_id=league_id, user_id=roster.owner_id
+            ).first() if roster.owner_id else None
+            team_name = None
+            if lu and lu.user_metadata:
+                team_name = lu.user_metadata.get("team_name")
+            display = team_name or (f"Team {owner.display_name}" if owner else None)
+            return {
+                "display": display,
+                "owner_id": roster.owner_id,
+                "owner_name": owner.display_name if owner else None,
+                "avatar": f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None,
+            }
+
         seasons = []
         for lg in chain:
             s = {
@@ -250,6 +271,11 @@ async def api_league_overview(league_id: str):
                 "champion_avatar": None,
                 "runner_up": None,
                 "runner_up_owner": None,
+                "trash_king": None,
+                "trash_king_owner": None,
+                "trash_king_avatar": None,
+                "third_place": None,
+                "third_place_owner": None,
             }
 
             existing_bracket = session.query(PlayoffBracket).filter_by(
@@ -261,35 +287,53 @@ async def api_league_overview(league_id: str):
             champ_match = session.query(PlayoffBracket).filter_by(
                 league_id=lg.league_id, bracket_type="winners", position=1
             ).first()
-
             if champ_match:
                 for role, roster_id in [("champion", champ_match.winner), ("runner_up", champ_match.loser)]:
-                    if roster_id is None:
+                    info = _resolve_roster(lg.league_id, roster_id)
+                    if not info:
                         continue
-                    roster = session.query(Roster).filter_by(
-                        league_id=lg.league_id, roster_id=roster_id
-                    ).first()
-                    if not roster:
-                        continue
-                    owner = session.get(User, roster.owner_id) if roster.owner_id else None
-                    lu = session.query(LeagueUser).filter_by(
-                        league_id=lg.league_id, user_id=roster.owner_id
-                    ).first() if roster.owner_id else None
-                    team_name = None
-                    if lu and lu.user_metadata:
-                        team_name = lu.user_metadata.get("team_name")
-                    display = team_name or (f"Team {owner.display_name}" if owner else None)
                     if role == "champion":
-                        s["champion"] = display
-                        s["champion_owner"] = owner.display_name if owner else None
-                        s["champion_avatar"] = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                        s["champion"] = info["display"]
+                        s["champion_owner"] = info["owner_name"]
+                        s["champion_avatar"] = info["avatar"]
                     else:
-                        s["runner_up"] = display
-                        s["runner_up_owner"] = owner.display_name if owner else None
+                        s["runner_up"] = info["display"]
+                        s["runner_up_owner"] = info["owner_name"]
+
+            third_match = session.query(PlayoffBracket).filter_by(
+                league_id=lg.league_id, bracket_type="winners", position=3
+            ).first()
+            if third_match:
+                info = _resolve_roster(lg.league_id, third_match.winner)
+                if info:
+                    s["third_place"] = info["display"]
+                    s["third_place_owner"] = info["owner_name"]
+
+            sacko_match = session.query(PlayoffBracket).filter_by(
+                league_id=lg.league_id, bracket_type="losers"
+            ).order_by(PlayoffBracket.position.desc()).first()
+            if sacko_match:
+                info = _resolve_roster(lg.league_id, sacko_match.loser)
+                if info:
+                    s["trash_king"] = info["display"]
+                    s["trash_king_owner"] = info["owner_name"]
+                    s["trash_king_avatar"] = info["avatar"]
 
             seasons.append(s)
 
         total_teams = max((sg["total_rosters"] for sg in seasons), default=0)
+
+        medals_map = {}
+        for sg in seasons:
+            for medal, field in [("gold", "champion_owner"), ("silver", "runner_up_owner"), ("bronze", "third_place_owner")]:
+                owner_name = sg.get(field)
+                if not owner_name:
+                    continue
+                if owner_name not in medals_map:
+                    medals_map[owner_name] = {"owner_name": owner_name, "gold": 0, "silver": 0, "bronze": 0}
+                medals_map[owner_name][medal] += 1
+
+        all_time_medals = sorted(medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))
 
         season_years = [sg["season"] for sg in seasons]
 
@@ -362,6 +406,7 @@ async def api_league_overview(league_id: str):
                 "newcomers": newcomers,
                 "previously_left": previously_left,
             },
+            "all_time_medals": all_time_medals,
         }
 
 

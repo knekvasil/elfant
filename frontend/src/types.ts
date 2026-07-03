@@ -128,6 +128,18 @@ export interface SeasonOverview {
   champion_avatar: string | null
   runner_up: string | null
   runner_up_owner: string | null
+  trash_king: string | null
+  trash_king_owner: string | null
+  trash_king_avatar: string | null
+  third_place: string | null
+  third_place_owner: string | null
+}
+
+export interface MedalEntry {
+  owner_name: string
+  gold: number
+  silver: number
+  bronze: number
 }
 
 export interface OwnerSeasonParticipation {
@@ -157,6 +169,7 @@ export interface LeagueOverviewData {
   total_seasons: number
   total_teams: number
   participants: ParticipantsData
+  all_time_medals: MedalEntry[]
 }
 
 export interface LeagueData {
