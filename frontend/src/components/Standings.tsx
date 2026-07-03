@@ -141,7 +141,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
           </Tooltip>
         )}
         {mode === 'efficiency' && (
-          <Tooltip content="Optimal wins minus actual wins — negative means you left points on the bench">
+          <Tooltip content="Wins left on the bench — how many more games you'd have won with perfect lineup decisions">
             <div className="text-right flex-shrink-0 w-14 cursor-help">+/-</div>
           </Tooltip>
         )}
