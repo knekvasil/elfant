@@ -39,16 +39,20 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   const rows: Row[] = data.rosters.map((r, i) => {
     const roster = rosters.find(ro => ro.roster_id === r.roster_id)
     let avg: number, std: number
-    if (isEff) {
-      const effVals = r.weekly.map(w => w.efficiency)
-      const n = effVals.length
-      const m = effVals.reduce((s, v) => s + v, 0) / n || 0
-      const v = effVals.reduce((s, v) => s + (v - m) ** 2, 0) / n || 0
-      avg = m
-      std = Math.sqrt(v)
-    } else {
+    if (mode === 'standard') {
       avg = r.season_avg
       std = r.season_std
+    } else {
+      const vals = mode === 'median'
+        ? r.weekly.map(w => w.pf - w.league_avg)
+        : mode === 'all_play'
+          ? r.weekly.map(w => w.all_play_wins)
+          : r.weekly.map(w => w.efficiency)
+      const n = vals.length
+      const m = vals.reduce((s, v) => s + v, 0) / n || 0
+      const v = vals.reduce((s, v) => s + (v - m) ** 2, 0) / n || 0
+      avg = m
+      std = Math.sqrt(v)
     }
     return { roster_id: r.roster_id, name: roster?.team_name || r.name, avg, std, color: TEAM_COLORS[i % TEAM_COLORS.length] }
   })

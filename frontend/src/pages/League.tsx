@@ -244,14 +244,16 @@ export default function League() {
                   )}
                 </div>
               </div>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
+                  <BarChart3 className="size-3.5" />
+                  Consistency (avg ± σ)
+                </div>
+                <div className="flex-1 min-h-0">
+                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} compact />
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="rounded-lg border border-border/40 bg-card/30 p-3 mt-4">
-            <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
-              <BarChart3 className="size-3.5" />
-              Consistency (avg ± σ)
-            </div>
-            <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} compact />
           </div>
         </TabsContent>
         {drafts.length > 0 && (
