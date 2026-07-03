@@ -506,6 +506,117 @@ async def api_rankings(league_id: str, mode: str = "standard"):
         }
 
 
+@app.get("/api/league/{league_id}/team-stats")
+async def api_team_stats(league_id: str):
+    with get_session() as session:
+        league = session.get(League, league_id)
+        if not league:
+            raise HTTPException(404, "League not found")
+
+        rosters_raw = session.query(Roster).filter_by(league_id=league_id).all()
+        roster_ids = sorted([r.roster_id for r in rosters_raw])
+
+        owners = {}
+        for r in rosters_raw:
+            owner = session.get(User, r.owner_id) if r.owner_id else None
+            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+            team_name = None
+            if lu and lu.user_metadata:
+                team_name = lu.user_metadata.get("team_name")
+            owners[r.roster_id] = {
+                "name": team_name if team_name else (f"Team {owner.display_name}" if owner else f"Roster {r.roster_id}"),
+                "owner": owner.display_name if owner else None,
+                "avatar": f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None,
+            }
+
+        playoff_start = (league.settings or {}).get("playoff_week_start", 99) if league else 99
+        max_week = 0
+        latest = session.query(Matchup.week).filter_by(league_id=league_id).order_by(Matchup.week.desc()).first()
+        if latest:
+            max_week = min(latest[0], playoff_start - 1)
+
+        if max_week < 1:
+            return {"weeks": [], "rosters": []}
+
+        all_stats = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "weekly": [], "season_avg": 0, "season_std": 0, "bust_rate": 0, "all_play_wins": 0, "all_play_total": 0, "avg_efficiency": 0} for rid in roster_ids}
+        weekly_pf = {rid: [] for rid in roster_ids}
+        weekly_efficiency = {rid: [] for rid in roster_ids}
+
+        for w in range(1, max_week + 1):
+            matchups = session.query(Matchup).filter_by(league_id=league_id, week=w).all()
+            md = {m.roster_id: m for m in matchups}
+
+            seen = set()
+            pa = {rid: 0.0 for rid in roster_ids}
+            for m in matchups:
+                if m.matchup_id in seen or m.matchup_id is None:
+                    continue
+                seen.add(m.matchup_id)
+                opp = [x for x in matchups if x.matchup_id == m.matchup_id and x.roster_id != m.roster_id]
+                if opp:
+                    pa[m.roster_id] = opp[0].points or 0
+                    pa[opp[0].roster_id] = m.points or 0
+
+            week_pf_map = {}
+            week_optimal = {}
+            week_efficiency = {}
+            for rid in roster_ids:
+                m = md.get(rid)
+                pts = m.points or 0 if m else 0
+                weekly_pf[rid].append(pts)
+                week_pf_map[rid] = pts
+
+                if m and m.players_points and m.starters:
+                    pp = m.players_points or {}
+                    n_starters = len(m.starters)
+                    sorted_pts = sorted([v for v in pp.values() if v is not None], reverse=True)
+                    optimal = sum(sorted_pts[:n_starters]) if sorted_pts else pts
+                else:
+                    optimal = pts
+                efficiency = (pts / optimal * 100) if optimal > 0 else 100
+                week_optimal[rid] = optimal
+                week_efficiency[rid] = efficiency
+                weekly_efficiency[rid].append(efficiency)
+
+            all_play_total = len(roster_ids) - 1
+            week_avg = round(sum(week_pf_map.values()) / len(week_pf_map), 1) if week_pf_map else 0
+            for rid in roster_ids:
+                ap_wins = sum(1 for other_id in roster_ids if other_id != rid and week_pf_map[rid] > week_pf_map[other_id])
+                all_stats[rid]["weekly"].append({
+                    "pf": round(week_pf_map[rid], 1),
+                    "pa": round(pa.get(rid, 0), 1),
+                    "league_avg": week_avg,
+                    "all_play_wins": ap_wins,
+                    "all_play_total": all_play_total,
+                    "optimal": round(week_optimal[rid], 1),
+                    "efficiency": round(week_efficiency[rid], 1),
+                })
+
+        for rid in roster_ids:
+            pf_vals = weekly_pf[rid]
+            n = len(pf_vals)
+            avg = sum(pf_vals) / n if n else 0
+            variance = sum((x - avg) ** 2 for x in pf_vals) / n if n else 0
+            std = variance ** 0.5
+            bust_threshold = avg * 0.5
+            busts = sum(1 for x in pf_vals if x < bust_threshold)
+            bust_rate = busts / n if n else 0
+            all_play_wins = sum(s["all_play_wins"] for s in all_stats[rid]["weekly"])
+            avg_eff = sum(weekly_efficiency[rid]) / len(weekly_efficiency[rid]) if weekly_efficiency[rid] else 100
+
+            all_stats[rid]["season_avg"] = round(avg, 1)
+            all_stats[rid]["season_std"] = round(std, 1)
+            all_stats[rid]["bust_rate"] = round(bust_rate, 2)
+            all_stats[rid]["all_play_wins"] = all_play_wins
+            all_stats[rid]["all_play_total"] = all_play_total * n
+            all_stats[rid]["avg_efficiency"] = round(avg_eff, 1)
+
+        return {
+            "weeks": list(range(1, max_week + 1)),
+            "rosters": [all_stats[rid] for rid in roster_ids],
+        }
+
+
 @app.get("/api/league/{league_id}/transactions")
 async def api_transactions(league_id: str, leg: int | None = None):
     with get_session() as session:

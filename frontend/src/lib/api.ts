@@ -1,4 +1,4 @@
-import type { LeagueData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse } from '../types'
+import type { LeagueData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse, TeamStatsData } from '../types'
 
 const BASE = '/api'
 
@@ -66,6 +66,12 @@ export async function fetchPlayerStats(
   const url = `${BASE}/league/${leagueId}/player-stats${qs ? `?${qs}` : ''}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Player stats not found (${res.status})`)
+  return res.json()
+}
+
+export async function fetchTeamStats(leagueId: string): Promise<TeamStatsData> {
+  const res = await fetch(`${BASE}/league/${leagueId}/team-stats`)
+  if (!res.ok) throw new Error(`Team stats not found (${res.status})`)
   return res.json()
 }
 

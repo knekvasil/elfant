@@ -23,12 +23,14 @@ import RankingsChart from '../components/RankingsChart'
 import PointsDiffChart from '../components/PointsDiffChart'
 import TransactionsTimeline from '../components/TransactionsTimeline'
 import PlayerSearch from '../components/PlayerSearch'
-import { fetchLeague, refreshLeague } from '../lib/api'
-import type { LeagueData } from '../types'
+import WeeklyBarChart from '../components/WeeklyBarChart'
+import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
+import type { LeagueData, TeamStatsData } from '../types'
 
 export default function League() {
   const { leagueId } = useParams<{ leagueId: string }>()
   const [data, setData] = useState<LeagueData | null>(null)
+  const [teamStats, setTeamStats] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -54,8 +56,9 @@ export default function League() {
     setLoading(true)
     setError(null)
     try {
-      const d = await fetchLeague(id)
+      const [d, ts] = await Promise.all([fetchLeague(id), fetchTeamStats(id).catch(() => null)])
       setData(d)
+      setTeamStats(ts)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load league')
     } finally {
@@ -215,7 +218,7 @@ export default function League() {
                   </button>
                 </div>
               </div>
-              <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} />
+              <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} teamStats={teamStats} />
             </div>
             <div className="space-y-4">
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
@@ -228,9 +231,13 @@ export default function League() {
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
                 <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <BarChart3 className="size-3.5" />
-                  {standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff'}
+                  {activeHighlightIds.size > 0 ? 'Weekly Breakdown' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
                 </div>
-                <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+                {activeHighlightIds.size > 0 ? (
+                  <WeeklyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                ) : (
+                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+                )}
               </div>
             </div>
           </div>

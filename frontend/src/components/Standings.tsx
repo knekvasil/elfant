@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Medal } from 'lucide-react'
-import type { Roster, RankingsData } from '../types'
+import type { Roster, RankingsData, TeamStatsData } from '../types'
 import { cn } from '../lib/utils'
-import { fetchRankings } from '../lib/api'
+import { fetchRankings, fetchTeamStats } from '../lib/api'
 import { Skeleton } from '../components/ui/skeleton'
 
 const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
@@ -15,11 +15,13 @@ interface Props {
   mode?: 'standard' | 'median'
   leagueId?: string
   selectedRosterIds?: Set<number>
+  teamStats?: TeamStatsData | null
 }
 
-export default function Standings({ rosters, hoveredRosterId, onHover, onClick, mode = 'standard', leagueId, selectedRosterIds }: Props) {
+export default function Standings({ rosters, hoveredRosterId, onHover, onClick, mode = 'standard', leagueId, selectedRosterIds, teamStats }: Props) {
   const [rankingsData, setRankingsData] = useState<RankingsData | null>(null)
   const [loadingRankings, setLoadingRankings] = useState(false)
+  const [internalTeamStats, setInternalTeamStats] = useState<TeamStatsData | null>(null)
 
   useEffect(() => {
     if (mode !== 'median' || !leagueId) {
@@ -33,6 +35,15 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
       .finally(() => setLoadingRankings(false))
   }, [mode, leagueId])
 
+  useEffect(() => {
+    if (teamStats || !leagueId) return
+    fetchTeamStats(leagueId)
+      .then(setInternalTeamStats)
+      .catch(() => {})
+  }, [leagueId, teamStats])
+
+  const ts = teamStats || internalTeamStats
+
   const sorted = [...rosters].sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins
     return b.fpts - a.fpts
@@ -42,7 +53,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
     return (
       <div className="space-y-1">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-[48px] w-full rounded-md" />
+          <Skeleton key={i} className="h-[56px] w-full rounded-md" />
         ))}
       </div>
     )
@@ -56,7 +67,10 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         <div className="flex-1 min-w-0">Team</div>
         <div className="text-right flex-shrink-0 w-14">{mode === 'median' ? 'W-L' : 'Record'}</div>
         <div className="text-right flex-shrink-0 w-16">PF</div>
-        <div className="text-right flex-shrink-0 w-14">Diff</div>
+        {ts && <div className="text-right flex-shrink-0 w-14">+/-</div>}
+        {ts && <div className="text-right flex-shrink-0 w-14">σ</div>}
+        {ts && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
+        {ts && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
 
       {(mode === 'median' && rankingsData ? [...rosters].sort((a, b) => {
@@ -68,8 +82,8 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         return b.fpts - a.fpts
       }) : sorted).map((r, i) => {
         const diff = r.fpts - r.fpts_against
-        const isSelected = selectedRosterIds?.has(r.roster_id) ?? false
         const isHovered = hoveredRosterId === r.roster_id
+        const isSelected = selectedRosterIds?.has(r.roster_id) ?? false
         const hasSelection = selectedRosterIds != null && selectedRosterIds.size > 0
         const isDimmed = (hoveredRosterId != null && !isHovered) || (hasSelection && !isSelected)
 
@@ -79,6 +93,9 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         const displayRecord = mode === 'median'
           ? `${medianWins}-${totalWeeks - medianWins}`
           : `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ''}`
+
+        const t = ts?.rosters.find(s => s.roster_id === r.roster_id)
+        const allPlayRecord = t ? `${t.all_play_wins}-${t.all_play_total - t.all_play_wins}` : '—'
 
         return (
           <div
@@ -122,12 +139,27 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               {r.fpts.toFixed(1)}
             </div>
 
-            <div className={cn(
-              'text-xs font-mono tabular-nums text-right flex-shrink-0 w-14',
-              diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground',
-            )}>
-              {diff > 0 ? '+' : ''}{diff.toFixed(1)}
-            </div>
+            {ts && (
+              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+              </div>
+            )}
+
+            {t && (
+              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                {t.season_std.toFixed(1)}
+              </div>
+            )}
+            {t && (
+              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                {allPlayRecord}
+              </div>
+            )}
+            {t && (
+              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', t.avg_efficiency >= 90 ? 'text-emerald-400' : t.avg_efficiency >= 80 ? 'text-amber-400' : 'text-red-400')}>
+                {t.avg_efficiency.toFixed(0)}%
+              </div>
+            )}
           </div>
         )
       })}

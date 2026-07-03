@@ -229,6 +229,35 @@ export interface RankingsData {
   rosters: RankingRoster[]
 }
 
+export interface TeamWeekStats {
+  pf: number
+  pa: number
+  league_avg: number
+  all_play_wins: number
+  all_play_total: number
+  optimal: number
+  efficiency: number
+}
+
+export interface TeamStatsRoster {
+  roster_id: number
+  name: string
+  owner: string | null
+  avatar: string | null
+  weekly: TeamWeekStats[]
+  season_avg: number
+  season_std: number
+  bust_rate: number
+  all_play_wins: number
+  all_play_total: number
+  avg_efficiency: number
+}
+
+export interface TeamStatsData {
+  weeks: number[]
+  rosters: TeamStatsRoster[]
+}
+
 export interface PlayerMove {
   player_id: string
   name: string
