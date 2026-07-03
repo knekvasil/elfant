@@ -122,6 +122,7 @@ export interface RankingRoster {
   total_weeks: number
   all_play_wins: number
   avg_efficiency: number
+  optimal_wins: number
 }
 
 export interface PlayerWeek {
@@ -239,6 +240,7 @@ export interface TeamWeekStats {
   all_play_total: number
   optimal: number
   efficiency: number
+  optimal_wins: number
 }
 
 export interface TeamStatsRoster {
@@ -253,6 +255,7 @@ export interface TeamStatsRoster {
   all_play_wins: number
   all_play_total: number
   avg_efficiency: number
+  optimal_wins: number
 }
 
 export interface TeamStatsData {

@@ -438,7 +438,8 @@ async def api_rankings(league_id: str, mode: str = "standard"):
         weekly_pts = {rid: [] for rid in roster_ids}
         cum_median_fpts = 0.0
         cum_efficiency = {rid: 0.0 for rid in roster_ids}
-        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0, "all_play_wins": 0, "avg_efficiency": 0} for rid in roster_ids}
+        cum_optimal_wins = {rid: 0 for rid in roster_ids}
+        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0, "all_play_wins": 0, "avg_efficiency": 0, "optimal_wins": 0} for rid in roster_ids}
 
         for w in range(1, max_week + 1):
             matchups = session.query(Matchup).filter_by(league_id=league_id, week=w).all()
@@ -484,6 +485,10 @@ async def api_rankings(league_id: str, mode: str = "standard"):
                     optimal = pts
                 eff = (pts / optimal * 100) if optimal > 0 else 100
                 cum_efficiency[rid] += eff
+                if optimal > pa.get(rid, 0):
+                    cum_optimal_wins[rid] += 1
+                elif optimal == pa.get(rid, 0):
+                    cum_optimal_wins[rid] += 0.5
 
             week_pts.sort()
             n = len(week_pts)
@@ -510,7 +515,7 @@ async def api_rankings(league_id: str, mode: str = "standard"):
             elif mode == "all_play":
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_all_play_wins[rid], -cum_fpts[rid]))
             elif mode == "efficiency":
-                ranked = sorted(roster_ids, key=lambda rid: (-cum_efficiency[rid], -cum_fpts[rid]))
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_optimal_wins[rid], -cum_fpts[rid]))
             else:
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_wins[rid], -cum_fpts[rid]))
 
@@ -532,6 +537,7 @@ async def api_rankings(league_id: str, mode: str = "standard"):
             rosters_data[rid]["total_weeks"] = max_week
             rosters_data[rid]["all_play_wins"] = cum_all_play_wins[rid]
             rosters_data[rid]["avg_efficiency"] = round(cum_efficiency[rid] / max_week, 1) if max_week else 0
+            rosters_data[rid]["optimal_wins"] = cum_optimal_wins[rid]
 
         return {
             "weeks": list(range(1, max_week + 1)),
@@ -615,14 +621,17 @@ async def api_team_stats(league_id: str):
             week_avg = round(sum(week_pf_map.values()) / len(week_pf_map), 1) if week_pf_map else 0
             for rid in roster_ids:
                 ap_wins = sum(1 for other_id in roster_ids if other_id != rid and week_pf_map[rid] > week_pf_map[other_id])
+                opt = week_optimal[rid]
+                opt_win = 1 if opt > pa.get(rid, 0) else (0.5 if opt == pa.get(rid, 0) else 0)
                 all_stats[rid]["weekly"].append({
                     "pf": round(week_pf_map[rid], 1),
                     "pa": round(pa.get(rid, 0), 1),
                     "league_avg": week_avg,
                     "all_play_wins": ap_wins,
                     "all_play_total": all_play_total,
-                    "optimal": round(week_optimal[rid], 1),
+                    "optimal": round(opt, 1),
                     "efficiency": round(week_efficiency[rid], 1),
+                    "optimal_wins": opt_win,
                 })
 
         for rid in roster_ids:
@@ -643,6 +652,7 @@ async def api_team_stats(league_id: str):
             all_stats[rid]["all_play_wins"] = all_play_wins
             all_stats[rid]["all_play_total"] = all_play_total * n
             all_stats[rid]["avg_efficiency"] = round(avg_eff, 1)
+            all_stats[rid]["optimal_wins"] = sum(s["optimal_wins"] for s in all_stats[rid]["weekly"])
 
         return {
             "weeks": list(range(1, max_week + 1)),

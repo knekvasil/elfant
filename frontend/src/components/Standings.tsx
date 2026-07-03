@@ -61,29 +61,38 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
     )
   }
 
+  const ranked = mode !== 'standard' && rankingsData
+    ? [...rosters].sort((a, b) => {
+        const aR = rankingsData.rosters.find(r => r.roster_id === a.roster_id)
+        const bR = rankingsData.rosters.find(r => r.roster_id === b.roster_id)
+        if (!aR || !bR) return b.fpts - a.fpts
+        const aKey = mode === 'median' ? aR.median_wins : mode === 'all_play' ? aR.all_play_wins : aR.optimal_wins
+        const bKey = mode === 'median' ? bR.median_wins : mode === 'all_play' ? bR.all_play_wins : bR.optimal_wins
+        if (bKey !== aKey) return bKey - aKey
+        return b.fpts - a.fpts
+      })
+    : sorted
+
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2.5 px-3 pb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         <div className="w-6 flex-shrink-0" />
         <div className="size-8 flex-shrink-0" />
         <div className="flex-1 min-w-0">Team</div>
-        <div className="text-right flex-shrink-0 w-14">{mode === 'median' ? 'W-L' : 'Record'}</div>
-        <div className="text-right flex-shrink-0 w-16">PF</div>
-        <div className="text-right flex-shrink-0 w-14">+/-</div>
-        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
+        {mode === 'all_play' ? (
+          <div className="text-right flex-shrink-0 w-14">AP-W</div>
+        ) : mode === 'efficiency' ? (
+          <div className="text-right flex-shrink-0 w-14">Opt W-L</div>
+        ) : (
+          <div className="text-right flex-shrink-0 w-14">Record</div>
+        )}
+        {mode !== 'all_play' && <div className="text-right flex-shrink-0 w-16">PF</div>}
+        {mode !== 'all_play' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
         {(mode === 'all_play' || mode === 'efficiency') && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
 
-      {(mode !== 'standard' && rankingsData ? [...rosters].sort((a, b) => {
-        const aR = rankingsData.rosters.find(r => r.roster_id === a.roster_id)
-        const bR = rankingsData.rosters.find(r => r.roster_id === b.roster_id)
-        if (!aR || !bR) return b.fpts - a.fpts
-        const aKey = mode === 'median' ? aR.median_wins : mode === 'all_play' ? aR.all_play_wins : aR.avg_efficiency
-        const bKey = mode === 'median' ? bR.median_wins : mode === 'all_play' ? bR.all_play_wins : bR.avg_efficiency
-        if (bKey !== aKey) return bKey - aKey
-        return b.fpts - a.fpts
-      }) : sorted).map((r, i) => {
+      {ranked.map((r, i) => {
         const diff = r.fpts - r.fpts_against
         const isHovered = hoveredRosterId === r.roster_id
         const isSelected = selectedRosterIds?.has(r.roster_id) ?? false
@@ -93,19 +102,18 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         const rankData = rankingsData?.rosters.find(rd => rd.roster_id === r.roster_id)
         const medianWins = rankData?.median_wins ?? 0
         const apWins = rankData?.all_play_wins ?? 0
+        const optWins = rankData?.optimal_wins ?? 0
         const totalWeeks = rankData?.total_weeks ?? 0
 
         const displayRecord = mode === 'median'
           ? `${medianWins}-${totalWeeks - medianWins}`
-          : `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ''}`
+          : mode === 'all_play'
+            ? `${apWins}-${totalWeeks * (rosters.length - 1) - apWins}`
+            : mode === 'efficiency'
+              ? `${optWins}-${totalWeeks - optWins}`
+              : `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ''}`
 
         const t = ts?.rosters.find(s => s.roster_id === r.roster_id)
-        const apLabel = t
-          ? `${t.all_play_wins}-${t.all_play_total - t.all_play_wins}`
-          : rankData
-            ? `${apWins}-${totalWeeks * (rosters.length - 1) - apWins}`
-            : '—'
-
         const eff = rankData?.avg_efficiency ?? 0
 
         return (
@@ -146,17 +154,15 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               {displayRecord}
             </div>
 
-            <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
-              {r.fpts.toFixed(1)}
-            </div>
+            {mode !== 'all_play' && (
+              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
+                {r.fpts.toFixed(1)}
+              </div>
+            )}
 
-            <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
-              {diff > 0 ? '+' : ''}{diff.toFixed(1)}
-            </div>
-
-            {mode === 'all_play' && (
-              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
-                {apLabel}
+            {mode !== 'all_play' && (
+              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                {diff > 0 ? '+' : ''}{diff.toFixed(1)}
               </div>
             )}
 

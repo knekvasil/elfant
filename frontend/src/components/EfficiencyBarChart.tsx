@@ -34,8 +34,14 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds }: P
   const activeRosters = rosters.filter(r => highlightedRosterIds?.has(r.roster_id))
   const displayRosters = activeRosters.length > 0 ? activeRosters : rosters
 
+  const hasEfficiencyData = rosters.some(r => r.weekly.some(w => w.efficiency !== 100))
+
+  if (!hasEfficiencyData) {
+    return <div className="text-sm text-muted-foreground text-center py-6">Lineup data not available for this league.</div>
+  }
+
   const allEff = rosters.flatMap(r => r.weekly.map(w => w.efficiency))
-  const minEff = Math.max(0, Math.min(...allEff) - 10)
+  const minEff = Math.max(60, Math.min(...allEff) - 5)
   const maxEff = 100
   const effRange = maxEff - minEff
 
@@ -52,7 +58,7 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds }: P
   return (
     <div className="w-full overflow-x-auto flex justify-center">
       <svg width={W} height={H + 18} className="text-foreground flex-shrink-0">
-        {[0, 50, 100].map((v) => (
+        {[minEff, (minEff + maxEff) / 2, maxEff].map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v}%</text>
         ))}
         <line x1={PAD.left} y1={yScale(100)} x2={W - PAD.right} y2={yScale(100)} stroke="#22c55e" strokeWidth={0.5} strokeDasharray="3 2" opacity={0.4} />
@@ -60,28 +66,27 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds }: P
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
           <text key={w} x={PAD.left + (w - 1) * barGroupW + barGroupW / 2} y={H + 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
         ))}
-        {displayRosters.map((roster, ri) => {
-          return (
-            <g key={roster.roster_id}>
-              {roster.weekly.map((week, wi) => {
-                const x = PAD.left + wi * barGroupW + ri * (barGroupW / displayRosters.length)
-                const effH = yScale(week.efficiency)
-                const zeroH = yScale(100)
-                return (
-                  <rect
-                    key={wi}
-                    x={x} y={effH}
-                    width={barW}
-                    height={zeroH - effH}
-                    fill={week.efficiency >= 90 ? '#22c55e' : week.efficiency >= 80 ? '#f59e0b' : '#ef4444'}
-                    opacity={0.6}
-                    rx={2}
-                  />
-                )
-              })}
-            </g>
-          )
-        })}
+        {displayRosters.map((roster, ri) => (
+          <g key={roster.roster_id}>
+            {roster.weekly.map((week, wi) => {
+              const x = PAD.left + wi * barGroupW + ri * (barGroupW / displayRosters.length)
+              const effH = yScale(week.efficiency)
+              const zeroH = yScale(maxEff)
+              return (
+                <rect
+                  key={wi}
+                  x={x}
+                  y={effH}
+                  width={barW}
+                  height={Math.max(zeroH - effH, 1)}
+                  fill={week.efficiency >= 90 ? '#22c55e' : week.efficiency >= 80 ? '#f59e0b' : '#ef4444'}
+                  opacity={0.6}
+                  rx={2}
+                />
+              )
+            })}
+          </g>
+        ))}
         {displayRosters.length === 1 && (
           <text x={PAD.left + 4} y={H + 14} className="fill-muted-foreground text-[8px]">
             <tspan fill="#22c55e" fontSize="10">■</tspan> ≥90%
