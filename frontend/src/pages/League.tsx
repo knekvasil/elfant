@@ -199,7 +199,7 @@ export default function League() {
         </TabsList>
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col max-h-[calc(100vh-12rem)]">
+            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col h-[calc(100vh-12rem)]">
               <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Table2 className="size-3.5" />

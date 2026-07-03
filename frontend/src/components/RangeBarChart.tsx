@@ -67,12 +67,12 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   const xMax = absMax
   const xRange = xMax - xMin
 
-  const barH = compact ? 14 : 18
-  const gap = compact ? 5 : 8
-  const totalH = displayRows.length * (barH + gap) + 10
-  const nameW = compact ? 90 : 120
-  const chartW = compact ? 220 : 280
-  const labelW = compact ? 28 : 34
+  const barH = compact ? 20 : 22
+  const gap = compact ? 8 : 10
+  const totalH = displayRows.length * (barH + gap) + 6
+  const nameW = compact ? 110 : 140
+  const chartW = compact ? 340 : 400
+  const labelW = compact ? 30 : 36
   const W = nameW + chartW + labelW
 
   const xScale = (v: number) => nameW + ((v - xMin) / xRange) * chartW
