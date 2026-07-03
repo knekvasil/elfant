@@ -16,7 +16,7 @@ import PlayerHeatGrid from '../components/PlayerHeatGrid'
 import PlayerLineChart from '../components/PlayerLineChart'
 import UsagePie from '../components/UsagePie'
 import VolatilityChart from '../components/VolatilityChart'
-import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule, fetchLeague } from '../lib/api'
+import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule } from '../lib/api'
 import type { PlayerScheduleResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import type { PlayerCareerResponse, PlayerStats } from '../types'
@@ -76,7 +76,6 @@ export default function PlayerDetail() {
   const [career, setCareer] = useState<PlayerCareerResponse | null>(null)
   const [seasonStats, setSeasonStats] = useState<PlayerStats | null>(null)
   const [schedule, setSchedule] = useState<PlayerScheduleResponse | null>(null)
-  const [leagueName, setLeagueName] = useState('')
   const [loading, setLoading] = useState(true)
   const [focusedSeason, setFocusedSeason] = useState<number | null>(null)
   const [showAllSeasons, setShowAllSeasons] = useState(false)
@@ -87,7 +86,6 @@ export default function PlayerDetail() {
     Promise.all([
       fetchPlayerCareer(seasonLeagueId, playerId),
       fetchPlayerStats(seasonLeagueId, { player_id: playerId, sort: 'total' }),
-      fetchLeague(seasonLeagueId).then((d) => setLeagueName(d.league.name)).catch(() => {}),
       fetchPlayerSchedule(playerId).then(setSchedule).catch(() => {}),
     ])
       .then(([c, s]) => {
@@ -138,8 +136,8 @@ export default function PlayerDetail() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <Link to={`/league/${groupId}/${seasonLeagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
-              {leagueName || 'League'}
+            <Link to={`/league/${groupId}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
+              League Home
             </Link>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

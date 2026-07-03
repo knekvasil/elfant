@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Users, Circle, Trophy, Trash2, Medal } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { Card, CardContent } from '../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import {
@@ -26,7 +26,20 @@ const statusStyle = (status: string) => {
 }
 
 const statusLabel = (status: string) =>
-  status === 'in_season' ? 'Live' : status === 'complete' ? 'Done' : status
+  status === 'in_season' ? 'Live' : status === 'complete' ? 'Complete' : status
+
+const placementClass = (i: number) =>
+  i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'
+
+function AvatarImg({ src, name }: { src: string | null; name: string }) {
+  return src ? (
+    <img src={src} alt="" className="size-5 rounded-full shrink-0" />
+  ) : (
+    <div className="size-5 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold shrink-0">
+      {name.charAt(0)}
+    </div>
+  )
+}
 
 export default function LeagueOverview() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -44,6 +57,20 @@ export default function LeagueOverview() {
       .finally(() => setLoading(false))
   }, [groupId])
 
+  const trashKings = useMemo(() => {
+    if (!data) return []
+    const tally: Record<string, { owner_name: string; avatar: string | null; count: number }> = {}
+    data.seasons.forEach(s => {
+      if (s.trash_king_owner) {
+        if (!tally[s.trash_king_owner]) {
+          tally[s.trash_king_owner] = { owner_name: s.trash_king_owner, avatar: s.trash_king_avatar, count: 0 }
+        }
+        tally[s.trash_king_owner].count++
+      }
+    })
+    return Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 3)
+  }, [data])
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-4 space-y-4">
@@ -60,7 +87,8 @@ export default function LeagueOverview() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-destructive">{error || 'League not found'}</p>
-            <Link to="/" className="inline-flex items-center justify-center gap-1.5 text-sm font-medium h-9 px-4 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors mt-4">
+            <Link to="/"
+              className="inline-flex items-center justify-center gap-1.5 text-sm font-medium h-9 px-4 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors mt-4">
               Back
             </Link>
           </CardContent>
@@ -81,7 +109,7 @@ export default function LeagueOverview() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{data.name}</BreadcrumbPage>
+            <BreadcrumbPage>League Home</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </BreadcrumbRoot>
@@ -109,7 +137,7 @@ export default function LeagueOverview() {
         <div className="space-y-3">
           {last && (
             <>
-              <Card className="bg-card/50">
+              <Card className="border-amber-500/40 ring-1 ring-amber-500/20">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Trophy className="size-4 text-amber-400" />
@@ -153,45 +181,79 @@ export default function LeagueOverview() {
         </div>
 
         <div className="space-y-3">
-          <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Seasons</div>
-            <div className="space-y-1">
-              {data.seasons.map(s => (
-                <Link
-                  key={s.league_id}
-                  to={`/league/${data.group_id}/${s.league_id}`}
-                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent/30 transition-colors"
-                >
-                  <Circle className={cn('size-2 shrink-0 fill-current', statusStyle(s.status).dot)} />
-                  <span className="text-xs font-semibold w-7 shrink-0">{'\''}{s.season.slice(2)}</span>
-                  <Badge variant="outline" className={cn('text-[9px] px-1 py-0 h-4', statusStyle(s.status).badge)}>
-                    {statusLabel(s.status)}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">{s.total_rosters}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {data.all_time_medals.length > 0 && (
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">All-Time</div>
-              <div className="space-y-1">
-                {data.all_time_medals.map((m, i) => (
-                  <div key={m.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
-                    <span className={cn('text-xs font-mono w-5 shrink-0 text-center', i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground')}>
-                      {i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`}
-                    </span>
-                    <span className="text-xs truncate flex-1">{m.owner_name}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-400" />{m.gold}</span>}
-                      {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-gray-400" />{m.silver}</span>}
-                      {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-700" />{m.bronze}</span>}
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Season History</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-0.5">
+                {data.seasons.map(s => (
+                  <Link
+                    key={s.league_id}
+                    to={`/league/${data.group_id}/${s.league_id}`}
+                    className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent/30 transition-colors"
+                  >
+                    <Circle className={cn('size-2 shrink-0 fill-current', statusStyle(s.status).dot)} />
+                    <span className="text-xs font-semibold w-7 shrink-0">{'\''}{s.season.slice(2)}</span>
+                    <Badge variant="outline" className={cn('text-[9px] px-1 py-0 h-4', statusStyle(s.status).badge)}>
+                      {statusLabel(s.status)}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">{s.total_rosters} players</span>
+                  </Link>
                 ))}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          {data.all_time_medals.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hall of Fame</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-0.5">
+                  {data.all_time_medals.map((m, i) => (
+                    <div key={m.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
+                      <span className={cn('text-xs font-mono w-6 shrink-0 text-center mr-0.5', placementClass(i))}>
+                        {i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`}
+                      </span>
+                      <AvatarImg src={m.avatar} name={m.owner_name} />
+                      <span className="text-xs truncate flex-1">{m.owner_name}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-400" />{m.gold}</span>}
+                        {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-gray-400" />{m.silver}</span>}
+                        {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-700" />{m.bronze}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {trashKings.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trash King Hall of Fame</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-0.5">
+                  {trashKings.map((t, i) => (
+                    <div key={t.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
+                      <span className={cn('text-xs font-mono w-6 shrink-0 text-center mr-0.5', placementClass(i))}>
+                        {i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`}
+                      </span>
+                      <AvatarImg src={t.avatar} name={t.owner_name} />
+                      <span className="text-xs truncate flex-1">{t.owner_name}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Trash2 className={cn('size-3', i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : 'text-amber-700')} />
+                        <span className="text-[10px] font-medium">{t.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

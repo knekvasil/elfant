@@ -163,7 +163,7 @@ export default function League() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={`/league/${groupId}`}>{league.name}</BreadcrumbLink>
+            <BreadcrumbLink href={`/league/${groupId}`}>League Home</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>

@@ -137,6 +137,7 @@ export interface SeasonOverview {
 
 export interface MedalEntry {
   owner_name: string
+  avatar: string | null
   gold: number
   silver: number
   bronze: number

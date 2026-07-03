@@ -362,12 +362,16 @@ async def api_league_overview(league_id: str):
 
         medals_map = {}
         for sg in seasons:
-            for medal, field in [("gold", "champion_owner"), ("silver", "runner_up_owner"), ("bronze", "third_place_owner")]:
-                owner_name = sg.get(field)
+            for medal, field_owner, field_avatar in [
+                ("gold", "champion_owner", "champion_avatar"),
+                ("silver", "runner_up_owner", "runner_up_avatar"),
+                ("bronze", "third_place_owner", "third_place_avatar"),
+            ]:
+                owner_name = sg.get(field_owner)
                 if not owner_name:
                     continue
                 if owner_name not in medals_map:
-                    medals_map[owner_name] = {"owner_name": owner_name, "gold": 0, "silver": 0, "bronze": 0}
+                    medals_map[owner_name] = {"owner_name": owner_name, "avatar": sg.get(field_avatar), "gold": 0, "silver": 0, "bronze": 0}
                 medals_map[owner_name][medal] += 1
 
         all_time_medals = sorted(medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))
