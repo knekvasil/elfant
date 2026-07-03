@@ -36,6 +36,10 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
   const numWeeks = weeks.length
   const activeRosters = rosters.filter(r => highlightedRosterIds?.has(r.roster_id))
 
+  const rosterColorMap = new Map<number, string>()
+  const sortedById = [...rosters].sort((a, b) => a.roster_id - b.roster_id)
+  sortedById.forEach((r, i) => rosterColorMap.set(r.roster_id, TEAM_COLORS[i % TEAM_COLORS.length]))
+
   const allVals = rosters.flatMap(r => r.weekly.flatMap(w => [w.pf, w.pa, w.league_avg]))
   const maxVal = Math.max(...allVals, 100)
   const minVal = 0
@@ -88,7 +92,7 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
           </g>
         )}
         {activeRosters.length > 1 && activeRosters.map((roster, ri) => {
-          const color = TEAM_COLORS[ri % TEAM_COLORS.length]
+          const color = rosterColorMap.get(roster.roster_id) || TEAM_COLORS[ri % TEAM_COLORS.length]
           return (
             <g key={roster.roster_id}>
               {roster.weekly.map((week, wi) => {
