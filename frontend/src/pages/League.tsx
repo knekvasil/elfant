@@ -216,7 +216,7 @@ export default function League() {
                       m === 'standard' ? 'Actual head-to-head record. Each matchup is a win or loss.' :
                       m === 'median' ? 'What if every team faced the median score each week? Rewards consistency above the median.' :
                       m === 'all_play' ? 'What if every team played every other team each week? True measure of team strength.' :
-                      'Optimal all-play — if every team played their optimal lineup every week, who has the strongest roster?'
+                      'What if you set the optimal lineup each week? Measures lineup management skill.'
                     }>
                       <button
                         onClick={() => setStandingsMode(m)}
@@ -234,7 +234,7 @@ export default function League() {
               <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">
                 <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
                   <TrendingUp className="size-3.5" />
-                  <Tooltip content="Each team's rank trajectory through the season using the selected scoring method">
+                  <Tooltip content={standingsMode === 'efficiency' ? "Optimal all-play rank — if every team played their optimal lineup each week, this is how you'd rank based on roster strength alone." : "Each team's rank trajectory through the season using the selected scoring method"}>
                     <span className="cursor-help">{standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}</span>
                   </Tooltip>
                 </div>
