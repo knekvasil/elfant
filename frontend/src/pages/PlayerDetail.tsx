@@ -132,13 +132,7 @@ export default function PlayerDetail() {
       <BreadcrumbRoot>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/">Home</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <Link to={`/league/${groupId}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
-              League Home
-            </Link>
+            <BreadcrumbLink href={`/league/${groupId}`}>League Home</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>

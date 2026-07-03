@@ -383,7 +383,11 @@ async def api_league_overview(league_id: str):
                 if not owner_name:
                     continue
                 if owner_name not in medals_map:
-                    medals_map[owner_name] = {"owner_name": owner_name, "avatar": sg.get(field_avatar), "gold": 0, "silver": 0, "bronze": 0}
+                    medals_map[owner_name] = {"owner_name": owner_name, "avatar": None, "gold": 0, "silver": 0, "bronze": 0}
+                if not medals_map[owner_name]["avatar"]:
+                    avatar_val = sg.get(field_avatar)
+                    if avatar_val:
+                        medals_map[owner_name]["avatar"] = avatar_val
                 medals_map[owner_name][medal] += 1
 
         all_time_medals = sorted(medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))
@@ -399,7 +403,11 @@ async def api_league_overview(league_id: str):
                 if not owner_name:
                     continue
                 if owner_name not in trash_medals_map:
-                    trash_medals_map[owner_name] = {"owner_name": owner_name, "avatar": sg.get(field_avatar), "gold": 0, "silver": 0, "bronze": 0}
+                    trash_medals_map[owner_name] = {"owner_name": owner_name, "avatar": None, "gold": 0, "silver": 0, "bronze": 0}
+                if not trash_medals_map[owner_name]["avatar"]:
+                    avatar_val = sg.get(field_avatar)
+                    if avatar_val:
+                        trash_medals_map[owner_name]["avatar"] = avatar_val
                 trash_medals_map[owner_name][medal] += 1
 
         trash_king_medals = sorted(trash_medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))

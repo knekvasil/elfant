@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Users, Circle, Trophy, Trash2, Medal } from 'lucide-react'
+import { Users, Circle, Trophy, Trash2, Medal, CalendarDays, Crown } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
@@ -9,8 +9,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbList,
   BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
   BreadcrumbPage,
 } from '../components/ui/breadcrumb'
 import LeagueTimeline from '../components/LeagueTimeline'
@@ -70,7 +68,7 @@ export default function LeagueOverview() {
   if (error || !data) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <Card>
+        <Card size="sm" className="rounded-lg border border-border/40 bg-card/30">
           <CardContent className="pt-6">
             <p className="text-destructive">{error || 'League not found'}</p>
             <Link to="/"
@@ -90,10 +88,6 @@ export default function LeagueOverview() {
     <div className="max-w-6xl mx-auto p-4 space-y-5">
       <BreadcrumbRoot>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Home</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage>League Home</BreadcrumbPage>
           </BreadcrumbItem>
@@ -123,15 +117,15 @@ export default function LeagueOverview() {
         <div className="space-y-3">
           {last && (
             <>
-              <Card className="border-amber-500/40 ring-1 ring-amber-500/20">
-                <CardContent className="p-4">
+              <Card size="sm" className="rounded-lg border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent ring-1 ring-amber-500/30 shadow-[0_0_15px_-3px_rgba(251,191,36,0.15)]">
+                <CardContent className="pt-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Trophy className="size-4 text-amber-400" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reigning Champion</span>
+                    <Crown className="size-4 text-amber-400" />
+                    <span className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider">Reigning Champion</span>
                   </div>
                   {last.champion ? (
                     <div className="flex items-center gap-2">
-                      {last.champion_avatar && <img src={last.champion_avatar} alt="" className="size-7 rounded-full" />}
+                      {last.champion_avatar && <img src={last.champion_avatar} alt="" className="size-7 rounded-full ring-1 ring-amber-500/30" />}
                       <div className="min-w-0">
                         <div className="text-sm font-semibold truncate">{last.champion}</div>
                         <div className="text-[10px] text-muted-foreground">{last.champion_owner} · {last.season}</div>
@@ -143,11 +137,11 @@ export default function LeagueOverview() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-card/50">
-                <CardContent className="p-4">
+              <Card size="sm" className="rounded-lg border border-border/40 bg-card/30">
+                <CardContent className="pt-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Trash2 className="size-4 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trash King</span>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reigning Trash King</span>
                   </div>
                   {last.trash_king ? (
                     <div className="flex items-center gap-2">
@@ -167,11 +161,14 @@ export default function LeagueOverview() {
         </div>
 
         <div className="space-y-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Season History</CardTitle>
+          <Card size="sm" className="rounded-lg border border-border/40 bg-card/30">
+            <CardHeader className="px-3 pt-3 pb-1.5">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <CalendarDays className="size-3.5" />
+                Season History
+              </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="px-3 pb-3 pt-0">
               <div className="space-y-0.5">
                 {data.seasons.map(s => (
                   <Link
@@ -192,11 +189,14 @@ export default function LeagueOverview() {
           </Card>
 
           {data.all_time_medals.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hall of Fame</CardTitle>
+            <Card size="sm" className="rounded-lg border border-border/40 bg-card/30">
+              <CardHeader className="px-3 pt-3 pb-1.5">
+                <CardTitle className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <Trophy className="size-3.5" />
+                  Hall of Fame
+                </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="px-3 pb-3 pt-0">
                 <div className="space-y-0.5">
                   {data.all_time_medals.map((m, i) => (
                     <div key={m.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
@@ -218,11 +218,14 @@ export default function LeagueOverview() {
           )}
 
           {data.trash_king_medals && data.trash_king_medals.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trash King Hall of Fame</CardTitle>
+            <Card size="sm" className="rounded-lg border border-border/40 bg-card/30">
+              <CardHeader className="px-3 pt-3 pb-1.5">
+                <CardTitle className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <Trash2 className="size-3.5" />
+                  Trash King Hall of Fame
+                </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="px-3 pb-3 pt-0">
                 <div className="space-y-0.5">
                   {data.trash_king_medals.slice(0, 10).map((m, i) => (
                     <div key={m.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
