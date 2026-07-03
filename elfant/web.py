@@ -305,6 +305,7 @@ async def api_league_overview(league_id: str):
                     else:
                         s["runner_up"] = info["display"]
                         s["runner_up_owner"] = info["owner_name"]
+                        s["runner_up_avatar"] = info["avatar"]
 
             third_match = session.query(PlayoffBracket).filter_by(
                 league_id=lg.league_id, bracket_type="winners", position=3
@@ -314,6 +315,7 @@ async def api_league_overview(league_id: str):
                 if info:
                     s["third_place"] = info["display"]
                     s["third_place_owner"] = info["owner_name"]
+                    s["third_place_avatar"] = info["avatar"]
 
             loser_roster_ids = set()
             for b in session.query(PlayoffBracket).filter_by(
