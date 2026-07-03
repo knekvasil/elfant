@@ -240,14 +240,14 @@ export default function League() {
                   <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
                 )}
               </div>
-              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
-                  <BarChart3 className="size-3.5" />
-                  Consistency (avg ± σ)
-                </div>
-                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} compact />
-              </div>
             </div>
+          </div>
+          <div className="rounded-lg border border-border/40 bg-card/30 p-3 mt-4">
+            <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+              <BarChart3 className="size-3.5" />
+              Consistency (avg ± σ)
+            </div>
+            <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} compact />
           </div>
         </TabsContent>
         {drafts.length > 0 && (
