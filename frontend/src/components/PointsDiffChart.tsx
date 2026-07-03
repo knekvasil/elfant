@@ -45,9 +45,8 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
     const weeklyAll = rosters.flatMap(r =>
       r.pf_diffs.map((v, i) => i === 0 ? v : v - r.pf_diffs[i - 1])
     )
-    const rawMax = Math.max(...weeklyAll, 100)
     const yMin = 0
-    const yMax = Math.min(rawMax + 10, 10000)
+    const yMax = Math.max(...weeklyAll, 100) + 10
 
     const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
     const W = compact ? 380 : 520
@@ -65,7 +64,7 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
           <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
           {[0, Math.round(yMax / 2), yMax].map((v) => (
-            <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v}</text>
+            <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{Math.round(v)}</text>
           ))}
           {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
             <text key={w} x={PAD.left + (w - 1) * barGroupW + barGroupW / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
@@ -109,7 +108,7 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
         <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
         {[yMin, 0, yMax].map((v) => (
-          <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{v}</text>
+          <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{Math.round(v)}</text>
         ))}
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
           <text key={w} x={xScale(w)} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
