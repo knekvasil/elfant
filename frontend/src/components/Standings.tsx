@@ -14,9 +14,10 @@ interface Props {
   onClick?: (rosterId: number) => void
   mode?: 'standard' | 'median'
   leagueId?: string
+  selectedRosterIds?: Set<number>
 }
 
-export default function Standings({ rosters, hoveredRosterId, onHover, onClick, mode = 'standard', leagueId }: Props) {
+export default function Standings({ rosters, hoveredRosterId, onHover, onClick, mode = 'standard', leagueId, selectedRosterIds }: Props) {
   const [rankingsData, setRankingsData] = useState<RankingsData | null>(null)
   const [loadingRankings, setLoadingRankings] = useState(false)
 
@@ -67,8 +68,10 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         return b.fpts - a.fpts
       }) : sorted).map((r, i) => {
         const diff = r.fpts - r.fpts_against
+        const isSelected = selectedRosterIds?.has(r.roster_id) ?? false
         const isHovered = hoveredRosterId === r.roster_id
-        const isDimmed = hoveredRosterId != null && !isHovered
+        const hasSelection = selectedRosterIds != null && selectedRosterIds.size > 0
+        const isDimmed = (hoveredRosterId != null && !isHovered) || (hasSelection && !isSelected)
 
         const rankData = rankingsData?.rosters.find(rd => rd.roster_id === r.roster_id)
         const medianWins = rankData?.median_wins ?? 0
@@ -82,7 +85,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
             key={r.roster_id}
             className={cn(
               'flex items-center gap-2.5 px-3 py-2 rounded-md transition-all duration-200 cursor-pointer',
-              isHovered ? 'bg-muted/40 ring-1 ring-border' : isDimmed ? 'opacity-30' : 'hover:bg-muted/20',
+              isSelected || isHovered ? 'bg-muted/40 ring-1 ring-border' : isDimmed ? 'opacity-30' : 'hover:bg-muted/20',
             )}
             onMouseEnter={() => onHover?.(r.roster_id)}
             onMouseLeave={() => onHover?.(null)}

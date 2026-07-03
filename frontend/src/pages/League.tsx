@@ -213,7 +213,7 @@ export default function League() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} />
+                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} />
               </CardContent>
             </Card>
             <div className="space-y-4">
