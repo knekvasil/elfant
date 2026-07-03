@@ -216,7 +216,7 @@ export default function League() {
                       m === 'standard' ? 'Actual head-to-head record. Each matchup is a win or loss.' :
                       m === 'median' ? 'What if every team faced the median score each week? Rewards consistency above the median.' :
                       m === 'all_play' ? 'What if every team played every other team each week? True measure of team strength.' :
-                      'What if you set the optimal lineup each week? Measures lineup management skill.'
+                      'Optimal all-play — if every team played their optimal lineup every week, who has the strongest roster?'
                     }>
                       <button
                         onClick={() => setStandingsMode(m)}
