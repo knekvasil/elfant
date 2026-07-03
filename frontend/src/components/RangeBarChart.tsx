@@ -67,9 +67,12 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   const barH = compact ? 14 : 18
   const gap = compact ? 5 : 8
   const totalH = displayRows.length * (barH + gap) + 10
+  const labelW = compact ? 24 : 30
   const leftW = compact ? 90 : 110
   const rightW = compact ? 240 : 300
-  const W = leftW + rightW
+  const W = leftW + rightW + labelW
+
+  const maxNameLen = compact ? 12 : 18
 
   const xScale = (v: number) => leftW + ((v - xMin) / xRange) * rightW
 
@@ -86,10 +89,12 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
           const dm = hasSelection && !hl
           return (
             <g key={row.roster_id} opacity={dm ? 0.3 : 1} className="transition-all duration-200">
-              <text x={leftW - 6} y={y + barH / 2 + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-semibold truncate">{row.name}</text>
-              <rect x={x1} y={y + barH / 2 - 1.5} width={x2 - x1} height={3} rx={1.5} fill={row.color} opacity={0.4} />
+              <text x={leftW - 4} y={y + barH / 2 + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-semibold">
+                {row.name.length > maxNameLen ? row.name.slice(0, maxNameLen) + '…' : row.name}
+              </text>
+              <rect x={x1} y={y + barH / 2 - 1.5} width={Math.max(x2 - x1, 2)} height={3} rx={1.5} fill={row.color} opacity={0.4} />
               <circle cx={cx} cy={y + barH / 2} r={4} fill={row.color} stroke="currentColor" strokeWidth={1} className={cn('text-background', hl ? 'stroke-2' : '')} />
-              <text x={x2 + 4} y={y + barH / 2 + 3} className="fill-muted-foreground text-[8px] font-mono">
+              <text x={Math.min(x2 + 4, W - labelW + 4)} y={y + barH / 2 + 3} className="fill-muted-foreground text-[8px] font-mono">
                 {row.avg.toFixed(1)}{isEff ? '%' : ''}
               </text>
             </g>
