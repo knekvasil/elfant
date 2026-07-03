@@ -70,7 +70,7 @@ function UsageStat({ label, value }: { label: string; value: string | number }) 
 }
 
 export default function PlayerDetail() {
-  const { leagueId, playerId } = useParams<{ leagueId: string; playerId: string }>()
+  const { groupId, seasonLeagueId, playerId } = useParams<{ groupId: string; seasonLeagueId: string; playerId: string }>()
   const [searchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const [career, setCareer] = useState<PlayerCareerResponse | null>(null)
@@ -82,12 +82,12 @@ export default function PlayerDetail() {
   const [showAllSeasons, setShowAllSeasons] = useState(false)
 
   useEffect(() => {
-    if (!leagueId || !playerId) return
+    if (!seasonLeagueId || !playerId) return
     setLoading(true)
     Promise.all([
-      fetchPlayerCareer(leagueId, playerId),
-      fetchPlayerStats(leagueId, { player_id: playerId, sort: 'total' }),
-      fetchLeague(leagueId).then((d) => setLeagueName(d.league.name)).catch(() => {}),
+      fetchPlayerCareer(seasonLeagueId, playerId),
+      fetchPlayerStats(seasonLeagueId, { player_id: playerId, sort: 'total' }),
+      fetchLeague(seasonLeagueId).then((d) => setLeagueName(d.league.name)).catch(() => {}),
       fetchPlayerSchedule(playerId).then(setSchedule).catch(() => {}),
     ])
       .then(([c, s]) => {
@@ -96,7 +96,7 @@ export default function PlayerDetail() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [leagueId, playerId])
+  }, [seasonLeagueId, playerId])
 
   if (loading) {
     return (
@@ -113,7 +113,7 @@ export default function PlayerDetail() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-destructive">Player not found</p>
-            <Link to={`/league/${leagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-sm text-primary hover:underline mt-2 inline-block">Back to league</Link>
+            <Link to={`/league/${groupId}/${seasonLeagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-sm text-primary hover:underline mt-2 inline-block">Back to league</Link>
           </CardContent>
         </Card>
       </div>
@@ -138,7 +138,7 @@ export default function PlayerDetail() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <Link to={`/league/${leagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
+            <Link to={`/league/${groupId}/${seasonLeagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
               {leagueName || 'League'}
             </Link>
           </BreadcrumbItem>

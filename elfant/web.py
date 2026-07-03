@@ -117,13 +117,27 @@ def _get_drafts(league_id, session):
     return result
 
 
-def _get_league_chain(league_id, session):
-    chain = []
+def _get_full_league_chain(league_id, session):
+    backward = []
     lg = session.get(League, league_id)
     while lg:
-        chain.append(lg)
+        backward.append(lg)
         lg = session.get(League, lg.previous_league_id) if lg.previous_league_id else None
-    return chain
+    if not backward:
+        return []
+
+    forward = []
+    lg = backward[0]
+    while True:
+        next_lg = session.query(League).filter(
+            League.previous_league_id == lg.league_id
+        ).first()
+        if not next_lg:
+            break
+        forward.append(next_lg)
+        lg = next_lg
+
+    return list(reversed(backward)) + forward
 
 
 # ---- API Routes ----
@@ -151,7 +165,7 @@ async def api_league(league_id: str):
         )
         drafts = _get_drafts(league_id, session)
 
-        chain = _get_league_chain(league_id, session)
+        chain = _get_full_league_chain(league_id, session)
         idx = next((i for i, lg in enumerate(chain) if lg.league_id == league_id), -1)
 
         def _to_ref(lg):
@@ -185,7 +199,7 @@ async def api_league_chain(league_id: str):
             sync_league(league_id)
 
     with get_session() as session:
-        chain = _get_league_chain(league_id, session)
+        chain = _get_full_league_chain(league_id, session)
         if not chain:
             raise HTTPException(404, "League not found")
 
@@ -197,13 +211,92 @@ async def api_league_chain(league_id: str):
                 "status": lg.status,
                 "total_rosters": lg.total_rosters,
             }
-            for lg in reversed(chain)
+            for lg in chain
         ]
 
         return {
             "league_id": league_id,
-            "name": chain[0].name,
+            "group_id": chain[-1].league_id,
+            "name": chain[-1].name,
             "seasons": seasons,
+        }
+
+
+@app.get("/api/league/{league_id}/overview")
+async def api_league_overview(league_id: str):
+    with get_session() as session:
+        existing = session.get(League, league_id)
+        if not existing:
+            sync_league(league_id)
+
+    with get_session() as session:
+        chain = _get_full_league_chain(league_id, session)
+        if not chain:
+            raise HTTPException(404, "League not found")
+
+        group_id = chain[-1].league_id
+        name = chain[-1].name
+
+        seasons = []
+        for lg in chain:
+            s = {
+                "league_id": lg.league_id,
+                "name": lg.name,
+                "season": lg.season,
+                "status": lg.status,
+                "total_rosters": lg.total_rosters,
+                "champion": None,
+                "champion_owner": None,
+                "champion_avatar": None,
+                "runner_up": None,
+                "runner_up_owner": None,
+            }
+
+            existing_bracket = session.query(PlayoffBracket).filter_by(
+                league_id=lg.league_id, bracket_type="winners"
+            ).first()
+            if not existing_bracket and lg.status == "complete":
+                sync_playoffs(lg.league_id)
+
+            champ_match = session.query(PlayoffBracket).filter_by(
+                league_id=lg.league_id, bracket_type="winners", position=1
+            ).first()
+
+            if champ_match:
+                for role, roster_id in [("champion", champ_match.winner), ("runner_up", champ_match.loser)]:
+                    if roster_id is None:
+                        continue
+                    roster = session.query(Roster).filter_by(
+                        league_id=lg.league_id, roster_id=roster_id
+                    ).first()
+                    if not roster:
+                        continue
+                    owner = session.get(User, roster.owner_id) if roster.owner_id else None
+                    lu = session.query(LeagueUser).filter_by(
+                        league_id=lg.league_id, user_id=roster.owner_id
+                    ).first() if roster.owner_id else None
+                    team_name = None
+                    if lu and lu.user_metadata:
+                        team_name = lu.user_metadata.get("team_name")
+                    display = team_name or (f"Team {owner.display_name}" if owner else None)
+                    if role == "champion":
+                        s["champion"] = display
+                        s["champion_owner"] = owner.display_name if owner else None
+                        s["champion_avatar"] = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                    else:
+                        s["runner_up"] = display
+                        s["runner_up_owner"] = owner.display_name if owner else None
+
+            seasons.append(s)
+
+        total_teams = max((sg["total_rosters"] for sg in seasons), default=0)
+
+        return {
+            "group_id": group_id,
+            "name": name,
+            "seasons": seasons,
+            "total_seasons": len(seasons),
+            "total_teams": total_teams,
         }
 
 

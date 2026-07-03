@@ -11,6 +11,7 @@ import type { MatchupEntry } from '../types'
 interface Props {
   leagueId: string
   maxWeek: number
+  groupId: string
 }
 
 const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
@@ -25,7 +26,7 @@ const positionStyles: Record<string, { bg: string; text: string }> = {
 }
 const defaultStyle = { bg: 'bg-zinc-400/10', text: 'text-zinc-300' }
 
-function PlayerRow({ p, reversed, leagueId }: { p: { name: string; position: string; team: string; points: number; player_img: string | null; team_logo: string | null; player_id?: string }; reversed?: boolean; leagueId?: string }) {
+function PlayerRow({ p, reversed, leagueId, groupId }: { p: { name: string; position: string; team: string; points: number; player_img: string | null; team_logo: string | null; player_id?: string }; reversed?: boolean; leagueId?: string; groupId?: string }) {
   const navigate = useNavigate()
   const isDef = p.position === 'DEF'
   const style = positionStyles[p.position] || defaultStyle
@@ -60,7 +61,7 @@ function PlayerRow({ p, reversed, leagueId }: { p: { name: string; position: str
   if (p.player_id && leagueId) {
     return (
       <button
-        onClick={() => navigate(`/league/${leagueId}/player/${p.player_id}`)}
+        onClick={() => navigate(`/league/${groupId}/${leagueId}/player/${p.player_id}`)}
         className={`flex items-center gap-2 py-1.5 px-2 rounded-md w-full text-left ${style.bg} ${reversed ? 'flex-row-reverse' : ''} cursor-pointer hover:brightness-110 transition-all`}
       >
         {content}
@@ -85,6 +86,7 @@ function TeamSide({
   starters,
   side,
   leagueId,
+  groupId,
 }: {
   name: string
   avatar: string | null
@@ -95,6 +97,7 @@ function TeamSide({
   starters: { name: string; position: string; team: string; points: number; player_img: string | null; team_logo: string | null; player_id?: string }[]
   side: 'left' | 'right'
   leagueId?: string
+  groupId?: string
 }) {
   const rankMedal = rank <= 3 ? <Medal className={`size-4 ${rankColors[rank - 1]}`} /> : <span className="text-[10px] text-muted-foreground">#{rank}</span>
 
@@ -132,14 +135,14 @@ function TeamSide({
       </div>
       <div className={`w-full space-y-[1.5px] ${side === 'right' ? 'items-end' : ''}`}>
         {starters.map((p, i) => (
-          <PlayerRow key={i} p={p} reversed={side === 'right'} leagueId={leagueId} />
+          <PlayerRow key={i} p={p} reversed={side === 'right'} leagueId={leagueId} groupId={groupId} />
         ))}
       </div>
     </div>
   )
 }
 
-function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
+function MatchupCard({ m, leagueId, groupId }: { m: MatchupEntry; leagueId: string; groupId: string }) {
   const [showBench, setShowBench] = useState(false)
   const totalBench = m.bench.length + m.opp_bench.length
 
@@ -157,6 +160,7 @@ function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
             starters={m.starters}
             side="left"
             leagueId={leagueId}
+            groupId={groupId}
           />
 
           <div className="flex flex-col items-center justify-center flex-shrink-0">
@@ -175,6 +179,7 @@ function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
             starters={m.opp_starters}
             side="right"
             leagueId={leagueId}
+            groupId={groupId}
           />
         </div>
 
@@ -196,7 +201,7 @@ function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
               {m.bench.length === 0 ? (
                 <div className="text-[10px] text-muted-foreground/50 italic text-center">—</div>
               ) : (
-                m.bench.map((p, i) => <PlayerRow key={i} p={p} leagueId={leagueId} />)
+                m.bench.map((p, i) => <PlayerRow key={i} p={p} leagueId={leagueId} groupId={groupId} />)
               )}
             </div>
             <div className="flex flex-col items-center justify-center flex-shrink-0">
@@ -208,7 +213,7 @@ function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
               {m.opp_bench.length === 0 ? (
                 <div className="text-[10px] text-muted-foreground/50 italic text-center">—</div>
               ) : (
-                m.opp_bench.map((p, i) => <PlayerRow key={i} p={p} reversed leagueId={leagueId} />)
+                m.opp_bench.map((p, i) => <PlayerRow key={i} p={p} reversed leagueId={leagueId} groupId={groupId} />)
               )}
             </div>
           </div>
@@ -218,7 +223,7 @@ function MatchupCard({ m, leagueId }: { m: MatchupEntry; leagueId: string }) {
   )
 }
 
-export default function Matchups({ leagueId, maxWeek }: Props) {
+export default function Matchups({ leagueId, maxWeek, groupId }: Props) {
   const [week, setWeek] = useState(1)
   const [matchups, setMatchups] = useState<MatchupEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -276,7 +281,7 @@ export default function Matchups({ leagueId, maxWeek }: Props) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {matchups.map((m) => (
-            <MatchupCard key={`${m.matchup_id}`} m={m} leagueId={leagueId} />
+            <MatchupCard key={`${m.matchup_id}`} m={m} leagueId={leagueId} groupId={groupId} />
           ))}
         </div>
       )}

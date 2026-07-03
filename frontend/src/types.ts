@@ -112,8 +112,30 @@ export interface SeasonRef {
 
 export interface LeagueChain {
   league_id: string
+  group_id: string
   name: string
   seasons: SeasonRef[]
+}
+
+export interface SeasonOverview {
+  league_id: string
+  name: string
+  season: string
+  status: string
+  total_rosters: number
+  champion: string | null
+  champion_owner: string | null
+  champion_avatar: string | null
+  runner_up: string | null
+  runner_up_owner: string | null
+}
+
+export interface LeagueOverviewData {
+  group_id: string
+  name: string
+  seasons: SeasonOverview[]
+  total_seasons: number
+  total_teams: number
 }
 
 export interface LeagueData {

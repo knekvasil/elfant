@@ -32,7 +32,7 @@ import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
 
 export default function League() {
-  const { leagueId } = useParams<{ leagueId: string }>()
+  const { groupId, seasonLeagueId } = useParams<{ groupId: string, seasonLeagueId: string }>()
   const [data, setData] = useState<LeagueData | null>(null)
   const [teamStats, setTeamStats] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,13 +71,13 @@ export default function League() {
   }, [])
 
   useEffect(() => {
-    if (leagueId) load(leagueId)
-  }, [leagueId, load])
+    if (seasonLeagueId) load(seasonLeagueId)
+  }, [seasonLeagueId, load])
 
   const handleRefresh = async () => {
-    if (!leagueId) return
-    await refreshLeague(leagueId)
-    await load(leagueId)
+    if (!seasonLeagueId) return
+    await refreshLeague(seasonLeagueId)
+    await load(seasonLeagueId)
   }
 
   if (loading) {
@@ -133,7 +133,7 @@ export default function League() {
         <div className="flex items-center gap-2">
           {previous && (
             <Link
-              to={`/league/${previous.league_id}`}
+              to={`/league/${groupId}/${previous.league_id}`}
               className="inline-flex items-center justify-center gap-1 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <ChevronLeft className="size-3.5" />
@@ -142,7 +142,7 @@ export default function League() {
           )}
           {next && (
             <Link
-              to={`/league/${next.league_id}`}
+              to={`/league/${groupId}/${next.league_id}`}
               className="inline-flex items-center justify-center gap-1 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               {next.season}
@@ -163,7 +163,11 @@ export default function League() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{league.name}</BreadcrumbPage>
+            <BreadcrumbLink href={`/league/${groupId}`}>{league.name}</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{league.season}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </BreadcrumbRoot>
@@ -302,12 +306,12 @@ export default function League() {
         </TabsContent>
         {drafts.length > 0 && (
           <TabsContent value="draft">
-            <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} />
+            <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
           </TabsContent>
         )}
         {max_week > 0 && (
           <TabsContent value="matchups">
-            <Matchups leagueId={league.league_id} maxWeek={max_week} />
+            <Matchups leagueId={league.league_id} maxWeek={max_week} groupId={groupId!} />
           </TabsContent>
         )}
         <TabsContent value="playoffs">
@@ -319,7 +323,7 @@ export default function League() {
               <CardTitle className="text-lg">Player Search</CardTitle>
             </CardHeader>
             <CardContent>
-              <PlayerSearch leagueId={league.league_id} />
+              <PlayerSearch leagueId={league.league_id} groupId={groupId!} />
             </CardContent>
           </Card>
         </TabsContent>

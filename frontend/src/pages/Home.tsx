@@ -142,6 +142,12 @@ export default function Home() {
                           {maxTeams > 0 && ` · ${maxTeams} teams`}
                         </CardDescription>
                       </div>
+                      <Link
+                        to={`/league/${chain.group_id}`}
+                        className="text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors inline-flex items-center"
+                      >
+                        Overview
+                      </Link>
                       <Button variant="ghost" size="icon" onClick={() => handleRemove(chain.league_id)} className="shrink-0">
                         <Trash2 className="size-4" />
                       </Button>
@@ -152,7 +158,7 @@ export default function Home() {
                       {chain.seasons.map(s => (
                         <Link
                           key={s.league_id}
-                          to={`/league/${s.league_id}`}
+                          to={`/league/${chain.group_id}/${s.league_id}`}
                           className="inline-flex items-center gap-1.5 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
                         >
                           {s.season}

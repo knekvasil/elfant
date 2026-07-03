@@ -1,4 +1,4 @@
-import type { LeagueChain, LeagueData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse, TeamStatsData } from '../types'
+import type { LeagueChain, LeagueData, LeagueOverviewData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse, TeamStatsData } from '../types'
 
 const BASE = '/api'
 
@@ -11,6 +11,12 @@ export async function fetchLeague(leagueId: string): Promise<LeagueData> {
 export async function fetchLeagueChain(leagueId: string): Promise<LeagueChain> {
   const res = await fetch(`${BASE}/league/${leagueId}/chain`)
   if (!res.ok) throw new Error(`League chain not found (${res.status})`)
+  return res.json()
+}
+
+export async function fetchLeagueOverview(leagueId: string): Promise<LeagueOverviewData> {
+  const res = await fetch(`${BASE}/league/${leagueId}/overview`)
+  if (!res.ok) throw new Error(`League overview not found (${res.status})`)
   return res.json()
 }
 

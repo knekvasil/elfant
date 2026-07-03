@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { Trophy, House, Sun, Moon } from 'lucide-react'
 import { cn } from './lib/utils'
 import Home from './pages/Home'
+import LeagueOverview from './pages/LeagueOverview'
 import League from './pages/League'
 import PlayerDetail from './pages/PlayerDetail'
 
@@ -39,8 +40,9 @@ export default function App() {
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/league/:leagueId" element={<League />} />
-            <Route path="/league/:leagueId/player/:playerId" element={<PlayerDetail />} />
+            <Route path="/league/:groupId" element={<LeagueOverview />} />
+            <Route path="/league/:groupId/:seasonLeagueId" element={<League />} />
+            <Route path="/league/:groupId/:seasonLeagueId/player/:playerId" element={<PlayerDetail />} />
           </Routes>
         </main>
       </div>
