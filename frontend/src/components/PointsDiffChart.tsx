@@ -38,42 +38,76 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
 
   const numWeeks = weeks.length
   const allDiffs = rosters.flatMap((r) => r.pf_diffs)
-  const yMin = mode === 'efficiency' ? 0 : -Math.max(...allDiffs.map(Math.abs), 100) - 20
+
+  if (mode === 'efficiency') {
+    const weeklyAll = rosters.flatMap(r =>
+      r.pf_diffs.map((v, i) => i === 0 ? v : v - r.pf_diffs[i - 1])
+    )
+    const maxOpt = Math.max(...weeklyAll, 100) + 10
+    const yMin = 0
+    const yMax = maxOpt
+
+    const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
+    const W = compact ? 380 : 520
+    const H = compact ? 150 : 240
+    const innerW = W - PAD.left - PAD.right
+    const innerH = H - PAD.top - PAD.bottom
+    const barGroupW = innerW / numWeeks
+    const numTeams = rosters.length
+    const barW = Math.max(barGroupW / numTeams - 2, 2)
+
+    const yScale = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH
+
+    return (
+      <div className="w-full h-full">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
+          <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
+          {[0, Math.round(yMax / 2), yMax].map((v) => (
+            <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v}</text>
+          ))}
+          {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
+            <text key={w} x={PAD.left + (w - 1) * barGroupW + barGroupW / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
+          ))}
+          {rosters.map((roster, ri) => {
+            const hl = isHighlighted(roster.roster_id)
+            const dm = isDimmed(roster.roster_id)
+            const color = COLORS[ri % COLORS.length]
+            return (
+              <g key={roster.roster_id} opacity={dm ? 0.12 : hl ? 1 : 0.5} className="transition-all duration-200 pointer-events-none">
+                {roster.pf_diffs.map((v, wi) => {
+                  const weekly = wi === 0 ? v : v - roster.pf_diffs[wi - 1]
+                  const x = PAD.left + wi * barGroupW + ri * (barGroupW / numTeams)
+                  const h = yScale(weekly)
+                  return (
+                    <rect key={wi} x={x} y={h} width={barW} height={Math.max(yScale(0) - h, 1)} fill={color} rx={2} opacity={0.7} />
+                  )
+                })}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    )
+  }
+
+  const yMin = -Math.max(...allDiffs.map(Math.abs), 100) - 20
   const yMax = Math.max(...allDiffs, 100) + 20
 
-  const rightPad = mode === 'efficiency' ? 36 : 12
-  const PAD = { top: 10, right: rightPad, bottom: 22, left: 38 }
+  const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
   const W = compact ? 380 : 520
-  const Wadj = mode === 'efficiency' ? W + 24 : W
   const H = compact ? 150 : 240
-  const innerW = Wadj - PAD.left - PAD.right
+  const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
 
   const xScale = (week: number) => PAD.left + ((week - 1) / (numWeeks - 1)) * innerW
   const yScale = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH
 
-  let highlightedRoster: typeof rosters[0] | undefined
-  let weeklyVals: number[] = []
-  let weeklyMin = 0, weeklyMax = 100
-  if (mode === 'efficiency' && hasActive) {
-    highlightedRoster = rosters.find(r => isHighlighted(r.roster_id))
-    if (highlightedRoster) {
-      weeklyVals = highlightedRoster.pf_diffs.map((v, i) => i === 0 ? v : v - highlightedRoster!.pf_diffs[i - 1])
-      weeklyMin = 0
-      weeklyMax = Math.max(...weeklyVals, 100)
-    }
-  }
-  const weeklyScale = (v: number) => PAD.top + (1 - (v - weeklyMin) / (weeklyMax - weeklyMin)) * innerH
-
   return (
     <div className="w-full h-full">
-      <svg viewBox={`0 0 ${Wadj} ${H}`} className="w-full h-full text-foreground">
-        <line x1={PAD.left} y1={yScale(0)} x2={Wadj - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
-        {(mode === 'efficiency' ? [0, Math.round(yMax / 2), yMax] : [yMin, 0, yMax]).map((v) => (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
+        <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
+        {[yMin, 0, yMax].map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{v}</text>
-        ))}
-        {mode === 'efficiency' && highlightedRoster && [weeklyMin, Math.round(weeklyMax / 2), weeklyMax].map((v) => (
-          <text key={`r-${v}`} x={Wadj - PAD.right + 6} y={weeklyScale(v) + 3} textAnchor="start" className="fill-muted-foreground text-[8px] font-mono">{v}</text>
         ))}
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
           <text key={w} x={xScale(w)} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[9px] font-mono">W{w}</text>
@@ -84,18 +118,9 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
           const color = COLORS[ri % COLORS.length]
           const pts = roster.pf_diffs.map((v, i) => `${xScale(i + 1)},${yScale(v)}`).join(' ')
           return (
-            <g key={roster.roster_id} className="transition-all duration-200 pointer-events-none">
-              {mode === 'efficiency' && (
-                <path d={`M ${xScale(1)},${yScale(0)} L ${pts} L ${xScale(numWeeks)},${yScale(0)} Z`}
-                  fill={color} stroke="none" opacity={dm ? 0.05 : hl ? 0.35 : 0.15} />
-              )}
-              <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth={hl ? 2.5 : 1.5}
-                strokeLinejoin="round" strokeLinecap="round" opacity={dm ? 0.08 : hl ? 1 : 0.35} />
-              {mode === 'efficiency' && hl && (
-                <path d={`M ${weeklyVals.map((v, i) => `${xScale(i + 1)},${weeklyScale(v)}`).join(' ')}`} fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="4 2"
-                  strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
-              )}
-            </g>
+            <path key={roster.roster_id} d={`M ${pts}`} fill="none" stroke={color} strokeWidth={hl ? 2.5 : 1.5}
+              strokeLinejoin="round" strokeLinecap="round" opacity={dm ? 0.08 : hl ? 1 : 0.35}
+              className="transition-all duration-200 pointer-events-none" />
           )
         })}
         {rosters.map((roster, ri) => {
