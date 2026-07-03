@@ -75,9 +75,9 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2.5 px-3 pb-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-        <div className="w-6 flex-shrink-0" />
-        <div className="size-8 flex-shrink-0" />
+      <div className="flex items-center gap-2 px-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="w-5 flex-shrink-0" />
+        <div className="size-7 flex-shrink-0" />
         <div className="flex-1 min-w-0">Team</div>
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Opt W-L</div>}
@@ -122,48 +122,48 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
           <div
             key={r.roster_id}
             className={cn(
-              'flex items-center gap-2.5 px-3 py-2 rounded-md transition-all duration-200 cursor-pointer',
+              'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 cursor-pointer',
               isSelected || isHovered ? 'bg-muted/40 ring-1 ring-border' : isDimmed ? 'opacity-30' : 'hover:bg-muted/20',
             )}
             onMouseEnter={() => onHover?.(r.roster_id)}
             onMouseLeave={() => onHover?.(null)}
             onClick={() => onClick?.(r.roster_id)}
           >
-            <div className="w-6 flex-shrink-0 text-center">
+            <div className="w-5 flex-shrink-0 text-center">
               {i < 3 ? (
-                <Medal className={`size-4 ${rankColors[i]} mx-auto`} />
+                <Medal className={`size-3.5 ${rankColors[i]} mx-auto`} />
               ) : (
-                <span className="text-xs text-muted-foreground">{i + 1}</span>
+                <span className="text-[10px] text-muted-foreground">{i + 1}</span>
               )}
             </div>
 
-            <div className="size-8 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border">
+            <div className="size-7 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border">
               {r.owner_avatar ? (
                 <img src={r.owner_avatar} alt="" className="size-full object-cover" />
               ) : (
-                <div className="size-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+                <div className="size-full flex items-center justify-center text-[9px] font-bold text-muted-foreground">
                   {(r.team_name || r.owner_display || '?').charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate">{r.team_name || `Team ${r.roster_id}`}</div>
-              <div className="text-[10px] text-muted-foreground truncate">{r.owner_display}</div>
+              <div className="text-xs font-semibold truncate">{r.team_name || `Team ${r.roster_id}`}</div>
+              <div className="text-[9px] text-muted-foreground truncate">{r.owner_display}</div>
             </div>
 
-            <div className="text-sm font-mono tabular-nums text-right flex-shrink-0 w-14">
+            <div className="text-xs font-semibold tabular-nums text-right flex-shrink-0 w-14">
               {displayRecord}
             </div>
 
             {mode === 'standard' && (
-              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
+              <div className="text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
                 {r.fpts.toFixed(1)}
               </div>
             )}
 
             {mode === 'standard' && (
-              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+              <div className={cn('text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
                 {diff > 0 ? '+' : ''}{diff.toFixed(1)}
               </div>
             )}
@@ -178,17 +178,17 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
             })()}
 
             {mode === 'median' && t && (
-              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+              <div className="text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                 {t.season_std.toFixed(1)}
               </div>
             )}
 
             {mode === 'all_play' && t && (
               <>
-                <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                <div className="text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                   {(t.all_play_wins / t.weekly.length).toFixed(1)}
                 </div>
-                <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                <div className="text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                   {t.season_std.toFixed(1)}
                 </div>
               </>
