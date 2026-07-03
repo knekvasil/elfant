@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Skeleton } from './ui/skeleton'
 import { fetchTeamStats } from '../lib/api'
 import type { TeamStatsData, Roster } from '../types'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 import { cn } from '../lib/utils'
 import Tooltip from './ui/tooltip'
 
@@ -29,14 +30,6 @@ interface PowerRow {
   composite: number
 }
 
-const RADAR_LABELS = ['PF', 'Eff', 'Cons.', 'Dom.', 'Rost.', 'LU']
-const N_AXES = RADAR_LABELS.length
-
-function polarPoint(cx: number, cy: number, r: number, value: number, i: number) {
-  const angle = -Math.PI / 2 + (i / N_AXES) * 2 * Math.PI
-  return { x: cx + (r * value) / 100 * Math.cos(angle), y: cy + (r * value) / 100 * Math.sin(angle) }
-}
-
 export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHover, onClick, highlightedRosterIds }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,6 +50,14 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
   const weeks = data.weeks.length
 
   const keys = ['avgPf', 'efficiency', 'consistency', 'dominance', 'roster', 'lineup'] as const
+  const keyLabels: Record<string, string> = {
+    avgPf: 'Points For',
+    efficiency: 'Efficiency',
+    consistency: 'Consistency',
+    dominance: 'Dominance',
+    roster: 'Roster',
+    lineup: 'Lineup',
+  }
 
   const rows: PowerRow[] = data.rosters.map((r) => {
     const roster = rosters.find(ro => ro.roster_id === r.roster_id)
@@ -94,6 +95,14 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
 
   rows.sort((a, b) => b.composite - a.composite)
 
+  const radarData = keys.map((key) => {
+    const entry: Record<string, string | number> = { metric: keyLabels[key] }
+    for (const r of rows) {
+      entry[r.roster_id] = Math.round(r.norm[key] * 100)
+    }
+    return entry
+  })
+
   const rosterColorMap = new Map<number, string>()
   const sortedById = [...rows].sort((a, b) => a.roster_id - b.roster_id)
   sortedById.forEach((r, i) => rosterColorMap.set(r.roster_id, TEAM_COLORS[i % TEAM_COLORS.length]))
@@ -101,14 +110,6 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
   const hasActive = highlightedRosterIds !== undefined && highlightedRosterIds.size > 0
   const isHighlighted = (rid: number) => highlightedRosterIds?.has(rid) ?? false
   const isDimmed = (rid: number) => hasActive && !isHighlighted(rid)
-
-  const W = 380
-  const H = 360
-  const cx = W / 2
-  const cy = H / 2 + 10
-  const radius = Math.min(cx, cy) - 50
-
-  const ringPcts = [25, 50, 75, 100]
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -178,43 +179,33 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
             ? rosters.find(r => r.roster_id === [...highlightedRosterIds!][0])?.team_name || `Team ${[...highlightedRosterIds!][0]}`
             : 'All Teams'}
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full max-h-[360px]">
-          {ringPcts.map((pct) => {
-            const r = (radius * pct) / 100
-            const pts = Array.from({ length: N_AXES }, (_, i) => polarPoint(cx, cy, r, 100, i))
-            return (
-              <polygon key={pct} points={pts.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="currentColor" className="text-border/20" strokeWidth={0.5} />
-            )
-          })}
-          {Array.from({ length: N_AXES }, (_, i) => {
-            const p = polarPoint(cx, cy, radius, 100, i)
-            return (
-              <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="currentColor" className="text-border/20" strokeWidth={0.5} />
-            )
-          })}
-          {RADAR_LABELS.map((label, i) => {
-            const p = polarPoint(cx, cy, radius + 16, 100, i)
-            return (
-              <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" fontSize="9" fontFamily="monospace">
-                {label}
-              </text>
-            )
-          })}
-          {rows.map((r) => {
-            const hl = isHighlighted(r.roster_id)
-            const dm = isDimmed(r.roster_id)
-            const color = rosterColorMap.get(r.roster_id)
-            const pts = keys.map((key, i) => {
-              const val = Math.round(r.norm[key] * 100)
-              const p = polarPoint(cx, cy, radius, val, i)
-              return `${p.x},${p.y}`
-            }).join(' ')
-            if (dm) return null
-            return (
-              <polygon key={r.roster_id} points={pts} fill={color} fillOpacity={hl ? 0.25 : 0.1} stroke={color} strokeWidth={hl ? 2 : 0.8} strokeOpacity={hl ? 1 : 0.3} className="transition-all duration-200" />
-            )
-          })}
-        </svg>
+        <div className="w-full h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="currentColor" className="text-border/30" />
+              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: 'currentColor' }} className="text-muted-foreground" />
+              <PolarRadiusAxis tick={false} axisLine={false} />
+              {rows.map((r) => {
+                const hl = isHighlighted(r.roster_id)
+                const dm = isDimmed(r.roster_id)
+                const color = rosterColorMap.get(r.roster_id)
+                return (
+                  <Radar
+                    key={r.roster_id}
+                    name={r.name}
+                    dataKey={r.roster_id}
+                    stroke={color}
+                    fill={color}
+                    fillOpacity={dm ? 0.03 : hl ? 0.2 : 0.08}
+                    strokeWidth={dm ? 0.5 : hl ? 2.5 : 1}
+                    strokeOpacity={dm ? 0.1 : hl ? 1 : 0.3}
+                    animationDuration={0}
+                  />
+                )
+              })}
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )
