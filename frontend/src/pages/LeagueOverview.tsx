@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Trophy, Users, Circle } from 'lucide-react'
+import { Users, Circle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
@@ -93,7 +93,11 @@ export default function LeagueOverview() {
       </div>
 
       {data.participants && (
-        <LeagueTimeline groupId={data.group_id} participants={data.participants} />
+        <LeagueTimeline
+          groupId={data.group_id}
+          participants={data.participants}
+          seasonLinks={Object.fromEntries(data.seasons.map(s => [s.season, s.league_id]))}
+        />
       )}
 
       <div className="space-y-1">
@@ -101,30 +105,14 @@ export default function LeagueOverview() {
           <Link
             key={s.league_id}
             to={`/league/${data.group_id}/${s.league_id}`}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/30 transition-colors group"
+            className="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-accent/30 transition-colors"
           >
-            <Circle className={cn('size-2.5 shrink-0 fill-current', statusStyle(s.status).dot)} />
-            <span className="text-sm font-semibold w-10 shrink-0">{s.season}</span>
+            <Circle className={cn('size-2 shrink-0 fill-current', statusStyle(s.status).dot)} />
+            <span className="text-xs font-semibold w-8 shrink-0">{'\''}{s.season.slice(2)}</span>
             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5', statusStyle(s.status).badge)}>
               {statusLabel(s.status)}
             </Badge>
-            <span className="text-xs text-muted-foreground w-16 shrink-0">{s.total_rosters} teams</span>
-            {s.champion ? (
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <Trophy className="size-3 text-amber-400 shrink-0" />
-                {s.champion_avatar && (
-                  <img src={s.champion_avatar} alt="" className="size-4 rounded-full shrink-0" />
-                )}
-                <span className="text-xs font-medium truncate">{s.champion}</span>
-                {s.champion_owner && (
-                  <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">({s.champion_owner})</span>
-                )}
-              </div>
-            ) : (
-              <span className="text-xs text-muted-foreground italic flex-1">
-                {s.status === 'complete' ? 'Champion —' : 'In progress'}
-              </span>
-            )}
+            <span className="text-[10px] text-muted-foreground">{s.total_rosters} teams</span>
           </Link>
         ))}
       </div>
