@@ -291,12 +291,77 @@ async def api_league_overview(league_id: str):
 
         total_teams = max((sg["total_rosters"] for sg in seasons), default=0)
 
+        season_years = [sg["season"] for sg in seasons]
+
+        owner_data = {}
+        for lg in chain:
+            season = lg.season
+            rosters_db = session.query(Roster).filter_by(league_id=lg.league_id).all()
+            for r in rosters_db:
+                if not r.owner_id:
+                    continue
+                owner = session.get(User, r.owner_id)
+                lu = session.query(LeagueUser).filter_by(
+                    league_id=lg.league_id, user_id=r.owner_id
+                ).first() if r.owner_id else None
+                team_name = None
+                if lu and lu.user_metadata:
+                    team_name = lu.user_metadata.get("team_name")
+
+                if r.owner_id not in owner_data:
+                    owner_data[r.owner_id] = {
+                        "owner_id": r.owner_id,
+                        "display_name": owner.display_name if owner else None,
+                        "avatar": f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None,
+                        "seasons": {},
+                    }
+                owner_data[r.owner_id]["seasons"][season] = {
+                    "team_name": team_name or (f"Team {owner.display_name}" if owner else f"Roster {r.roster_id}"),
+                    "present": True,
+                }
+
+        for od in owner_data.values():
+            for sy in season_years:
+                if sy not in od["seasons"]:
+                    od["seasons"][sy] = {"team_name": None, "present": False}
+
+        first_season = season_years[0]
+        last_season = season_years[-1]
+
+        old_guard = []
+        newcomers = []
+        previously_left = []
+
+        for od in owner_data.values():
+            participated_all = all(od["seasons"][sy]["present"] for sy in season_years)
+            in_last = od["seasons"][last_season]["present"]
+            in_first = od["seasons"][first_season]["present"]
+
+            if participated_all:
+                od["group"] = "old_guard"
+                old_guard.append(od)
+            elif in_last and not in_first:
+                od["group"] = "newcomer"
+                newcomers.append(od)
+            elif not in_last and any(od["seasons"][sy]["present"] for sy in season_years):
+                od["group"] = "previously_left"
+                previously_left.append(od)
+
+        for group in [old_guard, newcomers, previously_left]:
+            group.sort(key=lambda x: min(int(sy) for sy, s in x["seasons"].items() if s["present"]))
+
         return {
             "group_id": group_id,
             "name": name,
             "seasons": seasons,
             "total_seasons": len(seasons),
             "total_teams": total_teams,
+            "participants": {
+                "seasons": season_years,
+                "old_guard": old_guard,
+                "newcomers": newcomers,
+                "previously_left": previously_left,
+            },
         }
 
 

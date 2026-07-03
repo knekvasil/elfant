@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Trophy, Users, ChevronRight } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Trophy, Users, Circle } from 'lucide-react'
+import { cn } from '../lib/utils'
+import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import {
@@ -12,8 +13,20 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from '../components/ui/breadcrumb'
+import LeagueTimeline from '../components/LeagueTimeline'
 import { fetchLeagueOverview } from '../lib/api'
 import type { LeagueOverviewData } from '../types'
+
+const statusStyle = (status: string) => {
+  const s = status === 'complete' ? 'emerald' : status === 'in_season' ? 'amber' : 'blue'
+  return {
+    dot: `text-${s}-400`,
+    badge: `border-${s}-500/30 bg-${s}-500/10 text-${s}-400`,
+  }
+}
+
+const statusLabel = (status: string) =>
+  status === 'in_season' ? 'Live' : status === 'complete' ? 'Done' : status
 
 export default function LeagueOverview() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -31,23 +44,12 @@ export default function LeagueOverview() {
       .finally(() => setLoading(false))
   }, [groupId])
 
-  const statusBadge = (status: string) => {
-    const color =
-      status === 'complete'
-        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-        : status === 'in_season'
-          ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-          : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
-    const label = status === 'in_season' ? 'Live' : status === 'complete' ? 'Done' : status
-    return <Badge variant="outline" className={color}>{label}</Badge>
-  }
-
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-4 space-y-4">
         <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-48 w-full" />
         <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
       </div>
     )
   }
@@ -68,7 +70,7 @@ export default function LeagueOverview() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 space-y-5">
       <BreadcrumbRoot>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -83,64 +85,47 @@ export default function LeagueOverview() {
 
       <div>
         <h1 className="text-2xl font-bold">{data.name}</h1>
-        <p className="text-muted-foreground text-sm mt-1 flex items-center gap-1.5">
+        <p className="text-muted-foreground text-sm mt-0.5 flex items-center gap-1.5">
           <Users className="size-3.5" />
           {data.total_seasons} {data.total_seasons === 1 ? 'season' : 'seasons'}
           {data.total_teams > 0 && ` · ${data.total_teams} teams per year`}
         </p>
       </div>
 
-      <div className="space-y-3">
+      {data.participants && (
+        <LeagueTimeline groupId={data.group_id} participants={data.participants} />
+      )}
+
+      <div className="space-y-1">
         {data.seasons.map(s => (
-          <Card key={s.league_id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-lg">{s.season}</CardTitle>
-                  {statusBadge(s.status)}
-                  <span className="text-sm text-muted-foreground">{s.total_rosters} teams</span>
-                </div>
-                <Link
-                  to={`/league/${data.group_id}/${s.league_id}`}
-                  className="inline-flex items-center text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  View Season
-                  <ChevronRight className="size-3.5 ml-1" />
-                </Link>
+          <Link
+            key={s.league_id}
+            to={`/league/${data.group_id}/${s.league_id}`}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/30 transition-colors group"
+          >
+            <Circle className={cn('size-2.5 shrink-0 fill-current', statusStyle(s.status).dot)} />
+            <span className="text-sm font-semibold w-10 shrink-0">{s.season}</span>
+            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5', statusStyle(s.status).badge)}>
+              {statusLabel(s.status)}
+            </Badge>
+            <span className="text-xs text-muted-foreground w-16 shrink-0">{s.total_rosters} teams</span>
+            {s.champion ? (
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <Trophy className="size-3 text-amber-400 shrink-0" />
+                {s.champion_avatar && (
+                  <img src={s.champion_avatar} alt="" className="size-4 rounded-full shrink-0" />
+                )}
+                <span className="text-xs font-medium truncate">{s.champion}</span>
+                {s.champion_owner && (
+                  <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">({s.champion_owner})</span>
+                )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Trophy className="size-4 text-amber-400 shrink-0" />
-                  {s.champion ? (
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {s.champion_avatar && (
-                        <img src={s.champion_avatar} alt="" className="size-5 rounded-full shrink-0" />
-                      )}
-                      <span className="font-medium truncate">{s.champion}</span>
-                      {s.champion_owner && (
-                        <span className="text-muted-foreground truncate">({s.champion_owner})</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground italic">
-                      {s.status === 'complete' ? 'Champion —' : 'Season in progress'}
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  {s.runner_up && (
-                    <>
-                      <span className="shrink-0">Runner-up:</span>
-                      <span className="truncate">{s.runner_up}</span>
-                      {s.runner_up_owner && <span className="truncate">({s.runner_up_owner})</span>}
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            ) : (
+              <span className="text-xs text-muted-foreground italic flex-1">
+                {s.status === 'complete' ? 'Champion —' : 'In progress'}
+              </span>
+            )}
+          </Link>
         ))}
       </div>
     </div>

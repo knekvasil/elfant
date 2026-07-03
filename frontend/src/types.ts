@@ -130,12 +130,33 @@ export interface SeasonOverview {
   runner_up_owner: string | null
 }
 
+export interface OwnerSeasonParticipation {
+  team_name: string | null
+  present: boolean
+}
+
+export interface OwnerParticipant {
+  owner_id: string
+  display_name: string | null
+  avatar: string | null
+  seasons: Record<string, OwnerSeasonParticipation>
+  group: string
+}
+
+export interface ParticipantsData {
+  seasons: string[]
+  old_guard: OwnerParticipant[]
+  newcomers: OwnerParticipant[]
+  previously_left: OwnerParticipant[]
+}
+
 export interface LeagueOverviewData {
   group_id: string
   name: string
   seasons: SeasonOverview[]
   total_seasons: number
   total_teams: number
+  participants: ParticipantsData
 }
 
 export interface LeagueData {
