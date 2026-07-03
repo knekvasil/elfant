@@ -6,7 +6,7 @@ import type { RankingsData } from '../types'
 interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
-  mode?: 'standard' | 'median'
+  mode?: string
 }
 
 const COLORS = [

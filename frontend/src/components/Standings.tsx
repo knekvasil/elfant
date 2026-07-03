@@ -7,12 +7,14 @@ import { Skeleton } from '../components/ui/skeleton'
 
 const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
 
+export type StandingsMode = 'standard' | 'median' | 'all_play' | 'efficiency'
+
 interface Props {
   rosters: Roster[]
   hoveredRosterId?: number | null
   onHover?: (rosterId: number | null) => void
   onClick?: (rosterId: number) => void
-  mode?: 'standard' | 'median'
+  mode?: StandingsMode
   leagueId?: string
   selectedRosterIds?: Set<number>
   teamStats?: TeamStatsData | null
@@ -24,12 +26,12 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
   const [internalTeamStats, setInternalTeamStats] = useState<TeamStatsData | null>(null)
 
   useEffect(() => {
-    if (mode !== 'median' || !leagueId) {
+    if (mode === 'standard' || !leagueId) {
       setRankingsData(null)
       return
     }
     setLoadingRankings(true)
-    fetchRankings(leagueId, 'median')
+    fetchRankings(leagueId, mode)
       .then(setRankingsData)
       .catch(() => setRankingsData(null))
       .finally(() => setLoadingRankings(false))
@@ -49,7 +51,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
     return b.fpts - a.fpts
   })
 
-  if (mode === 'median' && loadingRankings) {
+  if (mode !== 'standard' && loadingRankings) {
     return (
       <div className="space-y-1">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -67,18 +69,19 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         <div className="flex-1 min-w-0">Team</div>
         <div className="text-right flex-shrink-0 w-14">{mode === 'median' ? 'W-L' : 'Record'}</div>
         <div className="text-right flex-shrink-0 w-16">PF</div>
-        {ts && <div className="text-right flex-shrink-0 w-14">+/-</div>}
-        {ts && <div className="text-right flex-shrink-0 w-14">σ</div>}
-        {ts && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
-        {ts && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
+        <div className="text-right flex-shrink-0 w-14">+/-</div>
+        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
+        {(mode === 'all_play' || mode === 'efficiency') && <div className="text-right flex-shrink-0 w-14">σ</div>}
+        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
 
-      {(mode === 'median' && rankingsData ? [...rosters].sort((a, b) => {
+      {(mode !== 'standard' && rankingsData ? [...rosters].sort((a, b) => {
         const aR = rankingsData.rosters.find(r => r.roster_id === a.roster_id)
         const bR = rankingsData.rosters.find(r => r.roster_id === b.roster_id)
-        const aW = aR?.median_wins ?? 0
-        const bW = bR?.median_wins ?? 0
-        if (bW !== aW) return bW - aW
+        if (!aR || !bR) return b.fpts - a.fpts
+        const aKey = mode === 'median' ? aR.median_wins : mode === 'all_play' ? aR.all_play_wins : aR.avg_efficiency
+        const bKey = mode === 'median' ? bR.median_wins : mode === 'all_play' ? bR.all_play_wins : bR.avg_efficiency
+        if (bKey !== aKey) return bKey - aKey
         return b.fpts - a.fpts
       }) : sorted).map((r, i) => {
         const diff = r.fpts - r.fpts_against
@@ -89,13 +92,21 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
 
         const rankData = rankingsData?.rosters.find(rd => rd.roster_id === r.roster_id)
         const medianWins = rankData?.median_wins ?? 0
+        const apWins = rankData?.all_play_wins ?? 0
         const totalWeeks = rankData?.total_weeks ?? 0
+
         const displayRecord = mode === 'median'
           ? `${medianWins}-${totalWeeks - medianWins}`
           : `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ''}`
 
         const t = ts?.rosters.find(s => s.roster_id === r.roster_id)
-        const allPlayRecord = t ? `${t.all_play_wins}-${t.all_play_total - t.all_play_wins}` : '—'
+        const apLabel = t
+          ? `${t.all_play_wins}-${t.all_play_total - t.all_play_wins}`
+          : rankData
+            ? `${apWins}-${totalWeeks * (rosters.length - 1) - apWins}`
+            : '—'
+
+        const eff = rankData?.avg_efficiency ?? 0
 
         return (
           <div
@@ -139,25 +150,25 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               {r.fpts.toFixed(1)}
             </div>
 
-            {ts && (
-              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
-                {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+            <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+              {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+            </div>
+
+            {mode === 'all_play' && (
+              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                {apLabel}
               </div>
             )}
 
-            {t && (
+            {(mode === 'all_play' || mode === 'efficiency') && t && (
               <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                 {t.season_std.toFixed(1)}
               </div>
             )}
-            {t && (
-              <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
-                {allPlayRecord}
-              </div>
-            )}
-            {t && (
-              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', t.avg_efficiency >= 90 ? 'text-emerald-400' : t.avg_efficiency >= 80 ? 'text-amber-400' : 'text-red-400')}>
-                {t.avg_efficiency.toFixed(0)}%
+
+            {mode === 'efficiency' && (
+              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', eff >= 90 ? 'text-emerald-400' : eff >= 80 ? 'text-amber-400' : 'text-red-400')}>
+                {eff.toFixed(0)}%
               </div>
             )}
           </div>

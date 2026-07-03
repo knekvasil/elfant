@@ -432,11 +432,13 @@ async def api_rankings(league_id: str, mode: str = "standard"):
         roster_ids = sorted([r.roster_id for r in rosters_raw])
         cum_wins = {rid: 0 for rid in roster_ids}
         cum_median_wins = {rid: 0 for rid in roster_ids}
+        cum_all_play_wins = {rid: 0 for rid in roster_ids}
         cum_fpts = {rid: 0.0 for rid in roster_ids}
         cum_fpa = {rid: 0.0 for rid in roster_ids}
         weekly_pts = {rid: [] for rid in roster_ids}
         cum_median_fpts = 0.0
-        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0} for rid in roster_ids}
+        cum_efficiency = {rid: 0.0 for rid in roster_ids}
+        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0, "all_play_wins": 0, "avg_efficiency": 0} for rid in roster_ids}
 
         for w in range(1, max_week + 1):
             matchups = session.query(Matchup).filter_by(league_id=league_id, week=w).all()
@@ -465,11 +467,23 @@ async def api_rankings(league_id: str, mode: str = "standard"):
 
             week_pts = []
             for rid in roster_ids:
-                pts = md.get(rid).points or 0 if md.get(rid) else 0
+                m = md.get(rid)
+                pts = m.points or 0 if m else 0
                 cum_fpts[rid] += pts
                 cum_fpa[rid] += pa.get(rid, 0)
                 weekly_pts[rid].append(pts)
                 week_pts.append(pts)
+
+                # Efficiency
+                if m and m.players_points and m.starters:
+                    pp = m.players_points or {}
+                    n_starters = len(m.starters)
+                    sorted_pts = sorted([v for v in pp.values() if v is not None], reverse=True)
+                    optimal = sum(sorted_pts[:n_starters]) if sorted_pts else pts
+                else:
+                    optimal = pts
+                eff = (pts / optimal * 100) if optimal > 0 else 100
+                cum_efficiency[rid] += eff
 
             week_pts.sort()
             n = len(week_pts)
@@ -479,8 +493,13 @@ async def api_rankings(league_id: str, mode: str = "standard"):
                 median = week_pts[n // 2]
             cum_median_fpts += median
 
+            # All-play wins for this week
+            week_pf_map = {rid: (md.get(rid).points or 0 if md.get(rid) else 0) for rid in roster_ids}
             for rid in roster_ids:
-                pts = md.get(rid).points or 0 if md.get(rid) else 0
+                pts = week_pf_map[rid]
+                ap_wins = sum(1 for other_id in roster_ids if other_id != rid and pts > week_pf_map[other_id])
+                cum_all_play_wins[rid] += ap_wins
+
                 if pts > median:
                     cum_median_wins[rid] += 1
                 elif pts == median:
@@ -488,17 +507,31 @@ async def api_rankings(league_id: str, mode: str = "standard"):
 
             if mode == "median":
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_median_wins[rid], -cum_fpts[rid]))
+            elif mode == "all_play":
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_all_play_wins[rid], -cum_fpts[rid]))
+            elif mode == "efficiency":
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_efficiency[rid], -cum_fpts[rid]))
             else:
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_wins[rid], -cum_fpts[rid]))
 
             for rank, rid in enumerate(ranked, 1):
                 rosters_data[rid]["rankings"].append(rank)
-                diff = round(cum_fpts[rid] - (cum_median_fpts if mode == "median" else cum_fpa[rid]), 1)
+                if mode == "median":
+                    diff = round(cum_fpts[rid] - cum_median_fpts, 1)
+                elif mode == "all_play":
+                    # Show cumulative PF - cumulative median PF for all_play mode
+                    diff = round(cum_fpts[rid] - cum_median_fpts, 1)
+                elif mode == "efficiency":
+                    diff = round(cum_efficiency[rid] / w, 1) - 100 if w else 0
+                else:
+                    diff = round(cum_fpts[rid] - cum_fpa[rid], 1)
                 rosters_data[rid]["pf_diffs"].append(diff)
 
         for rid in roster_ids:
             rosters_data[rid]["median_wins"] = cum_median_wins[rid]
             rosters_data[rid]["total_weeks"] = max_week
+            rosters_data[rid]["all_play_wins"] = cum_all_play_wins[rid]
+            rosters_data[rid]["avg_efficiency"] = round(cum_efficiency[rid] / max_week, 1) if max_week else 0
 
         return {
             "weeks": list(range(1, max_week + 1)),

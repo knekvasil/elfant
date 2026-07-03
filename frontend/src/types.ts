@@ -120,6 +120,8 @@ export interface RankingRoster {
   pf_diffs: number[]
   median_wins: number
   total_weeks: number
+  all_play_wins: number
+  avg_efficiency: number
 }
 
 export interface PlayerWeek {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3 } from 'lucide-react'
+import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -15,7 +15,7 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from '../components/ui/breadcrumb'
-import Standings from '../components/Standings'
+import Standings, { type StandingsMode } from '../components/Standings'
 import DraftGrid from '../components/DraftGrid'
 import Matchups from '../components/Matchups'
 import PlayoffBracket from '../components/PlayoffBracket'
@@ -24,6 +24,7 @@ import PointsDiffChart from '../components/PointsDiffChart'
 import TransactionsTimeline from '../components/TransactionsTimeline'
 import PlayerSearch from '../components/PlayerSearch'
 import WeeklyBarChart from '../components/WeeklyBarChart'
+import EfficiencyBarChart from '../components/EfficiencyBarChart'
 import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
 
@@ -35,7 +36,7 @@ export default function League() {
   const [error, setError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'standings'
-  const [standingsMode, setStandingsMode] = useState<'standard' | 'median'>('standard')
+  const [standingsMode, setStandingsMode] = useState<StandingsMode>('standard')
   const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
 
@@ -204,18 +205,15 @@ export default function League() {
                   Standings
                 </div>
                 <div className="flex gap-1 bg-muted/20 rounded-xl p-1 border border-border/40 shadow-sm">
-                  <button
-                    onClick={() => setStandingsMode('standard')}
-                    className={cn('text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all', standingsMode === 'standard' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
-                  >
-                    Standard
-                  </button>
-                  <button
-                    onClick={() => setStandingsMode('median')}
-                    className={cn('text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all', standingsMode === 'median' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
-                  >
-                    Vs Median
-                  </button>
+                  {(['standard', 'median', 'all_play', 'efficiency'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setStandingsMode(m)}
+                      className={cn('text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize', standingsMode === m ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
+                    >
+                      {m === 'all_play' ? 'All-Play' : m}
+                    </button>
+                  ))}
                 </div>
               </div>
               <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} teamStats={teamStats} />
@@ -224,17 +222,19 @@ export default function League() {
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
                 <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <TrendingUp className="size-3.5" />
-                  {standingsMode === 'median' ? 'Median Weekly Placement' : 'Weekly Placement'}
+                  {standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}
                 </div>
                 <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
               </div>
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
                 <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <BarChart3 className="size-3.5" />
-                  {activeHighlightIds.size > 0 ? 'Weekly Breakdown' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
+                  {standingsMode === 'efficiency' ? <Gauge className="size-3.5" /> : <BarChart3 className="size-3.5" />}
+                  {standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
                 </div>
-                {activeHighlightIds.size > 0 ? (
+                {standingsMode === 'all_play' ? (
                   <WeeklyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                ) : standingsMode === 'efficiency' ? (
+                  <EfficiencyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
                 ) : (
                   <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
                 )}
