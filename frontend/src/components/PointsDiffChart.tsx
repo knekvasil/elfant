@@ -38,9 +38,8 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
 
   const numWeeks = weeks.length
   const allDiffs = rosters.flatMap((r) => r.pf_diffs)
-  const maxAbs = Math.max(...allDiffs.map(Math.abs), 100)
-  const yMin = -maxAbs - 20
-  const yMax = maxAbs + 20
+  const yMin = mode === 'efficiency' ? 0 : -Math.max(...allDiffs.map(Math.abs), 100) - 20
+  const yMax = Math.max(...allDiffs, 100) + 20
 
   const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
   const W = compact ? 380 : 520
@@ -55,7 +54,7 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
     <div className="w-full h-full">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
         <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
-        {[yMin, 0, yMax].map((v) => (
+        {(mode === 'efficiency' ? [0, Math.round(yMax / 2), yMax] : [yMin, 0, yMax]).map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{v}</text>
         ))}
         {numWeeks > 1 && weeks.filter((_, i) => i % Math.max(1, Math.floor(numWeeks / 6)) === 0 || i === numWeeks - 1).map((w) => (
