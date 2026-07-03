@@ -26,7 +26,7 @@ import TransactionsTimeline from '../components/TransactionsTimeline'
 import PlayerSearch from '../components/PlayerSearch'
 import WeeklyBarChart from '../components/WeeklyBarChart'
 import EfficiencyBarChart from '../components/EfficiencyBarChart'
-import RangeBarChart from '../components/RangeBarChart'
+import ScatterPlots from '../components/ScatterPlots'
 import PowerRankings from '../components/PowerRankings'
 import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
@@ -38,7 +38,7 @@ export default function League() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || 'standings'
+  const tab = searchParams.get('tab') || 'power'
   const [standingsMode, setStandingsMode] = useState<StandingsMode>('standard')
   const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
@@ -168,8 +168,16 @@ export default function League() {
         </BreadcrumbList>
       </BreadcrumbRoot>
 
-      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'standings' ? {} : { tab: v })}>
+      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'power' ? {} : { tab: v })}>
         <TabsList>
+          <TabsTrigger value="power">
+            <Gauge className="size-3.5 mr-1.5" />
+            Power
+          </TabsTrigger>
+          <TabsTrigger value="charts">
+            <BarChart3 className="size-3.5 mr-1.5" />
+            Profiles
+          </TabsTrigger>
           <TabsTrigger value="standings">
             <Table2 className="size-3.5 mr-1.5" />
             Standings
@@ -190,14 +198,6 @@ export default function League() {
             <Trophy className="size-3.5 mr-1.5" />
             Playoffs
           </TabsTrigger>
-          <TabsTrigger value="charts">
-            <BarChart3 className="size-3.5 mr-1.5" />
-            Charts
-          </TabsTrigger>
-          <TabsTrigger value="power">
-            <Gauge className="size-3.5 mr-1.5" />
-            Power
-          </TabsTrigger>
           <TabsTrigger value="players">
             <Users className="size-3.5 mr-1.5" />
             Players
@@ -207,6 +207,28 @@ export default function League() {
             Activity
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="power">
+          <PowerRankings
+            leagueId={league.league_id}
+            rosters={rosters}
+            hoveredRosterId={hoveredRosterId}
+            onHover={handleHover}
+            onClick={handleClick}
+            highlightedRosterIds={activeHighlightIds}
+          />
+        </TabsContent>
+        <TabsContent value="charts">
+          {teamStats && (
+            <ScatterPlots
+              teamStats={teamStats}
+              rosters={rosters}
+              hoveredRosterId={hoveredRosterId}
+              onHover={handleHover}
+              onClick={handleClick}
+              highlightedRosterIds={activeHighlightIds}
+            />
+          )}
+        </TabsContent>
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-lg border border-border/40 bg-card/30 p-3 self-start">
@@ -288,53 +310,6 @@ export default function League() {
             <Matchups leagueId={league.league_id} maxWeek={max_week} />
           </TabsContent>
         )}
-        <TabsContent value="charts">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                  <BarChart3 className="size-3.5" />
-                  <Tooltip content="Average weekly PF and its standard deviation across all teams. Shows who is consistently high-scoring vs boom-or-bust.">
-                    <span className="cursor-help">Standard Consistency (avg ± σ)</span>
-                  </Tooltip>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="standard" rosters={rosters} compact />
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                  <BarChart3 className="size-3.5" />
-                  <Tooltip content="Average weekly PF-minus-league-avg and its variability. Shows who consistently outperforms the league average.">
-                    <span className="cursor-help">Median Consistency (avg ± σ)</span>
-                  </Tooltip>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="median" rosters={rosters} compact />
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                  <BarChart3 className="size-3.5" />
-                  <Tooltip content="Average weekly all-play wins and their variability. Shows who consistently beats most of the league vs who is feast-or-famine.">
-                    <span className="cursor-help">All-Play Consistency (avg ± σ)</span>
-                  </Tooltip>
-                </div>
-              <div className="flex-1 min-h-0">
-                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="all_play" rosters={rosters} compact />
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="power">
-          <PowerRankings
-            leagueId={league.league_id}
-            rosters={rosters}
-            hoveredRosterId={hoveredRosterId}
-            onHover={handleHover}
-            onClick={handleClick}
-            highlightedRosterIds={activeHighlightIds}
-          />
-        </TabsContent>
         <TabsContent value="playoffs">
           <PlayoffBracket leagueId={league.league_id} />
         </TabsContent>

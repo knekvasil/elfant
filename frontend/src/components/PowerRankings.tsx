@@ -10,6 +10,10 @@ import { Info } from 'lucide-react'
 interface Props {
   leagueId: string
   rosters: Roster[]
+  hoveredRosterId?: number | null
+  onHover?: (rosterId: number | null) => void
+  onClick?: (rosterId: number) => void
+  highlightedRosterIds?: Set<number>
 }
 
 const TEAM_COLORS = [
@@ -30,10 +34,9 @@ interface PowerRow {
   composite: number
 }
 
-export default function PowerRankings({ leagueId, rosters }: Props) {
+export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHover, onClick, highlightedRosterIds }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +101,10 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
 
   rows.sort((a, b) => b.composite - a.composite)
 
+  const hasActive = highlightedRosterIds !== undefined && highlightedRosterIds.size > 0
+  const isHighlighted = (rid: number) => highlightedRosterIds?.has(rid) ?? false
+  const isDimmed = (rid: number) => hasActive && !isHighlighted(rid)
+
   const radarData = keys.map((key) => {
     const entry: Record<string, string | number> = { metric: keyLabels[key] }
     for (const r of rows) {
@@ -134,17 +141,21 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
             </Tooltip>
           </div>
           {rows.map((r, i) => {
-            const isSelected = selectedId === r.roster_id
+            const hl = isHighlighted(r.roster_id)
+            const dm = isDimmed(r.roster_id)
+            const isHovered = hoveredRosterId === r.roster_id
             const color = rosterColorMap.get(r.roster_id)
             return (
               <div
                 key={r.roster_id}
                 className={cn(
                   'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 cursor-pointer',
-                  isSelected ? 'ring-1 ring-border' : 'hover:ring-1 hover:ring-border/60',
+                  isHovered || hl ? 'ring-1 ring-border' : dm ? 'opacity-30' : 'hover:ring-1 hover:ring-border/60',
                 )}
-                style={{ backgroundColor: isSelected ? `hsla(${rankHue(i, rows.length)}, 65%, 40%, 0.35)` : `hsla(${rankHue(i, rows.length)}, 55%, 35%, 0.15)` }}
-                onClick={() => setSelectedId(isSelected ? null : r.roster_id)}
+                style={{ backgroundColor: hl ? `hsla(${rankHue(i, rows.length)}, 65%, 40%, 0.35)` : `hsla(${rankHue(i, rows.length)}, 55%, 35%, 0.15)` }}
+                onMouseEnter={() => onHover?.(r.roster_id)}
+                onMouseLeave={() => onHover?.(null)}
+                onClick={() => onClick?.(r.roster_id)}
               >
                 <div className="w-5 flex-shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${rankHue(i, rows.length)}, 75%, 45%)` }}>{i + 1}</div>
                 <div className="size-7 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border">
@@ -171,7 +182,7 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
 
       <div className="rounded-lg border border-border/40 bg-card/30 p-3">
         <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-          <span>Radar — {selectedId ? rosters.find(r => r.roster_id === selectedId)?.team_name || `Team ${selectedId}` : 'All Teams'}</span>
+          <span>Radar — {hasActive && highlightedRosterIds?.size === 1 ? rosters.find(r => r.roster_id === [...highlightedRosterIds!][0])?.team_name || `Team ${[...highlightedRosterIds!][0]}` : 'All Teams'}</span>
           <Tooltip content={
             <div className="space-y-1">
               <p><b>PF</b> — Average weekly points scored</p>
@@ -185,15 +196,15 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
             <Info className="size-3.5 text-muted-foreground/60 cursor-help" />
           </Tooltip>
         </div>
-        <div className="w-full aspect-square max-h-[420px]">
+        <div className="w-full h-[460px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData}>
               <PolarGrid stroke="currentColor" className="text-border/30" />
               <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: 'currentColor' }} className="text-muted-foreground" />
               <PolarRadiusAxis tick={false} axisLine={false} />
               {rows.map((r) => {
-                const isActive = selectedId === null || selectedId === r.roster_id
-                const isDimmed = selectedId !== null && selectedId !== r.roster_id
+                const hl = isHighlighted(r.roster_id)
+                const dm = isDimmed(r.roster_id)
                 const color = rosterColorMap.get(r.roster_id)
                 return (
                   <Radar
@@ -202,9 +213,9 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
                     dataKey={r.roster_id}
                     stroke={color}
                     fill={color}
-                    fillOpacity={isDimmed ? 0.03 : isActive ? 0.12 : 0.06}
-                    strokeWidth={isDimmed ? 0.5 : isActive ? 2 : 0.8}
-                    strokeOpacity={isDimmed ? 0.12 : isActive ? 0.8 : 0.25}
+                    fillOpacity={dm ? 0.03 : hl ? 0.2 : 0.08}
+                    strokeWidth={dm ? 0.5 : hl ? 2.5 : 1}
+                    strokeOpacity={dm ? 0.12 : hl ? 1 : 0.3}
                     animationDuration={0}
                   />
                 )
