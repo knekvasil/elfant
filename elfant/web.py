@@ -309,15 +309,52 @@ async def api_league_overview(league_id: str):
                     s["third_place"] = info["display"]
                     s["third_place_owner"] = info["owner_name"]
 
-            sacko_match = session.query(PlayoffBracket).filter_by(
+            loser_roster_ids = set()
+            for b in session.query(PlayoffBracket).filter_by(
                 league_id=lg.league_id, bracket_type="losers"
-            ).order_by(PlayoffBracket.position.desc()).first()
-            if sacko_match:
-                info = _resolve_roster(lg.league_id, sacko_match.loser)
-                if info:
-                    s["trash_king"] = info["display"]
-                    s["trash_king_owner"] = info["owner_name"]
-                    s["trash_king_avatar"] = info["avatar"]
+            ).all():
+                if b.team_1: loser_roster_ids.add(b.team_1)
+                if b.team_2: loser_roster_ids.add(b.team_2)
+
+            if loser_roster_ids and lg.settings:
+                playoff_start = int(lg.settings.get("playoff_week_start", 15))
+                max_week_row = session.query(Matchup.week).filter_by(
+                    league_id=lg.league_id
+                ).order_by(Matchup.week.desc()).first()
+                max_week = max_week_row[0] if max_week_row else 0
+
+                results = {rid: {"wins": 0, "losses": 0, "games": 0} for rid in loser_roster_ids}
+
+                for w in range(playoff_start, max_week + 1):
+                    matchups = session.query(Matchup).filter_by(
+                        league_id=lg.league_id, week=w
+                    ).all()
+                    by_mid = {}
+                    for m in matchups:
+                        mid = m.matchup_id if m.matchup_id else f"bye_{m.roster_id}"
+                        by_mid.setdefault(mid, []).append(m)
+                    for group in by_mid.values():
+                        if len(group) < 2:
+                            continue
+                        a, b = group[0], group[1]
+                        for rid in [a.roster_id, b.roster_id]:
+                            if rid in results:
+                                results[rid]["games"] += 1
+                                a_pts = a.points or 0
+                                b_pts = b.points or 0
+                                if (rid == a.roster_id and a_pts > b_pts) or (rid == b.roster_id and b_pts > a_pts):
+                                    results[rid]["wins"] += 1
+                                else:
+                                    results[rid]["losses"] += 1
+
+                zero_win = [rid for rid, r in results.items() if r["games"] > 0 and r["wins"] == 0]
+                if zero_win:
+                    trash_rid = max(zero_win, key=lambda rid: results[rid]["losses"])
+                    info = _resolve_roster(lg.league_id, trash_rid)
+                    if info:
+                        s["trash_king"] = info["display"]
+                        s["trash_king_owner"] = info["owner_name"]
+                        s["trash_king_avatar"] = info["avatar"]
 
             seasons.append(s)
 
