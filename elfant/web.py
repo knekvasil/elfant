@@ -473,6 +473,236 @@ async def api_league_overview(league_id: str):
         for group in [old_guard, newcomers, previously_left]:
             group.sort(key=lambda x: min(int(sy) for sy, s in x["seasons"].items() if s["present"]))
 
+        career_stats = {}
+        best_reg_season = {"wins": 0, "owner_name": None, "team_name": None, "season": None, "pf": 0}
+        worst_reg_season = {"wins": 999, "owner_name": None, "team_name": None, "season": None, "pf": 0}
+        biggest_blowout = {"margin": 0, "week": 0, "season": None, "winner": None, "loser": None}
+        highest_score = {"pts": 0, "week": 0, "season": None, "team_name": None, "owner_name": None, "avatar": None}
+        biggest_upset = {"score": 0, "season": None, "round": 0, "higher_seed": 0, "lower_seed": 0, "winner_name": None, "loser_name": None, "winner_owner": None, "loser_owner": None, "winner_avatar": None, "loser_avatar": None}
+        h2h_map = {}
+
+        medals_by_owner = {}
+        for sg in seasons:
+            for label, field in [("champion", "champion_owner"), ("runner_up", "runner_up_owner"), ("third_place", "third_place_owner")]:
+                name = sg.get(field)
+                if name:
+                    medals_by_owner.setdefault(name, {"gold": 0, "silver": 0, "bronze": 0})
+                    if label == "champion":
+                        medals_by_owner[name]["gold"] += 1
+                    elif label == "runner_up":
+                        medals_by_owner[name]["silver"] += 1
+                    else:
+                        medals_by_owner[name]["bronze"] += 1
+
+        for lg in chain:
+            season = lg.season
+            rosters_db = session.query(Roster).filter_by(league_id=lg.league_id).all()
+            for r in rosters_db:
+                if not r.owner_id:
+                    continue
+                owner = session.get(User, r.owner_id)
+                if not owner:
+                    continue
+                lu = session.query(LeagueUser).filter_by(
+                    league_id=lg.league_id, user_id=r.owner_id
+                ).first() if r.owner_id else None
+                team_name = None
+                if lu and lu.user_metadata:
+                    team_name = lu.user_metadata.get("team_name")
+
+                oid = r.owner_id
+                if oid not in career_stats:
+                    career_stats[oid] = {
+                        "owner_id": oid,
+                        "display_name": owner.display_name,
+                        "avatar": f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None,
+                        "seasons_played": 0,
+                        "total_wins": 0, "total_losses": 0, "total_ties": 0,
+                        "total_pf": 0.0,
+                        "playoff_appearances": 0,
+                        "championships": medals_by_owner.get(owner.display_name, {}).get("gold", 0),
+                    }
+
+                s = r.settings or {}
+                cs = career_stats[oid]
+                cs["seasons_played"] += 1
+                wins = s.get("wins", 0)
+                losses = s.get("losses", 0)
+                ties = s.get("ties", 0)
+                pf = (s.get("fpts", 0) or 0) + (s.get("fpts_decimal", 0) or 0) / 100
+                cs["total_wins"] += wins
+                cs["total_losses"] += losses
+                cs["total_ties"] += ties
+                cs["total_pf"] += pf
+
+                display_name = owner.display_name
+                display_team = team_name or (f"Team {display_name}" if display_name else f"Roster {r.roster_id}")
+
+                if wins > best_reg_season["wins"] or (wins == best_reg_season["wins"] and pf > best_reg_season["pf"]):
+                    avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                    best_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
+                if wins < worst_reg_season["wins"] or (wins == worst_reg_season["wins"] and pf < worst_reg_season["pf"]):
+                    avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                    worst_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
+
+                in_playoffs = session.query(PlayoffBracket).filter_by(
+                    league_id=lg.league_id, bracket_type="winners"
+                ).filter(
+                    (PlayoffBracket.team_1 == r.roster_id) | (PlayoffBracket.team_2 == r.roster_id)
+                ).first() is not None
+                if in_playoffs:
+                    cs["playoff_appearances"] += 1
+
+            max_week_row = session.query(Matchup.week).filter_by(
+                league_id=lg.league_id
+            ).order_by(Matchup.week.desc()).first()
+            wk_max = max_week_row[0] if max_week_row else 0
+
+            reg_season_rosters = session.query(Roster).filter_by(league_id=lg.league_id).all()
+            reg_season_rosters.sort(key=lambda r: (-(r.settings or {}).get("wins", 0), -((r.settings or {}).get("fpts", 0) or 0) - ((r.settings or {}).get("fpts_decimal", 0) or 0) / 100))
+            seed_map = {r.roster_id: i + 1 for i, r in enumerate(reg_season_rosters)}
+
+            playoff_start = int((lg.settings or {}).get("playoff_week_start", 15)) if lg.settings else 15
+
+            winners_roster_ids = set()
+            high_stakes_pairs = {}
+            for b in session.query(PlayoffBracket).filter_by(league_id=lg.league_id, bracket_type="winners").all():
+                if b.team_1: winners_roster_ids.add(b.team_1)
+                if b.team_2: winners_roster_ids.add(b.team_2)
+                if b.team_1 and b.team_2 and (b.position is None or b.position <= 3):
+                    key = (min(b.team_1, b.team_2), max(b.team_1, b.team_2))
+                    high_stakes_pairs[key] = True
+
+            for w in range(1, wk_max + 1):
+                matchups = session.query(Matchup).filter_by(league_id=lg.league_id, week=w).all()
+                by_mid = {}
+                for m in matchups:
+                    mid = m.matchup_id if m.matchup_id else f"bye_{m.roster_id}"
+                    by_mid.setdefault(mid, []).append(m)
+                for group in by_mid.values():
+                    if len(group) < 2:
+                        continue
+                    a, b = group[0], group[1]
+                    a_pts = a.points or 0
+                    b_pts = b.points or 0
+                    a_owner = _resolve_roster(lg.league_id, a.roster_id)
+                    b_owner = _resolve_roster(lg.league_id, b.roster_id)
+                    if not a_owner or not b_owner:
+                        continue
+
+                    a_name = a_owner["display"]
+                    b_name = b_owner["display"]
+                    a_owner_name = a_owner["owner_name"]
+                    b_owner_name = b_owner["owner_name"]
+
+                    # H2H tracking
+                    for oa, ob in [(a_owner_name, b_owner_name), (b_owner_name, a_owner_name)]:
+                        if oa and ob:
+                            key = tuple(sorted([oa, ob]))
+                            if key not in h2h_map:
+                                h2h_map[key] = {"a": oa, "b": ob, "a_wins": 0, "b_wins": 0, "total": 0}
+                    if a_owner_name and b_owner_name:
+                        key = tuple(sorted([a_owner_name, b_owner_name]))
+                        entry = h2h_map[key]
+                        entry["total"] += 1
+                        if (a_pts > b_pts and entry["a"] == a_owner_name) or (b_pts > a_pts and entry["a"] == b_owner_name):
+                            entry["a_wins"] += 1
+                        else:
+                            entry["b_wins"] += 1
+
+                    margin = abs(a_pts - b_pts)
+                    for rid, pts, owner_data in [(a.roster_id, a_pts, a_owner), (b.roster_id, b_pts, b_owner)]:
+                        if pts > highest_score["pts"]:
+                            highest_score.update({"pts": round(pts, 1), "week": w, "season": season, "team_name": owner_data["display"], "owner_name": owner_data["owner_name"], "avatar": owner_data["avatar"]})
+
+                    if margin > biggest_blowout["margin"]:
+                        winner_name = a_name if a_pts > b_pts else b_name
+                        loser_name = b_name if a_pts > b_pts else a_name
+                        w_pts = round(max(a_pts, b_pts), 1)
+                        l_pts = round(min(a_pts, b_pts), 1)
+                        w_avatar = a_owner["avatar"] if a_pts > b_pts else b_owner["avatar"]
+                        l_avatar = b_owner["avatar"] if a_pts > b_pts else a_owner["avatar"]
+                        w_owner = a_owner_name if a_pts > b_pts else b_owner_name
+                        l_owner = b_owner_name if a_pts > b_pts else a_owner_name
+                        biggest_blowout.update({"margin": round(margin, 1), "week": w, "season": season, "winner": winner_name, "loser": loser_name, "winner_pts": w_pts, "loser_pts": l_pts, "winner_avatar": w_avatar, "loser_avatar": l_avatar, "winner_owner": w_owner, "loser_owner": l_owner})
+
+                    # Playoff upset tracking (high-stakes winners bracket matchups only)
+                    is_high_stakes = high_stakes_pairs.get((min(a.roster_id, b.roster_id), max(a.roster_id, b.roster_id)), False)
+                    if w >= playoff_start and is_high_stakes:
+                        a_seed = seed_map.get(a.roster_id, 99)
+                        b_seed = seed_map.get(b.roster_id, 99)
+
+                        if a_seed < b_seed and b_pts > a_pts:
+                            lower_seed, higher_seed = b_seed, a_seed
+                            winner_name, loser_name = b_name, a_name
+                            winner_owner_name, loser_owner_name = b_owner_name, a_owner_name
+                            winner_avatar, loser_avatar = b_owner["avatar"], a_owner["avatar"]
+                        elif b_seed < a_seed and a_pts > b_pts:
+                            lower_seed, higher_seed = a_seed, b_seed
+                            winner_name, loser_name = a_name, b_name
+                            winner_owner_name, loser_owner_name = a_owner_name, b_owner_name
+                            winner_avatar, loser_avatar = a_owner["avatar"], b_owner["avatar"]
+                        else:
+                            lower_seed, higher_seed = None, None
+
+                        if lower_seed is not None:
+                            rnd = w - playoff_start + 1
+                            upset_score = abs(higher_seed - lower_seed) * rnd
+                            if upset_score > biggest_upset["score"]:
+                                biggest_upset.update({"score": upset_score, "season": season, "round": rnd, "higher_seed": higher_seed, "lower_seed": lower_seed, "winner_name": winner_name, "loser_name": loser_name, "winner_owner": winner_owner_name, "loser_owner": loser_owner_name, "winner_avatar": winner_avatar, "loser_avatar": loser_avatar})
+
+        career_stats_list = []
+        for cs in career_stats.values():
+            total = cs["total_wins"] + cs["total_losses"] + cs["total_ties"]
+            cs["win_pct"] = round((cs["total_wins"] + cs["total_ties"] * 0.5) / total * 100, 1) if total > 0 else 0
+            cs["avg_pf"] = round(cs["total_pf"] / cs["seasons_played"], 1) if cs["seasons_played"] > 0 else 0
+            cs["playoff_pct"] = round(cs["playoff_appearances"] / cs["seasons_played"] * 100, 1) if cs["seasons_played"] > 0 else 0
+            career_stats_list.append(cs)
+
+        for cs in career_stats_list:
+            medals = medals_by_owner.get(cs["display_name"], {"gold": 0, "silver": 0, "bronze": 0})
+            cs["gold"] = medals["gold"]
+            cs["silver"] = medals["silver"]
+            cs["bronze"] = medals["bronze"]
+            cs["championship_score"] = round((medals["gold"] * 3 + medals["silver"] * 2 + medals["bronze"]) / cs["seasons_played"] * 100, 1) if cs["seasons_played"] > 0 else 0
+
+        norm_keys = {"win_pct": 0.30, "avg_pf": 0.20, "playoff_pct": 0.25}
+        for key in ["win_pct", "avg_pf", "playoff_pct"]:
+            vals = [cs[key] for cs in career_stats_list]
+            m = max(vals) or 1
+            for cs in career_stats_list:
+                cs[f"{key}_norm"] = round(cs[key] / m, 3)
+        for cs in career_stats_list:
+            cs["championship_score_norm"] = round(min(cs["championship_score"] / 300, 1), 3)
+        for cs in career_stats_list:
+            cs["composite"] = round((sum(cs[f"{k}_norm"] * norm_keys[k] for k in norm_keys) + cs["championship_score_norm"] * 0.25) * 100, 1)
+
+        career_stats_list.sort(key=lambda x: (-x["composite"], -x["win_pct"]))
+
+        best_reg = best_reg_season["owner_name"] and best_reg_season or None
+        worst_reg = worst_reg_season["owner_name"] and worst_reg_season or None
+        blowout = biggest_blowout["winner"] and biggest_blowout or None
+        upset = biggest_upset["winner_name"] and biggest_upset or None
+
+        owner_avatar_map = {cs["display_name"]: cs["avatar"] for cs in career_stats_list if cs["avatar"]}
+
+        rivalries = []
+        for entry in h2h_map.values():
+            if entry["total"] < 2:
+                continue
+            a_pct = round(entry["a_wins"] / entry["total"] * 100, 1)
+            b_pct = round(entry["b_wins"] / entry["total"] * 100, 1)
+            diff = abs(a_pct - b_pct)
+            if diff > 0:
+                dominant = entry["a"] if a_pct > b_pct else entry["b"]
+                dominated = entry["b"] if a_pct > b_pct else entry["a"]
+                dom_pct = max(a_pct, b_pct)
+                dom_wins = entry["a_wins"] if dominant == entry["a"] else entry["b_wins"]
+                domed_wins = entry["b_wins"] if dominant == entry["a"] else entry["a_wins"]
+                rivalries.append({"a": entry["a"], "b": entry["b"], "a_wins": entry["a_wins"], "b_wins": entry["b_wins"], "total": entry["total"], "dominant": dominant, "dominated": dominated, "dom_pct": dom_pct, "diff": diff, "dom_wins": dom_wins, "domed_wins": domed_wins, "dominant_avatar": owner_avatar_map.get(dominant), "dominated_avatar": owner_avatar_map.get(dominated)})
+        rivalries.sort(key=lambda x: -x["diff"])
+        top_rivalries = rivalries[:1]
+
         return {
             "group_id": group_id,
             "name": name,
@@ -487,6 +717,15 @@ async def api_league_overview(league_id: str):
             },
             "all_time_medals": all_time_medals,
             "trash_king_medals": trash_king_medals,
+            "career_stats": career_stats_list,
+            "individual_events": {
+                "best_reg_season": best_reg,
+                "worst_reg_season": worst_reg,
+                "biggest_blowout": blowout,
+                "biggest_playoff_upset": upset,
+                "top_rivalries": top_rivalries,
+                "highest_score": highest_score["pts"] > 0 and highest_score or None,
+            },
         }
 
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Users } from 'lucide-react'
 import { cn } from '../lib/utils'
 import Tooltip from '../components/ui/tooltip'
 import type { OwnerParticipant, ParticipantsData } from '../types'
@@ -34,10 +35,11 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
   const owners = sortedOwners(participants)
 
   return (
-    <div className="rounded-lg border border-border/40 bg-card/30 p-4 overflow-x-auto">
-      <div className="flex items-center gap-1.5 mb-3">
-        <span className="text-sm font-semibold">Player History</span>
-        <span className="text-[10px] text-muted-foreground">({owners.length})</span>
+    <div className="rounded-lg border border-border/40 bg-card/30 p-3 overflow-x-auto">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-2">
+        <Users className="size-3.5" />
+        Player History
+        <span className="text-[10px] font-normal">({owners.length})</span>
       </div>
 
       <div className="space-y-1">

@@ -169,6 +169,104 @@ export interface ParticipantsData {
   previously_left: OwnerParticipant[]
 }
 
+export interface CareerStatsEntry {
+  owner_id: string
+  display_name: string
+  avatar: string | null
+  seasons_played: number
+  total_wins: number
+  total_losses: number
+  total_ties: number
+  total_pf: number
+  win_pct: number
+  avg_pf: number
+  playoff_appearances: number
+  playoff_pct: number
+  championships: number
+  gold: number
+  silver: number
+  bronze: number
+  championship_score: number
+  composite: number
+  win_pct_norm: number
+  avg_pf_norm: number
+  playoff_pct_norm: number
+  championship_score_norm: number
+}
+
+export interface RegSeasonEvent {
+  wins: number
+  losses: number
+  ties: number
+  pf: number
+  season: string
+  owner_name: string
+  team_name: string
+  avatar: string | null
+}
+
+export interface BlowoutEvent {
+  margin: number
+  week: number
+  season: string
+  winner: string
+  loser: string
+  winner_pts: number
+  loser_pts: number
+  winner_avatar: string | null
+  loser_avatar: string | null
+  winner_owner: string | null
+  loser_owner: string | null
+}
+
+export interface PlayoffUpsetEvent {
+  score: number
+  season: string
+  round: number
+  higher_seed: number
+  lower_seed: number
+  winner_name: string
+  loser_name: string
+  winner_owner: string
+  loser_owner: string
+  winner_avatar: string | null
+  loser_avatar: string | null
+}
+
+export interface RivalryEntry {
+  a: string
+  b: string
+  a_wins: number
+  b_wins: number
+  total: number
+  dominant: string
+  dominated: string
+  dom_pct: number
+  diff: number
+  dom_wins: number
+  domed_wins: number
+  dominant_avatar: string | null
+  dominated_avatar: string | null
+}
+
+export interface HighestScoreEvent {
+  pts: number
+  week: number
+  season: string
+  team_name: string
+  owner_name: string
+  avatar: string | null
+}
+
+export interface IndividualEvents {
+  best_reg_season: RegSeasonEvent | null
+  worst_reg_season: RegSeasonEvent | null
+  biggest_blowout: BlowoutEvent | null
+  biggest_playoff_upset: PlayoffUpsetEvent | null
+  top_rivalries: RivalryEntry[]
+  highest_score: HighestScoreEvent | null
+}
+
 export interface LeagueOverviewData {
   group_id: string
   name: string
@@ -178,6 +276,8 @@ export interface LeagueOverviewData {
   participants: ParticipantsData
   all_time_medals: MedalEntry[]
   trash_king_medals: MedalEntry[]
+  career_stats: CareerStatsEntry[]
+  individual_events: IndividualEvents
 }
 
 export interface LeagueData {
