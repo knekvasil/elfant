@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
+import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -23,8 +23,7 @@ import RankingsChart from '../components/RankingsChart'
 import PointsDiffChart from '../components/PointsDiffChart'
 import TransactionsTimeline from '../components/TransactionsTimeline'
 import PlayerSearch from '../components/PlayerSearch'
-import WeeklyBarChart from '../components/WeeklyBarChart'
-import EfficiencyBarChart from '../components/EfficiencyBarChart'
+import RangeBarChart from '../components/RangeBarChart'
 import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
 
@@ -228,15 +227,13 @@ export default function League() {
               </div>
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
                 <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  {standingsMode === 'efficiency' ? <Gauge className="size-3.5" /> : <BarChart3 className="size-3.5" />}
-                  {standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
+                  <BarChart3 className="size-3.5" />
+                  {standingsMode === 'standard' ? 'Points For/Against Diff' : 'Consistency (avg ± σ)'}
                 </div>
-                {standingsMode === 'all_play' ? (
-                  <WeeklyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
-                ) : standingsMode === 'efficiency' ? (
-                  <EfficiencyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
-                ) : (
+                {standingsMode === 'standard' ? (
                   <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+                ) : (
+                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} />
                 )}
               </div>
             </div>
