@@ -58,12 +58,10 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   })
 
   const hasSelection = highlightedRosterIds !== undefined && highlightedRosterIds.size > 0
-  const displayRows = hasSelection
-    ? rows.filter(r => highlightedRosterIds?.has(r.roster_id)).sort((a, b) => b.avg - a.avg)
-    : rows.sort((a, b) => b.avg - a.avg)
+  const sortedRows = rows.sort((a, b) => b.avg - a.avg)
 
-  const allMins = displayRows.map(r => r.avg - r.std)
-  const allMaxs = displayRows.map(r => r.avg + r.std)
+  const allMins = sortedRows.map(r => r.avg - r.std)
+  const allMaxs = sortedRows.map(r => r.avg + r.std)
   const dataMin = Math.min(...allMins)
   const dataMax = Math.max(...allMaxs)
   const pad = (dataMax - dataMin) * 0.05 || 1
@@ -73,7 +71,7 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
 
   const barH = compact ? 20 : 22
   const gap = compact ? 8 : 10
-  const totalH = displayRows.length * (barH + gap) + 6
+  const totalH = sortedRows.length * (barH + gap) + 6
   const nameW = compact ? 110 : 140
   const chartW = compact ? 340 : 400
   const labelW = compact ? 30 : 36
@@ -83,9 +81,9 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
 
   return (
     <div className="w-full h-full overflow-x-auto">
-      <svg width={W} height={totalH} className="text-foreground flex-shrink-0" viewBox={`0 0 ${W} ${totalH}`}>
+      <svg className="text-foreground w-full h-full" viewBox={`0 0 ${W} ${totalH}`} preserveAspectRatio="xMinYMin meet">
         <line x1={xScale(0)} y1={0} x2={xScale(0)} y2={totalH} stroke="currentColor" className="text-border/30" strokeWidth={0.5} strokeDasharray="3 2" />
-        {displayRows.map((row, i) => {
+        {sortedRows.map((row, i) => {
           const y = i * (barH + gap) + 4
           const x1 = xScale(row.avg - row.std)
           const x2 = xScale(row.avg + row.std)
