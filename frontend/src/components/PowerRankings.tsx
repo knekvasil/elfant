@@ -30,7 +30,7 @@ interface PowerRow {
   composite: number
 }
 
-export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHover, onClick, selectedRosterIds, highlightedRosterIds }: Props) {
+export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHover, onClick, highlightedRosterIds }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -144,7 +144,7 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
                 key={r.roster_id}
                 className={cn(
                   'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 cursor-pointer',
-                  isHovered || isHighlighted(r.roster_id) ? 'bg-muted/40 ring-1 ring-border' : dm ? 'opacity-30' : 'hover:bg-muted/20',
+                  isHovered || hl ? 'bg-muted/40 ring-1 ring-border' : dm ? 'opacity-30' : 'hover:bg-muted/20',
                 )}
                 onMouseEnter={() => onHover?.(r.roster_id)}
                 onMouseLeave={() => onHover?.(null)}
@@ -179,7 +179,7 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
             ? rosters.find(r => r.roster_id === [...highlightedRosterIds!][0])?.team_name || `Team ${[...highlightedRosterIds!][0]}`
             : 'All Teams'}
         </div>
-        <div className="w-full aspect-square max-h-[420px]">
+        <div className="w-full h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData}>
               <PolarGrid stroke="currentColor" className="text-border/30" />
