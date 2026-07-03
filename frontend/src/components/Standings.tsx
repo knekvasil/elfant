@@ -83,7 +83,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Opt W-L</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">Record</div>}
         {mode === 'median' && <div className="text-right flex-shrink-0 w-14">W-L</div>}
-        {(mode === 'standard' || mode === 'median') && <div className="text-right flex-shrink-0 w-16">PF</div>}
+        {mode === 'standard' && <div className="text-right flex-shrink-0 w-16">PF</div>}
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
@@ -151,7 +151,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               {displayRecord}
             </div>
 
-            {(mode === 'standard' || mode === 'median') && (
+            {mode === 'standard' && (
               <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-16 text-muted-foreground">
                 {r.fpts.toFixed(1)}
               </div>
