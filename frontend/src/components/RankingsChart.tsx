@@ -48,8 +48,8 @@ export default function RankingsChart({ leagueId, highlightedRosterIds, mode = '
   const yScale = (rank: number) => PAD.top + ((rank - 1) / (numTeams - 1)) * innerH
 
   return (
-    <div className="w-full overflow-x-auto flex justify-center">
-      <svg width={W} height={H} className="text-foreground flex-shrink-0">
+    <div className="w-full h-full">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
         {[1, Math.ceil(numTeams / 2), numTeams].map((r) => (
           <text key={r} x={PAD.left - 6} y={yScale(r) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">#{r}</text>
         ))}

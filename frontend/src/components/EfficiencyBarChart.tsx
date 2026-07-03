@@ -57,8 +57,8 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds, com
   const yScale = (v: number) => PAD.top + (1 - (v - minEff) / effRange) * innerH
 
   return (
-    <div className="w-full overflow-x-auto flex justify-center">
-      <svg width={W} height={H + 18} className="text-foreground flex-shrink-0">
+    <div className="w-full h-full">
+      <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full h-full text-foreground">
         {[minEff, (minEff + maxEff) / 2, maxEff].map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v}%</text>
         ))}

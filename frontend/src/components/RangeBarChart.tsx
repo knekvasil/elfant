@@ -78,8 +78,8 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   const xScale = (v: number) => nameW + ((v - xMin) / xRange) * chartW
 
   return (
-    <div className="w-full overflow-x-auto flex justify-center">
-      <svg width={W} height={totalH} className="text-foreground flex-shrink-0">
+    <div className="w-full h-full overflow-x-auto">
+      <svg width={W} height={totalH} className="text-foreground flex-shrink-0" viewBox={`0 0 ${W} ${totalH}`}>
         <line x1={xScale(0)} y1={0} x2={xScale(0)} y2={totalH} stroke="currentColor" className="text-border/30" strokeWidth={0.5} strokeDasharray="3 2" />
         {displayRows.map((row, i) => {
           const y = i * (barH + gap) + 4

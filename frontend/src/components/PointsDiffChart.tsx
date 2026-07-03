@@ -52,8 +52,8 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
   const yScale = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH
 
   return (
-    <div className="w-full overflow-x-auto flex justify-center">
-      <svg width={W} height={H} className="text-foreground flex-shrink-0">
+    <div className="w-full h-full">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full text-foreground">
         <line x1={PAD.left} y1={yScale(0)} x2={W - PAD.right} y2={yScale(0)} stroke="currentColor" className="text-border/60" strokeWidth={1} strokeDasharray="4 3" />
         {[yMin, 0, yMax].map((v) => (
           <text key={v} x={PAD.left - 6} y={yScale(v) + 3} textAnchor="end" className="fill-muted-foreground text-[9px] font-mono">{v > 0 ? '+' : ''}{v}</text>
