@@ -5,6 +5,7 @@ import type { TeamStatsData, Roster } from '../types'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 import { cn } from '../lib/utils'
 import Tooltip from './ui/tooltip'
+import { Info } from 'lucide-react'
 
 interface Props {
   leagueId: string
@@ -59,13 +60,15 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
     lineup: 'Lineup',
   }
 
+  const maxStd = Math.max(...data.rosters.map(r => r.season_std), 0.01)
+
   const rows: PowerRow[] = data.rosters.map((r) => {
     const roster = rosters.find(ro => ro.roster_id === r.roster_id)
     const name = roster?.team_name || r.name
 
     const avgPf = r.season_avg
     const efficiency = r.avg_efficiency
-    const consistency = 1 - r.bust_rate
+    const consistency = Math.max(0, 1 - r.season_std / maxStd)
     const dominance = r.all_play_total > 0 ? (r.all_play_wins / r.all_play_total) * 100 : 0
     const rosterScore = r.weekly.reduce((s, w) => s + w.optimal, 0) / weeks
     const optWins = r.weekly.reduce((s, w) => s + w.optimal_wins, 0)
@@ -83,11 +86,9 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
 
   for (const key of keys) {
     const vals = rows.map(r => r.norm[key])
-    const min = Math.min(...vals)
-    const max = Math.max(...vals)
-    const range = max - min || 1
+    const max = Math.max(...vals) || 1
     for (const r of rows) {
-      r.norm[key] = (r.norm[key] - min) / range
+      r.norm[key] = r.norm[key] / max
     }
   }
 
@@ -169,7 +170,21 @@ export default function PowerRankings({ leagueId, rosters }: Props) {
       </div>
 
       <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-        <div className="text-xs font-semibold text-muted-foreground mb-3">Radar — {selectedId ? rosters.find(r => r.roster_id === selectedId)?.team_name || `Team ${selectedId}` : 'All Teams'}</div>
+        <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+          <span>Radar — {selectedId ? rosters.find(r => r.roster_id === selectedId)?.team_name || `Team ${selectedId}` : 'All Teams'}</span>
+          <Tooltip content={
+            <div className="space-y-1">
+              <p><b>PF</b> — Average weekly points scored</p>
+              <p><b>Eff</b> — Average lineup efficiency (actual ÷ optimal × 100)</p>
+              <p><b>Cons.</b> — Scoring consistency (inverted std dev of weekly PF)</p>
+              <p><b>Dom.</b> — All-play win % (how often you'd beat every team each week)</p>
+              <p><b>Rost.</b> — Average optimal lineup points (roster talent)</p>
+              <p><b>LU</b> — Lineup score (how few wins left on the bench)</p>
+            </div>
+          }>
+            <Info className="size-3.5 text-muted-foreground/60 cursor-help" />
+          </Tooltip>
+        </div>
         <div className="w-full aspect-square max-h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData}>
