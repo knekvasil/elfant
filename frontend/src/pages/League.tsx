@@ -199,8 +199,8 @@ export default function League() {
         </TabsList>
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col h-[calc(100vh-12rem)]">
-              <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between shrink-0">
+            <div className="rounded-lg border border-border/40 bg-card/30 p-3 self-start">
+              <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Table2 className="size-3.5" />
                   Standings
@@ -217,9 +217,7 @@ export default function League() {
                   ))}
                 </div>
               </div>
-              <div className="overflow-y-auto min-h-0 flex-1">
-                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} teamStats={teamStats} />
-              </div>
+              <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} teamStats={teamStats} />
             </div>
             <div className="space-y-3">
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
