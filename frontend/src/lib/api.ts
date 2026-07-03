@@ -21,8 +21,9 @@ export async function refreshLeague(leagueId: string): Promise<void> {
   await fetch(`${BASE}/league/${leagueId}/refresh`, { method: 'POST' })
 }
 
-export async function fetchRankings(leagueId: string): Promise<RankingsData> {
-  const res = await fetch(`${BASE}/league/${leagueId}/rankings`)
+export async function fetchRankings(leagueId: string, mode?: string): Promise<RankingsData> {
+  const query = mode && mode !== 'standard' ? `?mode=${mode}` : ''
+  const res = await fetch(`${BASE}/league/${leagueId}/rankings${query}`)
   if (!res.ok) throw new Error(`Rankings not found (${res.status})`)
   return res.json()
 }

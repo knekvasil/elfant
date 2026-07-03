@@ -6,6 +6,7 @@ import type { RankingsData } from '../types'
 interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
+  mode?: 'standard' | 'median'
 }
 
 const COLORS = [
@@ -14,17 +15,17 @@ const COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function PointsDiffChart({ leagueId, highlightedRosterIds }: Props) {
+export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode = 'standard' }: Props) {
   const [data, setData] = useState<RankingsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    fetchRankings(leagueId)
+    fetchRankings(leagueId, mode)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [leagueId])
+  }, [leagueId, mode])
 
   if (loading) return <Skeleton className="h-48 w-full" />
   if (!data || data.rosters.length === 0) return <div className="text-sm text-muted-foreground text-center py-6">No data available.</div>

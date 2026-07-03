@@ -118,6 +118,8 @@ export interface RankingRoster {
   avatar: string | null
   rankings: number[]
   pf_diffs: number[]
+  median_wins: number
+  total_weeks: number
 }
 
 export interface PlayerWeek {

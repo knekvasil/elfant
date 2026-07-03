@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users } from 'lucide-react'
+import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
@@ -32,6 +33,7 @@ export default function League() {
   const [error, setError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'standings'
+  const [standingsMode, setStandingsMode] = useState<'standard' | 'median'>('standard')
   const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
 
@@ -193,28 +195,42 @@ export default function League() {
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Standings</CardTitle>
+                <div className="flex gap-1 bg-muted/20 rounded-xl p-1 border border-border/40 shadow-sm">
+                  <button
+                    onClick={() => setStandingsMode('standard')}
+                    className={cn('text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all', standingsMode === 'standard' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    onClick={() => setStandingsMode('median')}
+                    className={cn('text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all', standingsMode === 'median' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
+                  >
+                    Vs Median
+                  </button>
+                </div>
               </CardHeader>
               <CardContent>
-                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} />
+                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} />
               </CardContent>
             </Card>
             <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Weekly Placement</CardTitle>
+                  <CardTitle className="text-lg">{standingsMode === 'median' ? 'Median Weekly Placement' : 'Weekly Placement'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Points For/Against Diff</CardTitle>
+                  <CardTitle className="text-lg">{standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
+                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
                 </CardContent>
               </Card>
             </div>

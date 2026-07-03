@@ -400,7 +400,7 @@ async def api_playoffs(league_id: str):
 
 
 @app.get("/api/league/{league_id}/rankings")
-async def api_rankings(league_id: str):
+async def api_rankings(league_id: str, mode: str = "standard"):
     with get_session() as session:
         league = session.get(League, league_id)
         if not league:
@@ -420,7 +420,6 @@ async def api_rankings(league_id: str):
                 "avatar": f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None,
             }
 
-        # Find number of regular season weeks (cap at playoff_week_start - 1)
         playoff_start = (league.settings or {}).get("playoff_week_start", 99) if league else 99
         max_week = 0
         latest = session.query(Matchup.week).filter_by(league_id=league_id).order_by(Matchup.week.desc()).first()
@@ -430,18 +429,19 @@ async def api_rankings(league_id: str):
         if max_week < 1:
             return {"weeks": [], "rosters": []}
 
-        # Compute cumulative standings per week
         roster_ids = sorted([r.roster_id for r in rosters_raw])
         cum_wins = {rid: 0 for rid in roster_ids}
+        cum_median_wins = {rid: 0 for rid in roster_ids}
         cum_fpts = {rid: 0.0 for rid in roster_ids}
         cum_fpa = {rid: 0.0 for rid in roster_ids}
-        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": []} for rid in roster_ids}
+        weekly_pts = {rid: [] for rid in roster_ids}
+        cum_median_fpts = 0.0
+        rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0} for rid in roster_ids}
 
         for w in range(1, max_week + 1):
             matchups = session.query(Matchup).filter_by(league_id=league_id, week=w).all()
             md = {m.roster_id: m for m in matchups}
 
-            # Track points against per matchup
             seen = set()
             pa = {rid: 0.0 for rid in roster_ids}
             for m in matchups:
@@ -463,16 +463,42 @@ async def api_rankings(league_id: str):
                         cum_wins[t1.roster_id] = cum_wins.get(t1.roster_id, 0) + 0.5
                         cum_wins[t2.roster_id] = cum_wins.get(t2.roster_id, 0) + 0.5
 
+            week_pts = []
             for rid in roster_ids:
                 pts = md.get(rid).points or 0 if md.get(rid) else 0
                 cum_fpts[rid] += pts
                 cum_fpa[rid] += pa.get(rid, 0)
+                weekly_pts[rid].append(pts)
+                week_pts.append(pts)
 
-            # Compute ranks: sort by wins desc, fpts desc
-            ranked = sorted(roster_ids, key=lambda rid: (-cum_wins[rid], -cum_fpts[rid]))
+            week_pts.sort()
+            n = len(week_pts)
+            if n % 2 == 0:
+                median = (week_pts[n // 2 - 1] + week_pts[n // 2]) / 2
+            else:
+                median = week_pts[n // 2]
+            cum_median_fpts += median
+
+            for rid in roster_ids:
+                pts = md.get(rid).points or 0 if md.get(rid) else 0
+                if pts > median:
+                    cum_median_wins[rid] += 1
+                elif pts == median:
+                    cum_median_wins[rid] += 0.5
+
+            if mode == "median":
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_median_wins[rid], -cum_fpts[rid]))
+            else:
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_wins[rid], -cum_fpts[rid]))
+
             for rank, rid in enumerate(ranked, 1):
                 rosters_data[rid]["rankings"].append(rank)
-                rosters_data[rid]["pf_diffs"].append(round(cum_fpts[rid] - cum_fpa[rid], 1))
+                diff = round(cum_fpts[rid] - (cum_median_fpts if mode == "median" else cum_fpa[rid]), 1)
+                rosters_data[rid]["pf_diffs"].append(diff)
+
+        for rid in roster_ids:
+            rosters_data[rid]["median_wins"] = cum_median_wins[rid]
+            rosters_data[rid]["total_weeks"] = max_week
 
         return {
             "weeks": list(range(1, max_week + 1)),
