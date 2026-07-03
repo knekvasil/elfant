@@ -9,6 +9,7 @@ interface Props {
   highlightedRosterIds?: Set<number>
   mode: 'standard' | 'median' | 'all_play' | 'efficiency'
   rosters: Roster[]
+  compact?: boolean
 }
 
 const TEAM_COLORS = [
@@ -17,7 +18,7 @@ const TEAM_COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, rosters }: Props) {
+export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, rosters, compact }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -63,11 +64,11 @@ export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, ro
   const xMax = Math.max(...allMaxs)
   const xRange = xMax - xMin || 1
 
-  const barH = 18
-  const gap = 8
+  const barH = compact ? 14 : 18
+  const gap = compact ? 5 : 8
   const totalH = displayRows.length * (barH + gap) + 10
-  const leftW = 110
-  const rightW = 300
+  const leftW = compact ? 90 : 110
+  const rightW = compact ? 240 : 300
   const W = leftW + rightW
 
   const xScale = (v: number) => leftW + ((v - xMin) / xRange) * rightW

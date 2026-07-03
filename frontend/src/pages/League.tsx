@@ -198,8 +198,8 @@ export default function League() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="standings">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-1 rounded-lg border border-border/40 bg-card/30 p-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-border/40 bg-card/30 p-3">
               <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Table2 className="size-3.5" />
@@ -219,35 +219,33 @@ export default function League() {
               </div>
               <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} teamStats={teamStats} />
             </div>
-            <div className="lg:col-span-2 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <TrendingUp className="size-3.5" />
-                    {standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}
-                  </div>
-                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+                  <TrendingUp className="size-3.5" />
+                  {standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}
                 </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <BarChart3 className="size-3.5" />
-                    {standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
-                  </div>
-                  {standingsMode === 'all_play' ? (
-                    <WeeklyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
-                  ) : standingsMode === 'efficiency' ? (
-                    <EfficiencyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} />
-                  ) : (
-                    <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
-                  )}
-                </div>
+                <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
               </div>
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-                <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+                  <BarChart3 className="size-3.5" />
+                  {standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
+                </div>
+                {standingsMode === 'all_play' ? (
+                  <WeeklyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} compact />
+                ) : standingsMode === 'efficiency' ? (
+                  <EfficiencyBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} compact />
+                ) : (
+                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
+                )}
+              </div>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
                   <BarChart3 className="size-3.5" />
                   Consistency (avg ± σ)
                 </div>
-                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} />
+                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} rosters={rosters} compact />
               </div>
             </div>
           </div>

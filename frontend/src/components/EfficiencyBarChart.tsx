@@ -6,6 +6,7 @@ import type { TeamStatsData } from '../types'
 interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
+  compact?: boolean
 }
 
 const TEAM_COLORS = [
@@ -14,7 +15,7 @@ const TEAM_COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function EfficiencyBarChart({ leagueId, highlightedRosterIds }: Props) {
+export default function EfficiencyBarChart({ leagueId, highlightedRosterIds, compact }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,9 +46,9 @@ export default function EfficiencyBarChart({ leagueId, highlightedRosterIds }: P
   const maxEff = 100
   const effRange = maxEff - minEff
 
-  const PAD = { top: 12, right: 16, bottom: 28, left: 40 }
-  const W = 520
-  const H = 240
+  const PAD = { top: 10, right: 12, bottom: 22, left: 34 }
+  const W = compact ? 380 : 520
+  const H = compact ? 150 : 240
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
   const barGroupW = innerW / numWeeks

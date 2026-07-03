@@ -7,6 +7,7 @@ interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
   mode?: string
+  compact?: boolean
 }
 
 const COLORS = [
@@ -15,7 +16,7 @@ const COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function RankingsChart({ leagueId, highlightedRosterIds, mode = 'standard' }: Props) {
+export default function RankingsChart({ leagueId, highlightedRosterIds, mode = 'standard', compact }: Props) {
   const [data, setData] = useState<RankingsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -37,9 +38,9 @@ export default function RankingsChart({ leagueId, highlightedRosterIds, mode = '
   const isHighlighted = (rid: number) => highlightedRosterIds?.has(rid) ?? false
   const isDimmed = (rid: number) => hasActive && !isHighlighted(rid)
 
-  const PAD = { top: 16, right: 16, bottom: 28, left: 32 }
-  const W = 520
-  const H = 320
+  const PAD = { top: 12, right: 12, bottom: 24, left: 28 }
+  const W = compact ? 380 : 520
+  const H = compact ? 200 : 320
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
 

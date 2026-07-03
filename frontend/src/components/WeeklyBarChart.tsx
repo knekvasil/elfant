@@ -5,6 +5,7 @@ import type { TeamStatsData } from '../types'
 interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
+  compact?: boolean
 }
 
 const TEAM_COLORS = [
@@ -13,7 +14,7 @@ const TEAM_COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function WeeklyBarChart({ leagueId, highlightedRosterIds }: Props) {
+export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact }: Props) {
   const [data, setData] = useState<TeamStatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -39,9 +40,9 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds }: Props
   const maxVal = Math.max(...allVals, 100)
   const minVal = 0
 
-  const PAD = { top: 12, right: 16, bottom: 28, left: 40 }
-  const W = 520
-  const H = 240
+  const PAD = { top: 10, right: 12, bottom: 24, left: 34 }
+  const W = compact ? 380 : 520
+  const H = compact ? 150 : 240
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
   const barGroupW = innerW / numWeeks

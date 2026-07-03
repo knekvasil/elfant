@@ -7,6 +7,7 @@ interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
   mode?: string
+  compact?: boolean
 }
 
 const COLORS = [
@@ -15,7 +16,7 @@ const COLORS = [
   '#4ade80', '#fde68a',
 ]
 
-export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode = 'standard' }: Props) {
+export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode = 'standard', compact }: Props) {
   const [data, setData] = useState<RankingsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -41,9 +42,9 @@ export default function PointsDiffChart({ leagueId, highlightedRosterIds, mode =
   const yMin = -maxAbs - 20
   const yMax = maxAbs + 20
 
-  const PAD = { top: 12, right: 16, bottom: 28, left: 44 }
-  const W = 520
-  const H = 240
+  const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
+  const W = compact ? 380 : 520
+  const H = compact ? 150 : 240
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
 
