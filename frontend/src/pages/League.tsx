@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import Tooltip from '../components/ui/tooltip'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
@@ -211,13 +212,19 @@ export default function League() {
                 </div>
                 <div className="flex gap-1 bg-muted/20 rounded-xl p-1 border border-border/40 shadow-sm">
                   {(['standard', 'median', 'all_play', 'efficiency'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setStandingsMode(m)}
-                      className={cn('text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize', standingsMode === m ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
-                    >
-                      {m === 'all_play' ? 'All-Play' : m}
-                    </button>
+                    <Tooltip key={m} content={
+                      m === 'standard' ? 'Actual head-to-head record. Each matchup is a win or loss.' :
+                      m === 'median' ? 'What if every team faced the median score each week? Rewards consistency above the median.' :
+                      m === 'all_play' ? 'What if every team played every other team each week? True measure of team strength.' :
+                      'What if you set the optimal lineup each week? Measures lineup management skill.'
+                    }>
+                      <button
+                        onClick={() => setStandingsMode(m)}
+                        className={cn('text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize', standingsMode === m ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
+                      >
+                        {m === 'all_play' ? 'All-Play' : m}
+                      </button>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
@@ -227,7 +234,9 @@ export default function League() {
               <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">
                 <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
                   <TrendingUp className="size-3.5" />
-                  {standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}
+                  <Tooltip content="Each team's rank trajectory through the season using the selected scoring method">
+                    <span className="cursor-help">{standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}</span>
+                  </Tooltip>
                 </div>
                 <div className="flex-1 min-h-0">
                   <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
@@ -236,7 +245,14 @@ export default function League() {
               <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">
                 <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
                   <BarChart3 className="size-3.5" />
-                  {standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}
+                  <Tooltip content={
+                    standingsMode === 'all_play' ? 'PF, PA, league average, and optimal score per week for selected teams.' :
+                    standingsMode === 'efficiency' ? 'Actual PF as a percentage of optimal PF each week. Higher = better lineup decisions.' :
+                    standingsMode === 'median' ? 'Cumulative PF minus cumulative median score. Positive = consistently above average.' :
+                    'Cumulative PF minus PA. Shows how your total scoring compares to opponents.'
+                  }>
+                    <span className="cursor-help">{standingsMode === 'all_play' ? 'Weekly Breakdown' : standingsMode === 'efficiency' ? 'Efficiency per Week' : (standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff')}</span>
+                  </Tooltip>
                 </div>
                 <div className="flex-1 min-h-0">
                   {standingsMode === 'all_play' ? (
@@ -263,29 +279,35 @@ export default function League() {
         )}
         <TabsContent value="charts">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                <BarChart3 className="size-3.5" />
-                Standard Consistency (avg ± σ)
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
+                  <BarChart3 className="size-3.5" />
+                  <Tooltip content="Average weekly PF and its standard deviation across all teams. Shows who is consistently high-scoring vs boom-or-bust.">
+                    <span className="cursor-help">Standard Consistency (avg ± σ)</span>
+                  </Tooltip>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="standard" rosters={rosters} compact />
+                </div>
               </div>
-              <div className="flex-1 min-h-0">
-                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="standard" rosters={rosters} compact />
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
+                  <BarChart3 className="size-3.5" />
+                  <Tooltip content="Average weekly PF-minus-league-avg and its variability. Shows who consistently outperforms the league average.">
+                    <span className="cursor-help">Median Consistency (avg ± σ)</span>
+                  </Tooltip>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="median" rosters={rosters} compact />
+                </div>
               </div>
-            </div>
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                <BarChart3 className="size-3.5" />
-                Median Consistency (avg ± σ)
-              </div>
-              <div className="flex-1 min-h-0">
-                <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="median" rosters={rosters} compact />
-              </div>
-            </div>
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
-              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                <BarChart3 className="size-3.5" />
-                All-Play Consistency (avg ± σ)
-              </div>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex flex-col min-h-0">
+                <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
+                  <BarChart3 className="size-3.5" />
+                  <Tooltip content="Average weekly all-play wins and their variability. Shows who consistently beats most of the league vs who is feast-or-famine.">
+                    <span className="cursor-help">All-Play Consistency (avg ± σ)</span>
+                  </Tooltip>
+                </div>
               <div className="flex-1 min-h-0">
                 <RangeBarChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode="all_play" rosters={rosters} compact />
               </div>

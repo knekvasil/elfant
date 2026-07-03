@@ -4,6 +4,7 @@ import type { Roster, RankingsData, TeamStatsData } from '../types'
 import { cn } from '../lib/utils'
 import { fetchRankings, fetchTeamStats } from '../lib/api'
 import { Skeleton } from '../components/ui/skeleton'
+import Tooltip from '../components/ui/tooltip'
 
 const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
 
@@ -89,19 +90,71 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         <div className="w-5 flex-shrink-0" />
         <div className="size-7 flex-shrink-0" />
         <div className="flex-1 min-w-0">Team</div>
-        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">AP-W</div>}
-        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Opt W-L</div>}
-        {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">Record</div>}
-        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">W-L</div>}
-        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
-        {mode === 'median' && <div className="text-right flex-shrink-0 w-14">σ</div>}
-        {mode === 'standard' && <div className="text-right flex-shrink-0 w-16">PF</div>}
-        {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
-        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">Avg/W</div>}
-        {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
-        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
-        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">σ</div>}
-        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
+        {mode === 'all_play' && (
+          <Tooltip content="All-Play Wins — total wins if every team played every other team each week">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">AP-W</div>
+          </Tooltip>
+        )}
+        {mode === 'efficiency' && (
+          <Tooltip content="Optimal lineup win-loss record — what your record would be if you started the highest-scoring lineup each week">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">Opt W-L</div>
+          </Tooltip>
+        )}
+        {mode === 'standard' && (
+          <Tooltip content="Actual head-to-head win-loss record">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">Record</div>
+          </Tooltip>
+        )}
+        {mode === 'median' && (
+          <Tooltip content="Record if every team faced the median score each week">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">W-L</div>
+          </Tooltip>
+        )}
+        {mode === 'median' && (
+          <Tooltip content="Cumulative PF minus cumulative median score — positive means consistently above average">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">+/-</div>
+          </Tooltip>
+        )}
+        {mode === 'median' && (
+          <Tooltip content="Standard deviation of weekly PF — lower = more consistent">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">σ</div>
+          </Tooltip>
+        )}
+        {mode === 'standard' && (
+          <Tooltip content="Total points scored this season">
+            <div className="text-right flex-shrink-0 w-16 cursor-help">PF</div>
+          </Tooltip>
+        )}
+        {mode === 'standard' && (
+          <Tooltip content="Points differential (PF − PA)">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">+/-</div>
+          </Tooltip>
+        )}
+        {mode === 'all_play' && (
+          <Tooltip content="Average all-play wins per week">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">Avg/W</div>
+          </Tooltip>
+        )}
+        {mode === 'all_play' && (
+          <Tooltip content="Standard deviation of weekly PF — lower = more consistent">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">σ</div>
+          </Tooltip>
+        )}
+        {mode === 'efficiency' && (
+          <Tooltip content="Optimal wins minus actual wins — negative means you left points on the bench">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">+/-</div>
+          </Tooltip>
+        )}
+        {mode === 'efficiency' && (
+          <Tooltip content="Standard deviation of weekly efficiency — lower = more consistent lineup decisions">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">σ</div>
+          </Tooltip>
+        )}
+        {mode === 'efficiency' && (
+          <Tooltip content="Average lineup efficiency (actual PF ÷ optimal PF × 100)">
+            <div className="text-right flex-shrink-0 w-14 cursor-help">Eff%</div>
+          </Tooltip>
+        )}
       </div>
 
       {ranked.map((r, i) => {
