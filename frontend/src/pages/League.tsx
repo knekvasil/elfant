@@ -233,13 +233,19 @@ export default function League() {
             <div className="flex flex-col gap-3 min-h-0">
               <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">
                 <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5 shrink-0">
-                  <TrendingUp className="size-3.5" />
-                  <Tooltip content={standingsMode === 'efficiency' ? "Optimal all-play rank — if every team played their optimal lineup each week, this is how you'd rank based on roster strength alone." : "Each team's rank trajectory through the season using the selected scoring method"}>
-                    <span className="cursor-help">{standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : standingsMode === 'efficiency' ? 'Efficiency Placement' : 'Weekly Placement'}</span>
+                  {standingsMode === 'efficiency' ? <BarChart3 className="size-3.5" /> : <TrendingUp className="size-3.5" />}
+                  <Tooltip content={standingsMode === 'efficiency' ? "Cumulative optimal points each week — a fair measure of roster strength regardless of opponent luck." : "Each team's rank trajectory through the season using the selected scoring method"}>
+                    <span className="cursor-help">
+                      {standingsMode === 'efficiency' ? 'Cumulative Optimal PF' : standingsMode === 'median' ? 'Median Placement' : standingsMode === 'all_play' ? 'All-Play Placement' : 'Weekly Placement'}
+                    </span>
                   </Tooltip>
                 </div>
                 <div className="flex-1 min-h-0">
-                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
+                  {standingsMode === 'efficiency' ? (
+                    <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
+                  ) : (
+                    <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} compact />
+                  )}
                 </div>
               </div>
               <div className="rounded-lg border border-border/40 bg-card/30 p-3 flex-1 flex flex-col min-h-0">

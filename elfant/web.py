@@ -440,7 +440,6 @@ async def api_rankings(league_id: str, mode: str = "standard"):
         cum_efficiency = {rid: 0.0 for rid in roster_ids}
         cum_optimal_wins = {rid: 0 for rid in roster_ids}
         cum_optimal_fpts = {rid: 0.0 for rid in roster_ids}
-        cum_optimal_all_play_wins = {rid: 0 for rid in roster_ids}
         rosters_data = {rid: {"roster_id": rid, "name": owners.get(rid, {}).get("name", f"Roster {rid}"), "owner": owners.get(rid, {}).get("owner"), "avatar": owners.get(rid, {}).get("avatar"), "rankings": [], "pf_diffs": [], "median_wins": 0, "total_weeks": 0, "all_play_wins": 0, "avg_efficiency": 0, "optimal_wins": 0} for rid in roster_ids}
 
         for w in range(1, max_week + 1):
@@ -510,10 +509,6 @@ async def api_rankings(league_id: str, mode: str = "standard"):
                 ap_wins = sum(1 for other_id in roster_ids if other_id != rid and pts > week_pf_map[other_id])
                 cum_all_play_wins[rid] += ap_wins
 
-                opt = week_optimal_map[rid]
-                opt_ap_wins = sum(1 for other_id in roster_ids if other_id != rid and opt > week_optimal_map[other_id])
-                cum_optimal_all_play_wins[rid] += opt_ap_wins
-
                 if pts > median:
                     cum_median_wins[rid] += 1
                 elif pts == median:
@@ -524,7 +519,7 @@ async def api_rankings(league_id: str, mode: str = "standard"):
             elif mode == "all_play":
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_all_play_wins[rid], -cum_fpts[rid]))
             elif mode == "efficiency":
-                ranked = sorted(roster_ids, key=lambda rid: (-cum_optimal_all_play_wins[rid], -cum_optimal_fpts[rid]))
+                ranked = sorted(roster_ids, key=lambda rid: (-cum_optimal_wins[rid], -cum_optimal_fpts[rid]))
             else:
                 ranked = sorted(roster_ids, key=lambda rid: (-cum_wins[rid], -cum_fpts[rid]))
 
@@ -536,7 +531,7 @@ async def api_rankings(league_id: str, mode: str = "standard"):
                     # Show cumulative PF - cumulative median PF for all_play mode
                     diff = round(cum_fpts[rid] - cum_median_fpts, 1)
                 elif mode == "efficiency":
-                    diff = round(cum_efficiency[rid] / w, 1) - 100 if w else 0
+                    diff = round(cum_optimal_fpts[rid], 1)
                 else:
                     diff = round(cum_fpts[rid] - cum_fpa[rid], 1)
                 rosters_data[rid]["pf_diffs"].append(diff)
