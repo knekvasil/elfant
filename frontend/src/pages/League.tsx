@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users } from 'lucide-react'
+import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -194,9 +194,12 @@ export default function League() {
         </TabsList>
         <TabsContent value="standings">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Standings</CardTitle>
+            <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+              <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Table2 className="size-3.5" />
+                  Standings
+                </div>
                 <div className="flex gap-1 bg-muted/20 rounded-xl p-1 border border-border/40 shadow-sm">
                   <button
                     onClick={() => setStandingsMode('standard')}
@@ -211,28 +214,24 @@ export default function League() {
                     Vs Median
                   </button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} />
-              </CardContent>
-            </Card>
+              </div>
+              <Standings rosters={rosters} hoveredRosterId={hoveredRosterId} onHover={handleHover} onClick={handleClick} mode={standingsMode} leagueId={league.league_id} selectedRosterIds={selectedRosterIds} />
+            </div>
             <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">{standingsMode === 'median' ? 'Median Weekly Placement' : 'Weekly Placement'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">{standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
-                </CardContent>
-              </Card>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <TrendingUp className="size-3.5" />
+                  {standingsMode === 'median' ? 'Median Weekly Placement' : 'Weekly Placement'}
+                </div>
+                <RankingsChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+              </div>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <BarChart3 className="size-3.5" />
+                  {standingsMode === 'median' ? 'Points vs Median' : 'Points For/Against Diff'}
+                </div>
+                <PointsDiffChart leagueId={league.league_id} highlightedRosterIds={activeHighlightIds} mode={standingsMode} />
+              </div>
             </div>
           </div>
         </TabsContent>
