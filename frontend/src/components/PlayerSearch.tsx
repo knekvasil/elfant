@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, ChevronRight, UserCheck, UserX } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
@@ -24,6 +24,8 @@ const posColors: Record<string, string> = {
 
 export default function PlayerSearch({ leagueId }: Props) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [position, setPosition] = useState('All')
@@ -121,7 +123,7 @@ export default function PlayerSearch({ leagueId }: Props) {
           players.map((p) => (
             <button
               key={p.player_id}
-              onClick={() => navigate(`/league/${leagueId}/player/${p.player_id}`)}
+              onClick={() => navigate(`/league/${leagueId}/player/${p.player_id}${tabParam ? `?tab=${tabParam}` : ''}`)}
               className="w-full text-left rounded-lg border border-border/40 bg-card/30 hover:bg-card/60 transition-colors p-3 relative"
             >
               <div className="flex items-center gap-3">

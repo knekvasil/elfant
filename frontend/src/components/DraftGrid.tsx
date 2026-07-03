@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/badge'
 import Tooltip from '../components/ui/tooltip'
 import { cn } from '../lib/utils'
@@ -37,6 +37,8 @@ function gradeFor(pct: number | null): { grade: string; text: string; bg: string
 
 export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
   const rosterMap = new Map(rosters.map((r) => [r.roster_id, r]))
   const [mode, setMode] = useState<'position' | 'value'>('position')
   const [rankMap, setRankMap] = useState<Map<string, { overall_rank: number; position_rank: number }>>(new Map())
@@ -283,7 +285,7 @@ export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
                   {bestPicks.slice(0, 12).map((p, i) => (
                     <button
                       key={`best-${i}`}
-                      onClick={() => p.player_id && navigate(`/league/${leagueId}/player/${p.player_id}`)}
+                      onClick={() => p.player_id && navigate('/league/' + leagueId + '/player/' + p.player_id + (tabParam ? '?tab=' + tabParam : ''))}
                       onMouseEnter={(e) => {
                         const result = p.surplus !== -999 && p.expected !== -999 ? p.expected - p.surplus : null
                         const z = pickStd > 0 ? (p.value - pickMean) / pickStd : 0
@@ -348,7 +350,7 @@ export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
                   {worstPicks.slice(0, 12).map((p, i) => (
                     <button
                       key={`worst-${i}`}
-                      onClick={() => p.player_id && navigate(`/league/${leagueId}/player/${p.player_id}`)}
+                      onClick={() => p.player_id && navigate('/league/' + leagueId + '/player/' + p.player_id + (tabParam ? '?tab=' + tabParam : ''))}
                       onMouseEnter={(e) => {
                         const result = p.surplus !== -999 && p.expected !== -999 ? p.expected - p.surplus : null
                         const z = pickStd > 0 ? (p.value - pickMean) / pickStd : 0
@@ -485,7 +487,7 @@ export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
                       {undrafted.map((p) => (
                         <button
                           key={p.player_id}
-                          onClick={() => navigate(`/league/${leagueId}/player/${p.player_id}`)}
+                          onClick={() => navigate('/league/' + leagueId + '/player/' + p.player_id + (tabParam ? '?tab=' + tabParam : ''))}
                           className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-amber-500/10 transition-colors"
                         >
                           <div className="size-5 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border">
@@ -597,7 +599,7 @@ export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
                       return (
                         <button
                           key={`${round}-${rid}`}
-                          onClick={() => pick.player_id && navigate(`/league/${leagueId}/player/${pick.player_id}`)}
+                          onClick={() => pick.player_id && navigate('/league/' + leagueId + '/player/' + pick.player_id + (tabParam ? '?tab=' + tabParam : ''))}
                           className={`text-left border-b border-r border-border p-1.5 flex flex-col gap-0.5 transition-colors ${posStyle.bg} ${posStyle.border}`}
                         >
                           <div className="flex items-center gap-1">
@@ -620,7 +622,7 @@ export default function DraftGrid({ rosters, drafts, leagueId }: Props) {
                     return (
                       <button
                         key={`${round}-${rid}`}
-                        onClick={() => pick.player_id && navigate(`/league/${leagueId}/player/${pick.player_id}`)}
+                        onClick={() => pick.player_id && navigate('/league/' + leagueId + '/player/' + pick.player_id + (tabParam ? '?tab=' + tabParam : ''))}
                         onMouseEnter={(e) => {
                           const g2 = value != null ? zGradeFor(value, pickMean, pickStd) : gradeFor(null)
                           const expected = pick.player_id ? expectedRanks.get(pick.player_id) ?? -999 : -999

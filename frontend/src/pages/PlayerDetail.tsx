@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse } from 'lucide-react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse } from 'lucide-react'
+import {
+  BreadcrumbRoot,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from '../components/ui/breadcrumb'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
@@ -63,6 +71,8 @@ function UsageStat({ label, value }: { label: string; value: string | number }) 
 
 export default function PlayerDetail() {
   const { leagueId, playerId } = useParams<{ leagueId: string; playerId: string }>()
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
   const [career, setCareer] = useState<PlayerCareerResponse | null>(null)
   const [seasonStats, setSeasonStats] = useState<PlayerStats | null>(null)
   const [schedule, setSchedule] = useState<PlayerScheduleResponse | null>(null)
@@ -103,7 +113,7 @@ export default function PlayerDetail() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-destructive">Player not found</p>
-            <Link to={`/league/${leagueId}`} className="text-sm text-primary hover:underline mt-2 inline-block">Back to league</Link>
+            <Link to={`/league/${leagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-sm text-primary hover:underline mt-2 inline-block">Back to league</Link>
           </CardContent>
         </Card>
       </div>
@@ -121,10 +131,23 @@ export default function PlayerDetail() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <Link to={`/league/${leagueId}`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="size-3" />
-        {leagueName || 'League'}
-      </Link>
+      <BreadcrumbRoot>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <Link to={`/league/${leagueId}${tabParam ? `?tab=${tabParam}` : ''}`} className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs">
+              {leagueName || 'League'}
+            </Link>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{p.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </BreadcrumbRoot>
 
       {/* Row 1: Player card + Rank cards */}
       <div className="grid grid-cols-5 gap-4">

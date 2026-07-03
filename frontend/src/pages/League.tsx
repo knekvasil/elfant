@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Skeleton } from '../components/ui/skeleton'
+import {
+  BreadcrumbRoot,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from '../components/ui/breadcrumb'
 import Standings from '../components/Standings'
 import DraftGrid from '../components/DraftGrid'
 import Matchups from '../components/Matchups'
@@ -22,7 +30,8 @@ export default function League() {
   const [data, setData] = useState<LeagueData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState('standings')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'standings'
   const [hoveredRosterId, setHoveredRosterId] = useState<number | null>(null)
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<number>>(new Set())
 
@@ -138,7 +147,19 @@ export default function League() {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <BreadcrumbRoot>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{league.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </BreadcrumbRoot>
+
+      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'standings' ? {} : { tab: v })}>
         <TabsList>
           <TabsTrigger value="standings">
             <Table2 className="size-3.5 mr-1.5" />
