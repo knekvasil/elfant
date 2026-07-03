@@ -274,6 +274,12 @@ async def api_league_overview(league_id: str):
                 "trash_king": None,
                 "trash_king_owner": None,
                 "trash_king_avatar": None,
+                "trash_king_silver": None,
+                "trash_king_silver_owner": None,
+                "trash_king_silver_avatar": None,
+                "trash_king_bronze": None,
+                "trash_king_bronze_owner": None,
+                "trash_king_bronze_avatar": None,
                 "third_place": None,
                 "third_place_owner": None,
             }
@@ -347,14 +353,20 @@ async def api_league_overview(league_id: str):
                                 else:
                                     results[rid]["losses"] += 1
 
-                zero_win = [rid for rid, r in results.items() if r["games"] > 0 and r["wins"] == 0]
-                if zero_win:
-                    trash_rid = max(zero_win, key=lambda rid: results[rid]["losses"])
-                    info = _resolve_roster(lg.league_id, trash_rid)
-                    if info:
-                        s["trash_king"] = info["display"]
-                        s["trash_king_owner"] = info["owner_name"]
-                        s["trash_king_avatar"] = info["avatar"]
+                active = {rid: r for rid, r in results.items() if r["games"] > 0}
+                sorted_bottom = sorted(active.items(), key=lambda x: (x[1]["wins"], -x[1]["losses"]))
+
+                bottom_three = []
+                for rid, _ in sorted_bottom[:3]:
+                    info = _resolve_roster(lg.league_id, rid)
+                    bottom_three.append(info)
+
+                trash_labels = ["trash_king", "trash_king_silver", "trash_king_bronze"]
+                for i, info in enumerate(bottom_three):
+                    if info and i < len(trash_labels):
+                        s[trash_labels[i]] = info["display"]
+                        s[f"{trash_labels[i]}_owner"] = info["owner_name"]
+                        s[f"{trash_labels[i]}_avatar"] = info["avatar"]
 
             seasons.append(s)
 
@@ -375,6 +387,22 @@ async def api_league_overview(league_id: str):
                 medals_map[owner_name][medal] += 1
 
         all_time_medals = sorted(medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))
+
+        trash_medals_map = {}
+        for sg in seasons:
+            for medal, field_owner, field_avatar in [
+                ("gold", "trash_king_owner", "trash_king_avatar"),
+                ("silver", "trash_king_silver_owner", "trash_king_silver_avatar"),
+                ("bronze", "trash_king_bronze_owner", "trash_king_bronze_avatar"),
+            ]:
+                owner_name = sg.get(field_owner)
+                if not owner_name:
+                    continue
+                if owner_name not in trash_medals_map:
+                    trash_medals_map[owner_name] = {"owner_name": owner_name, "avatar": sg.get(field_avatar), "gold": 0, "silver": 0, "bronze": 0}
+                trash_medals_map[owner_name][medal] += 1
+
+        trash_king_medals = sorted(trash_medals_map.values(), key=lambda m: (-m["gold"], -m["silver"], -m["bronze"]))
 
         season_years = [sg["season"] for sg in seasons]
 
@@ -448,6 +476,7 @@ async def api_league_overview(league_id: str):
                 "previously_left": previously_left,
             },
             "all_time_medals": all_time_medals,
+            "trash_king_medals": trash_king_medals,
         }
 
 

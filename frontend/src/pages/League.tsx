@@ -124,7 +124,7 @@ export default function League() {
             <span>{league.season}</span>
             <span className="text-border">·</span>
             <Badge variant="outline" className={statusColor}>
-              {league.status}
+              {league.status === 'in_season' ? 'Live' : league.status === 'complete' ? 'Complete' : league.status}
             </Badge>
             <span className="text-border">·</span>
             <span>{rosters.length} teams</span>

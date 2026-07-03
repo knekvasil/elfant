@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/utils'
+import Tooltip from '../components/ui/tooltip'
 import type { OwnerParticipant, ParticipantsData } from '../types'
 
 interface Props {
@@ -74,16 +75,18 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
                 {seasons.map(sy => {
                   const p = o.seasons[sy]
                   return (
-                    <div
-                      key={sy}
-                      className={cn(
-                        'size-5 rounded-sm border border-border/30 flex items-center justify-center transition-colors',
-                        p?.present ? dot : 'bg-transparent'
-                      )}
-                      title={p?.present ? `${o.display_name} · ${sy} · ${p.team_name}` : `${o.display_name} · ${sy} · absent`}
-                    >
-                      {p?.present && <div className="size-2 rounded-full bg-current" />}
-                    </div>
+                    <Tooltip key={sy} content={
+                      <span>{o.display_name} · {sy} · {p?.present ? p.team_name : 'absent'}</span>
+                    }>
+                      <div
+                        className={cn(
+                          'size-5 rounded-sm border border-border/30 flex items-center justify-center transition-colors',
+                          p?.present ? dot : 'bg-transparent'
+                        )}
+                      >
+                        {p?.present && <div className="size-2 rounded-full bg-current" />}
+                      </div>
+                    </Tooltip>
                   )
                 })}
               </div>

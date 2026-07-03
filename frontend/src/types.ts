@@ -131,6 +131,12 @@ export interface SeasonOverview {
   trash_king: string | null
   trash_king_owner: string | null
   trash_king_avatar: string | null
+  trash_king_silver: string | null
+  trash_king_silver_owner: string | null
+  trash_king_silver_avatar: string | null
+  trash_king_bronze: string | null
+  trash_king_bronze_owner: string | null
+  trash_king_bronze_avatar: string | null
   third_place: string | null
   third_place_owner: string | null
 }
@@ -171,6 +177,7 @@ export interface LeagueOverviewData {
   total_teams: number
   participants: ParticipantsData
   all_time_medals: MedalEntry[]
+  trash_king_medals: MedalEntry[]
 }
 
 export interface LeagueData {

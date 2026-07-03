@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Users, Circle, Trophy, Trash2, Medal } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -56,20 +56,6 @@ export default function LeagueOverview() {
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load league'))
       .finally(() => setLoading(false))
   }, [groupId])
-
-  const trashKings = useMemo(() => {
-    if (!data) return []
-    const tally: Record<string, { owner_name: string; avatar: string | null; count: number }> = {}
-    data.seasons.forEach(s => {
-      if (s.trash_king_owner) {
-        if (!tally[s.trash_king_owner]) {
-          tally[s.trash_king_owner] = { owner_name: s.trash_king_owner, avatar: s.trash_king_avatar, count: 0 }
-        }
-        tally[s.trash_king_owner].count++
-      }
-    })
-    return Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 3)
-  }, [data])
 
   if (loading) {
     return (
@@ -231,23 +217,24 @@ export default function LeagueOverview() {
             </Card>
           )}
 
-          {trashKings.length > 0 && (
+          {data.trash_king_medals && data.trash_king_medals.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trash King Hall of Fame</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-0.5">
-                  {trashKings.map((t, i) => (
-                    <div key={t.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
+                  {data.trash_king_medals.slice(0, 10).map((m, i) => (
+                    <div key={m.owner_name} className="flex items-center gap-2 px-2 py-1 rounded-md">
                       <span className={cn('text-xs font-mono w-6 shrink-0 text-center mr-0.5', placementClass(i))}>
                         {i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`}
                       </span>
-                      <AvatarImg src={t.avatar} name={t.owner_name} />
-                      <span className="text-xs truncate flex-1">{t.owner_name}</span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Trash2 className={cn('size-3', i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : 'text-amber-700')} />
-                        <span className="text-[10px] font-medium">{t.count}</span>
+                      <AvatarImg src={m.avatar} name={m.owner_name} />
+                      <span className="text-xs truncate flex-1">{m.owner_name}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-amber-400" />{m.gold}</span>}
+                        {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-gray-400" />{m.silver}</span>}
+                        {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-amber-700" />{m.bronze}</span>}
                       </div>
                     </div>
                   ))}
