@@ -2,6 +2,7 @@ import { Skeleton } from './ui/skeleton'
 import { fetchTeamStats } from '../lib/api'
 import { useEffect, useState } from 'react'
 import type { TeamStatsData } from '../types'
+import { MousePointerClick } from 'lucide-react'
 interface Props {
   leagueId: string
   highlightedRosterIds?: Set<number>
@@ -30,7 +31,12 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
   if (!data || data.rosters.length === 0) return <div className="text-sm text-muted-foreground text-center py-6">No data available.</div>
 
   const hasSelection = highlightedRosterIds !== undefined && highlightedRosterIds.size > 0
-  if (!hasSelection) return <div className="text-sm text-muted-foreground text-center py-6">Click a team to view weekly breakdown.</div>
+  if (!hasSelection) return (
+    <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+      <MousePointerClick className="size-12 opacity-40" />
+      <span className="text-sm">Click a team to view weekly breakdown</span>
+    </div>
+  )
 
   const { weeks, rosters } = data
   const numWeeks = weeks.length
