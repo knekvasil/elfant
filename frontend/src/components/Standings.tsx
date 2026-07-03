@@ -89,6 +89,8 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
         {mode === 'standard' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">Avg/W</div>}
         {mode === 'all_play' && <div className="text-right flex-shrink-0 w-14">σ</div>}
+        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">+/-</div>}
+        {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">σ</div>}
         {mode === 'efficiency' && <div className="text-right flex-shrink-0 w-14">Eff%</div>}
       </div>
 
@@ -192,11 +194,27 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               </>
             )}
 
-            {mode === 'efficiency' && (
-              <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', eff >= 90 ? 'text-emerald-400' : eff >= 80 ? 'text-amber-400' : 'text-red-400')}>
-                {eff.toFixed(0)}%
-              </div>
-            )}
+            {mode === 'efficiency' && (() => {
+              const optDiff = optWins - r.wins
+              const effVals = t?.weekly.map(w => w.efficiency) || []
+              const effN = effVals.length
+              const effMean = effVals.reduce((s, v) => s + v, 0) / effN || 0
+              const effVar = effVals.reduce((s, v) => s + (v - effMean) ** 2, 0) / effN || 0
+              const effStd = Math.sqrt(effVar)
+              return (
+                <>
+                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', optDiff > 0 ? 'text-emerald-400' : optDiff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                    {optDiff > 0 ? '+' : ''}{optDiff}
+                  </div>
+                  <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
+                    {effStd.toFixed(1)}
+                  </div>
+                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', eff >= 90 ? 'text-emerald-400' : eff >= 80 ? 'text-amber-400' : 'text-red-400')}>
+                    {eff.toFixed(0)}%
+                  </div>
+                </>
+              )
+            })()}
           </div>
         )
       })}
