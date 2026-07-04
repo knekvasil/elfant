@@ -17,6 +17,7 @@ import PlayerLineChart from '../components/PlayerLineChart'
 import UsagePie from '../components/UsagePie'
 import VolatilityChart from '../components/VolatilityChart'
 import DefRankings from '../components/DefRankings'
+import Tooltip from '../components/ui/tooltip'
 import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule } from '../lib/api'
 import type { PlayerScheduleResponse } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -404,7 +405,7 @@ export default function PlayerDetail() {
       </div>
 
       {/* Row 3-4: 9-col grid — Heatmap (2/9) | Consistency + Injury (5/9) | Schedule (2/9) */}
-      <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-9 gap-4 items-start">
         {/* Left 2/9: Heatmap */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
@@ -471,7 +472,7 @@ export default function PlayerDetail() {
 
         {/* Right 2/9: Schedule */}
         <div className="lg:col-span-2">
-          <Card className={cn('h-full', schedule?.games.some(g => g.is_next) ? 'ring-1 ring-primary/20' : '')}>
+          <Card className={cn(schedule?.games.some(g => g.is_next) ? 'ring-1 ring-primary/20' : '')}>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                 <Calendar className="size-3 text-muted-foreground" />
@@ -498,12 +499,25 @@ export default function PlayerDetail() {
                         <img src={g.opponent_logo} alt="" className="size-3.5 rounded-full object-contain shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                         <span className="flex-1 truncate font-medium ml-0.5">{g.opponent}</span>
                         {hue != null && (
-                          <span
-                            className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5"
-                            style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
-                          >
-                            {diff}
-                          </span>
+                          <Tooltip content={
+                            <div className="text-[10px] leading-relaxed max-w-[200px]">
+                              <p className="mb-1"><b>Difficulty Rank</b> (#1–32)</p>
+                              <p>{p.position === 'DEF'
+                                ? 'Higher = opponent\'s offense scores more fantasy points per game (harder matchup).'
+                                : 'Higher = opponent\'s defense allows fewer fantasy points per game (harder matchup).'}
+                              </p>
+                              <p className="mt-1 text-muted-foreground/60">
+                                Based on avg fantasy pts/g using this league&apos;s scoring rules.
+                              </p>
+                            </div>
+                          }>
+                            <span
+                              className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5 cursor-help"
+                              style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
+                            >
+                              {diff}
+                            </span>
+                          </Tooltip>
                         )}
                         <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-400' : g.result === 'L' ? 'text-red-400' : 'text-muted-foreground/50')}>
                           {g.result || (g.is_home ? 'vs' : '@')}
