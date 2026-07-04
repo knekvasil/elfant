@@ -181,23 +181,24 @@ def _get_full_league_chain(league_id, session):
     return list(reversed(backward)) + forward
 
 
+def _is_league_stale(league) -> bool:
+    """Returns True if the league needs a re-sync from Sleeper."""
+    if league is None or league.last_synced_at is None:
+        return True
+    age = (datetime.datetime.utcnow() - league.last_synced_at).total_seconds()
+    if league.status == "complete":
+        return age > 3600  # 1 hour for completed seasons
+    return age > 900  # 15 minutes for active seasons
+
+
 # ---- API Routes ----
 
 @app.get("/api/league/{league_id}")
 async def api_league(league_id: str):
-    def _check_stale(league) -> bool:
-        """Returns True if the league needs a re-sync from Sleeper."""
-        if league is None or league.last_synced_at is None:
-            return True
-        age = (datetime.datetime.utcnow() - league.last_synced_at).total_seconds()
-        if league.status == "complete":
-            return age > 3600  # 1 hour for completed seasons
-        return age > 900  # 15 minutes for active seasons
-
     try:
         with get_session() as session:
             league = session.get(League, league_id)
-            stale = _check_stale(league)
+            stale = _is_league_stale(league)
 
         if stale:
             sync_league(league_id)
@@ -281,6 +282,8 @@ async def api_league_chain(league_id: str):
         existing = session.get(League, league_id)
         if not existing:
             sync_league(league_id)
+        elif _is_league_stale(existing):
+            sync_league(league_id)
 
     sync_league_chain(league_id)
 
@@ -313,6 +316,7 @@ async def api_league_overview(league_id: str):
     with get_session() as session:
         existing = session.get(League, league_id)
         has_rosters = session.query(Roster).filter_by(league_id=league_id).first() is not None
+        stale = _is_league_stale(existing)
 
     if not existing:
         try:
@@ -321,8 +325,10 @@ async def api_league_overview(league_id: str):
             sync_rosters(league_id)
         except (HTTPError, ConnectionError, Timeout):
             pass
-    elif not has_rosters:
+    elif stale or not has_rosters:
         try:
+            if stale:
+                sync_league(league_id)
             sync_league_users(league_id)
             sync_rosters(league_id)
         except (HTTPError, ConnectionError, Timeout):
