@@ -22,7 +22,7 @@ export default function Tooltip({ content, children }: TooltipProps) {
   }
 
   return (
-    <div ref={ref} className="inline-flex" onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}>
+    <div ref={ref} className="flex" onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}>
       {children}
       {show && createPortal(
         <div

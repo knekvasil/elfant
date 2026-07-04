@@ -284,7 +284,7 @@ export default function LeagueOverview() {
                       </div>
                     }>
                       <div
-                        className="flex items-center gap-2 px-2 py-1 rounded-md transition-colors"
+                        className="flex items-center gap-2 px-2 py-1 rounded-md transition-colors w-full"
                         style={{ backgroundColor: `hsla(${hue}, 55%, 35%, 0.15)` }}
                       >
                         <span className="w-5 shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${hue}, 75%, 45%)` }}>{i + 1}</span>
