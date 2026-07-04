@@ -13,6 +13,7 @@ from elfant.db.models import (
     Transaction, PlayoffBracket, NflState, PlayerWeeklyStat,
 )
 from elfant.scoring import fantasy_points
+from elfant.sync.sync import api as sleeper_api
 from elfant.sync.sync import (
     sync_league_all, sync_league, sync_league_chain, sync_rosters,
     sync_league_users, sync_playoffs, sync_drafts, sync_draft_picks,
@@ -212,17 +213,25 @@ async def api_league(league_id: str):
             sync_traded_picks(league_id)
             sync_playoffs(league_id)
 
-        # Sync any new matchup weeks beyond what's already stored — always runs
+        # Find new matchup weeks by checking Sleeper starting from DB max + 1
         with get_session() as session:
             max_week_row = session.query(Matchup.week).filter_by(
                 league_id=league_id
             ).order_by(Matchup.week.desc()).first()
             existing_max = max_week_row[0] if max_week_row else 0
 
-        total = get_league_week_count(league_id)
-        for w in range(existing_max + 1, total + 1):
-            sync_matchups(league_id, w)
-            sync_transactions(league_id, w)
+        # Probe forward from existing_max + 1 until we hit an empty week
+        probe = existing_max + 1
+        while probe <= 22:
+            try:
+                data = sleeper_api.get_league_matchups(league_id, probe)
+            except Exception:
+                break
+            if not data:
+                break
+            sync_matchups(league_id, probe)
+            sync_transactions(league_id, probe)
+            probe += 1
 
     except (HTTPError, ConnectionError, Timeout):
         pass
