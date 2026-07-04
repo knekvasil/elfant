@@ -1980,7 +1980,7 @@ async def api_player_career(league_id: str, player_id: str):
 
 
 @app.get("/api/player/{player_id}/schedule")
-async def api_player_schedule(player_id: str, season: int | None = None):
+async def api_player_schedule(player_id: str, season: int | None = None, league_id: str | None = None):
     """Return the full season schedule for a player's team, marking played weeks."""
     import datetime
 
@@ -1990,7 +1990,15 @@ async def api_player_schedule(player_id: str, season: int | None = None):
             raise HTTPException(404, "Player not found")
 
         if season is None:
-            season = datetime.date.today().year
+            if league_id:
+                league = session.get(League, league_id)
+                if league and league.season:
+                    try:
+                        season = int(league.season)
+                    except (ValueError, TypeError):
+                        pass
+            if season is None:
+                season = datetime.date.today().year
 
         # Load schedule from nflreadpy
         try:
@@ -2014,14 +2022,104 @@ async def api_player_schedule(player_id: str, season: int | None = None):
 
         team = last_stat.team
 
+        # Compute opponent strength ratings if league_id is provided
+        off_strength: dict[str, float] = {}
+        def_strength: dict[str, float] = {}
+        if league_id:
+            league = session.get(League, league_id)
+            rules = league.scoring_settings if league else {}
+            # Query all offensive players' weekly stats
+            off_players = session.query(Player.player_id).filter(
+                Player.position.in_(["QB", "RB", "WR", "TE"]),
+            ).all()
+            off_ids = [r[0] for r in off_players]
+
+            off_stats = session.query(PlayerWeeklyStat).filter(
+                PlayerWeeklyStat.player_id.in_(off_ids),
+                PlayerWeeklyStat.season == season,
+            ).all()
+
+            _nf_to_sleeper = {"LA": "LAR", "OAK": "LV", "SD": "LAC", "STL": "LAR"}
+            team_off_fp: dict[str, list[float]] = {}
+            for row in off_stats:
+                if not row.team:
+                    continue
+                tid = _nf_to_sleeper.get(row.team, row.team)
+                sd = {
+                    "passing_yards": row.passing_yards,
+                    "passing_tds": row.passing_tds,
+                    "passing_interceptions": row.passing_interceptions,
+                    "passing_2pt_conversions": row.passing_2pt_conversions,
+                    "rushing_yards": row.rushing_yards,
+                    "rushing_tds": row.rushing_tds,
+                    "rushing_2pt_conversions": row.rushing_2pt_conversions,
+                    "receptions": row.receptions,
+                    "receiving_yards": row.receiving_yards,
+                    "receiving_tds": row.receiving_tds,
+                    "receiving_2pt_conversions": row.receiving_2pt_conversions,
+                    "fumbles_lost": row.fumbles_lost,
+                    "fumbles": 0,
+                    "special_teams_tds": row.special_teams_tds,
+                    "fumble_recovery_opp": 0,
+                    "fumble_recovery_tds": 0,
+                }
+                fp = fantasy_points(sd, rules)
+                team_off_fp.setdefault(tid, []).append(fp)
+
+            for tid, fplist in team_off_fp.items():
+                off_strength[tid] = sum(fplist) / len(fplist) if fplist else 0
+
+            # Query defense team stats (it's a list of team-abbr players)
+            from elfant.sync.sync import _TEAM_ABBREVIATIONS
+            def_stats = session.query(PlayerWeeklyStat).filter(
+                PlayerWeeklyStat.player_id.in_(list(_TEAM_ABBREVIATIONS)),
+                PlayerWeeklyStat.season == season,
+            ).all()
+
+            team_def_fp: dict[str, list[float]] = {}
+            for row in def_stats:
+                tid = row.player_id
+                sd = {
+                    "def_sacks": row.def_sacks,
+                    "def_interceptions": row.def_interceptions,
+                    "def_tackles_solo": row.def_tackles_solo,
+                    "def_tackles_with_assist": row.def_tackles_with_assist,
+                    "def_tackles_for_loss": row.def_tackles_for_loss,
+                    "def_pass_defended": row.def_pass_defended,
+                    "def_fumbles_forced": row.def_fumbles_forced,
+                    "def_tds": row.def_tds,
+                    "def_safeties": row.def_safeties,
+                    "special_teams_tds": row.special_teams_tds,
+                    "pts_allowed": row.pts_allowed,
+                    "yds_allowed": row.yds_allowed,
+                    "def_4_and_stop": row.def_4_and_stop,
+                    "def_3_and_out": row.def_3_and_out,
+                    "kicks_blocked": row.kicks_blocked,
+                    "fumble_recovery_opp": row.fumble_recovery_opp,
+                    "fumble_recovery_tds": row.fumble_recovery_tds,
+                    "fg_missed": row.fg_missed,
+                    "pat_missed": row.pat_missed,
+                    "fg_yds_bonus": row.fg_yds_bonus,
+                }
+                fp = fantasy_points(sd, rules)
+                team_def_fp.setdefault(tid, []).append(fp)
+
+            for tid, fplist in team_def_fp.items():
+                def_strength[tid] = sum(fplist) / len(fplist) if fplist else 0
+
         # Get all games for this team
+        is_def = player.position == "DEF"
         games = []
+        max_played_week = 0
         for row in sched_df.iter_rows(named=True):
             if row.get("away_team") != team and row.get("home_team") != team:
                 continue
 
             is_home = row.get("home_team") == team
-            opponent = row.get("away_team") if is_home else row.get("home_team")
+            opponent_raw = row.get("away_team") if is_home else row.get("home_team")
+            # Map nflreadpy abbreviations to Sleeper format (e.g. LA → LAR)
+            _nf_to_sleeper = {"LA": "LAR", "OAK": "LV", "SD": "LAC", "STL": "LAR"}
+            opponent = _nf_to_sleeper.get(opponent_raw, opponent_raw)
             week = row.get("week", 0)
             gameday = row.get("gameday", "")
             away_score = row.get("away_score")
@@ -2034,6 +2132,21 @@ async def api_player_schedule(player_id: str, season: int | None = None):
                 PlayerWeeklyStat.week == week,
             ).first() is not None
 
+            if had_game and week > max_played_week:
+                max_played_week = week
+
+            # Difficulty: for DEF use opponent offensive strength, for offense use opponent defensive strength
+            difficulty = None
+            if league_id and opponent in off_strength and opponent in def_strength:
+                metric = def_strength[opponent] if is_def else off_strength[opponent]
+                # Rank among all teams
+                all_vals = sorted(def_strength.values() if is_def else off_strength.values())
+                try:
+                    idx = all_vals.index(metric)
+                    difficulty = idx + 1
+                except ValueError:
+                    difficulty = 16
+
             games.append({
                 "week": week,
                 "is_home": is_home,
@@ -2041,10 +2154,20 @@ async def api_player_schedule(player_id: str, season: int | None = None):
                 "opponent_logo": f"{TEAM_LOGO}/{opponent.lower()}.png",
                 "gameday": gameday,
                 "played": had_game,
+                "difficulty": difficulty,
                 "result": "W" if (is_home and home_score and away_score and home_score > away_score) or (not is_home and away_score and home_score and away_score > home_score) else "L" if (away_score is not None and home_score is not None) else None,
             })
 
         games.sort(key=lambda x: x["week"])
+        # Mark next unplayed week
+        next_marked = False
+        for g in games:
+            if not g["played"] and not next_marked:
+                g["is_next"] = True
+                next_marked = True
+            else:
+                g["is_next"] = False
+
         return {"team": team, "team_logo": f"{TEAM_LOGO}/{team.lower()}.png", "games": games}
 
 

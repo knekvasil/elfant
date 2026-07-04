@@ -465,6 +465,8 @@ export interface ScheduleGame {
   gameday: string
   played: boolean
   result: string | null
+  difficulty?: number | null
+  is_next?: boolean
 }
 
 export interface PlayerScheduleResponse {

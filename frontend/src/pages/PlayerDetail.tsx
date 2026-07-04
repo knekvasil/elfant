@@ -87,7 +87,7 @@ export default function PlayerDetail() {
     Promise.all([
       fetchPlayerCareer(seasonLeagueId, playerId),
       fetchPlayerStats(seasonLeagueId, { player_id: playerId, sort: 'total' }),
-      fetchPlayerSchedule(playerId).then(setSchedule).catch(() => {}),
+      fetchPlayerSchedule(playerId, undefined, seasonLeagueId).then(setSchedule).catch(() => {}),
     ])
       .then(([c, s]) => {
         setCareer(c)
@@ -471,32 +471,46 @@ export default function PlayerDetail() {
 
         {/* Right 2/9: Schedule */}
         <div className="lg:col-span-2">
-          <Card className="h-full">
+          <Card className={cn('h-full', schedule?.games.some(g => g.is_next) ? 'ring-1 ring-primary/20' : '')}>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                 <Calendar className="size-3 text-muted-foreground" />
                 Schedule
+                {schedule?.games.some(g => g.is_next) && <span className="text-[8px] font-normal text-primary/60 ml-auto">Next: W{schedule.games.find(g => g.is_next)?.week}</span>}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-2">
               {schedule && team ? (
-                <div className="space-y-1">
-                  {schedule.games.map((g) => (
-                    <div
-                      key={g.week}
-                      className={cn(
-                        'flex items-center gap-1.5 py-1 px-1.5 rounded text-[9px] transition-colors',
-                        g.played ? 'opacity-50' : 'bg-primary/5 border border-primary/15',
-                      )}
-                    >
-                      <span className="w-5 tabular-nums text-muted-foreground/50 font-medium">W{g.week}</span>
-                      <img src={g.opponent_logo} alt="" className="size-3.5 rounded-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      <span className="flex-1 truncate font-medium">{g.opponent}</span>
-                      <span className="tabular-nums font-semibold">
-                        {g.result || (g.is_home ? 'vs' : '@')}
-                      </span>
-                    </div>
-                  ))}
+                <div className="space-y-px">
+                  {schedule.games.filter(g => g.week <= 18).map((g) => {
+                    const diff = g.difficulty ?? 0
+                    const hue = diff > 0 ? (1 - Math.pow((diff - 1) / 31, 0.85)) * 120 : null
+                    return (
+                      <div
+                        key={g.week}
+                        className={cn(
+                          'flex items-center gap-1 py-1 px-1.5 rounded text-[9px] transition-colors',
+                          g.is_next && 'bg-primary/10 border border-primary/30',
+                          g.played && !g.is_next && 'opacity-50',
+                        )}
+                      >
+                        <span className="w-5 tabular-nums text-muted-foreground/50 font-medium shrink-0">W{g.week}</span>
+                        <img src={g.opponent_logo} alt="" className="size-3.5 rounded-full object-contain shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        <span className="flex-1 truncate font-medium ml-0.5">{g.opponent}</span>
+                        {hue != null && (
+                          <span
+                            className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5"
+                            style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
+                          >
+                            {diff}
+                          </span>
+                        )}
+                        <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-400' : g.result === 'L' ? 'text-red-400' : 'text-muted-foreground/50')}>
+                          {g.result || (g.is_home ? 'vs' : '@')}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="text-[10px] text-muted-foreground/50 text-center py-4">No schedule data</p>

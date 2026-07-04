@@ -101,6 +101,8 @@ export interface ScheduleGame {
   gameday: string
   played: boolean
   result: string | null
+  difficulty?: number | null
+  is_next?: boolean
 }
 
 export interface PlayerScheduleResponse {
@@ -109,9 +111,12 @@ export interface PlayerScheduleResponse {
   games: ScheduleGame[]
 }
 
-export async function fetchPlayerSchedule(playerId: string, season?: number): Promise<PlayerScheduleResponse> {
-  const query = season ? `?season=${season}` : ''
-  const res = await fetch(`${BASE}/player/${playerId}/schedule${query}`)
+export async function fetchPlayerSchedule(playerId: string, season?: number, leagueId?: string): Promise<PlayerScheduleResponse> {
+  const params = new URLSearchParams()
+  if (season) params.set('season', String(season))
+  if (leagueId) params.set('league_id', leagueId)
+  const qs = params.toString()
+  const res = await fetch(`${BASE}/player/${playerId}/schedule${qs ? `?${qs}` : ''}`)
   if (!res.ok) throw new Error(`Player schedule not found (${res.status})`)
   return res.json()
 }
