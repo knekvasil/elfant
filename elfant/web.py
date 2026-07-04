@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
+from requests.exceptions import HTTPError, ConnectionError, Timeout
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -12,8 +13,8 @@ from elfant.db.models import (
 )
 from elfant.scoring import fantasy_points
 from elfant.sync.sync import (
-    sync_league_all, sync_league, sync_rosters, sync_league_users,
-    sync_playoffs,
+    sync_league_all, sync_league, sync_league_chain, sync_rosters,
+    sync_league_users, sync_playoffs,
 )
 
 app = FastAPI(title="elfant")
@@ -149,11 +150,28 @@ async def api_league(league_id: str):
         has_rosters = session.query(Roster).filter_by(league_id=league_id).first() is not None
 
     if not existing:
-        sync_league_all(league_id)
+        try:
+            sync_league_all(league_id)
+        except (HTTPError, ConnectionError, Timeout):
+            pass
     elif not has_rosters:
-        sync_league(league_id)
-        sync_league_users(league_id)
-        sync_rosters(league_id)
+        try:
+            sync_league(league_id)
+            sync_league_users(league_id)
+            sync_rosters(league_id)
+        except (HTTPError, ConnectionError, Timeout):
+            pass
+
+    sync_league_chain(league_id)
+
+    # Auto-sync full data if matchups aren't synced yet
+    with get_session() as session:
+        has_matchups = session.query(Matchup).filter_by(league_id=league_id).first() is not None
+    if existing and not has_matchups:
+        try:
+            sync_league_all(league_id)
+        except (HTTPError, ConnectionError, Timeout):
+            pass
 
     with get_session() as session:
         league = session.get(League, league_id)
@@ -198,6 +216,8 @@ async def api_league_chain(league_id: str):
         if not existing:
             sync_league(league_id)
 
+    sync_league_chain(league_id)
+
     with get_session() as session:
         chain = _get_full_league_chain(league_id, session)
         if not chain:
@@ -226,8 +246,23 @@ async def api_league_chain(league_id: str):
 async def api_league_overview(league_id: str):
     with get_session() as session:
         existing = session.get(League, league_id)
-        if not existing:
+        has_rosters = session.query(Roster).filter_by(league_id=league_id).first() is not None
+
+    if not existing:
+        try:
             sync_league(league_id)
+            sync_league_users(league_id)
+            sync_rosters(league_id)
+        except (HTTPError, ConnectionError, Timeout):
+            pass
+    elif not has_rosters:
+        try:
+            sync_league_users(league_id)
+            sync_rosters(league_id)
+        except (HTTPError, ConnectionError, Timeout):
+            pass
+
+    sync_league_chain(league_id)
 
     with get_session() as session:
         chain = _get_full_league_chain(league_id, session)
@@ -420,6 +455,8 @@ async def api_league_overview(league_id: str):
         for lg in chain:
             season = lg.season
             rosters_db = session.query(Roster).filter_by(league_id=lg.league_id).all()
+            sorted_rosters = sorted(rosters_db, key=lambda r: (-(r.settings or {}).get("wins", 0), -((r.settings or {}).get("fpts", 0) or 0) - ((r.settings or {}).get("fpts_decimal", 0) or 0) / 100))
+            rank_map = {r.roster_id: i + 1 for i, r in enumerate(sorted_rosters)}
             for r in rosters_db:
                 if not r.owner_id:
                     continue
@@ -441,12 +478,35 @@ async def api_league_overview(league_id: str):
                 owner_data[r.owner_id]["seasons"][season] = {
                     "team_name": team_name or (f"Team {owner.display_name}" if owner else f"Roster {r.roster_id}"),
                     "present": True,
+                    "rank": rank_map.get(r.roster_id),
                 }
 
         for od in owner_data.values():
             for sy in season_years:
                 if sy not in od["seasons"]:
                     od["seasons"][sy] = {"team_name": None, "present": False}
+
+        # Build placement map per season from champion/runner_up/trash_king data
+        season_placement: dict[str, dict[str, str]] = {}
+        for sg in seasons:
+            pm: dict[str, str] = {}
+            for label, field in [
+                ("champion", "champion_owner"), ("runner_up", "runner_up_owner"),
+                ("third_place", "third_place_owner"),
+                ("trash_king", "trash_king_owner"),
+                ("trash_king_silver", "trash_king_silver_owner"),
+                ("trash_king_bronze", "trash_king_bronze_owner"),
+            ]:
+                name = sg.get(field)
+                if name:
+                    pm[name] = label
+            season_placement[sg["season"]] = pm
+
+        for od in owner_data.values():
+            for sy in season_years:
+                entry = od["seasons"].get(sy)
+                if entry and entry["present"]:
+                    entry["placement"] = season_placement.get(sy, {}).get(od["display_name"])
 
         first_season = season_years[0]
         last_season = season_years[-1]
@@ -666,18 +726,19 @@ async def api_league_overview(league_id: str):
             cs["bronze"] = medals["bronze"]
             cs["championship_score"] = round((medals["gold"] * 3 + medals["silver"] * 2 + medals["bronze"]) / cs["seasons_played"] * 100, 1) if cs["seasons_played"] > 0 else 0
 
-        norm_keys = {"win_pct": 0.30, "avg_pf": 0.20, "playoff_pct": 0.25}
-        for key in ["win_pct", "avg_pf", "playoff_pct"]:
-            vals = [cs[key] for cs in career_stats_list]
-            m = max(vals) or 1
+        if career_stats_list:
+            norm_keys = {"win_pct": 0.30, "avg_pf": 0.20, "playoff_pct": 0.25}
+            for key in ["win_pct", "avg_pf", "playoff_pct"]:
+                vals = [cs[key] for cs in career_stats_list]
+                m = max(vals, default=0) or 1
+                for cs in career_stats_list:
+                    cs[f"{key}_norm"] = round(cs[key] / m, 3)
             for cs in career_stats_list:
-                cs[f"{key}_norm"] = round(cs[key] / m, 3)
-        for cs in career_stats_list:
-            cs["championship_score_norm"] = round(min(cs["championship_score"] / 300, 1), 3)
-        for cs in career_stats_list:
-            cs["composite"] = round((sum(cs[f"{k}_norm"] * norm_keys[k] for k in norm_keys) + cs["championship_score_norm"] * 0.25) * 100, 1)
+                cs["championship_score_norm"] = round(min(cs["championship_score"] / 300, 1), 3)
+            for cs in career_stats_list:
+                cs["composite"] = round((sum(cs[f"{k}_norm"] * norm_keys[k] for k in norm_keys) + cs["championship_score_norm"] * 0.25) * 100, 1)
 
-        career_stats_list.sort(key=lambda x: (-x["composite"], -x["win_pct"]))
+            career_stats_list.sort(key=lambda x: (-x["composite"], -x["win_pct"]))
 
         best_reg = best_reg_season["owner_name"] and best_reg_season or None
         worst_reg = worst_reg_season["owner_name"] and worst_reg_season or None
@@ -731,7 +792,10 @@ async def api_league_overview(league_id: str):
 
 @app.post("/api/league/{league_id}/refresh")
 async def api_league_refresh(league_id: str):
-    sync_league_all(league_id)
+    try:
+        sync_league_all(league_id)
+    except (HTTPError, ConnectionError, Timeout):
+        raise HTTPException(502, "Sleeper API unreachable")
     # Invalidate cache for all seasons of this league
     keys_to_remove = [k for k in _player_stats_cache if k[0] == league_id]
     for k in keys_to_remove:

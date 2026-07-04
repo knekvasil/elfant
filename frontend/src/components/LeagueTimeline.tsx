@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Users } from 'lucide-react'
+import { Users, Crown, Trash2 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import Tooltip from '../components/ui/tooltip'
 import type { OwnerParticipant, ParticipantsData } from '../types'
@@ -10,10 +10,14 @@ interface Props {
   seasonLinks: Record<string, string>
 }
 
-const dotColor: Record<string, string> = {
-  old_guard: 'bg-emerald-500',
-  newcomer: 'bg-amber-500',
-  previously_left: 'bg-muted-foreground/50',
+function rankHue(rank: number, total: number): number {
+  const ratio = total > 1 ? (rank - 1) / (total - 1) : 0
+  return (1 - Math.pow(ratio, 0.85)) * 120
+}
+
+function rankBg(rank: number | null | undefined, max: number): string {
+  if (rank == null) return 'bg-muted/30'
+  return `hsl(${rankHue(rank, max)}, 55%, 35%)`
 }
 
 function sortedOwners(participants: ParticipantsData): OwnerParticipant[] {
@@ -33,6 +37,17 @@ function sortedOwners(participants: ParticipantsData): OwnerParticipant[] {
 export default function LeagueTimeline({ groupId, participants, seasonLinks }: Props) {
   const seasons = participants.seasons
   const owners = sortedOwners(participants)
+
+  // Max rank per season for gradient normalization
+  const seasonMaxRank: Record<string, number> = {}
+  for (const sy of seasons) {
+    let max = 0
+    for (const o of owners) {
+      const r = o.seasons[sy]?.rank
+      if (r != null && r > max) max = r
+    }
+    seasonMaxRank[sy] = max
+  }
 
   return (
     <div className="rounded-lg border border-border/40 bg-card/30 p-3 overflow-x-auto">
@@ -59,8 +74,6 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
         </div>
 
         {owners.map(o => {
-          const group = o.group === 'old_guard' ? 'old_guard' : o.group === 'newcomer' ? 'newcomer' : 'previously_left'
-          const dot = dotColor[group]
           return (
             <div key={o.owner_id} className="flex items-center gap-1.5 group">
               <div className="flex items-center gap-1.5 w-36 shrink-0 min-w-0">
@@ -76,17 +89,28 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
               <div className="flex items-center gap-1">
                 {seasons.map(sy => {
                   const p = o.seasons[sy]
+                  if (!p?.present) {
+                    return <div key={sy} className="size-5 rounded-sm border border-border/10 bg-transparent" />
+                  }
+                  const isChampion = p.placement === 'champion'
+                  const isTrashKing = p.placement === 'trash_king'
+                  const maxRank = seasonMaxRank[sy] || 1
                   return (
                     <Tooltip key={sy} content={
-                      <span>{o.display_name} · {sy} · {p?.present ? p.team_name : 'absent'}</span>
+                      <span className="capitalize">{o.display_name} · {sy} · {p.team_name}{p.placement ? ` · ${p.placement.replace(/_/g, ' ')}` : ''}{p.rank ? ` · ${p.rank} of ${maxRank}` : ''}</span>
                     }>
                       <div
                         className={cn(
                           'size-5 rounded-sm border border-border/30 flex items-center justify-center transition-colors',
-                          p?.present ? dot : 'bg-transparent'
+                          isChampion && 'bg-amber-400',
+                          isTrashKing && 'bg-gray-400',
+                          !isChampion && !isTrashKing && 'bg-muted/30',
                         )}
+                        style={!isChampion && !isTrashKing && p.rank ? { backgroundColor: rankBg(p.rank, maxRank) } : undefined}
                       >
-                        {p?.present && <div className="size-2 rounded-full bg-current" />}
+                        {isChampion && <Crown className="size-3 text-white drop-shadow-sm" />}
+                        {isTrashKing && <Trash2 className="size-2.5 text-white drop-shadow-sm" />}
+                        {!isChampion && !isTrashKing && <div className="size-1.5 rounded-full bg-white/40" />}
                       </div>
                     </Tooltip>
                   )
@@ -95,6 +119,15 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
             </div>
           )
         })}
+      </div>
+      <div className="flex items-center gap-2 mt-2 text-[8px] text-muted-foreground/50 flex-wrap">
+        <span className="font-medium">Key:</span>
+        <span className="flex items-center gap-0.5"><Crown className="size-2.5 text-amber-400" /> Champ</span>
+        <span className="flex items-center gap-0.5"><Trash2 className="size-2.5 text-gray-400" /> TK</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(120, 55%, 35%)' }} /> 1st</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(60, 55%, 35%)' }} /> Mid</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(0, 55%, 35%)' }} /> Last</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm border border-border/30 bg-muted/30" /> Present</span>
       </div>
     </div>
   )

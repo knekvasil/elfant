@@ -152,6 +152,8 @@ export interface MedalEntry {
 export interface OwnerSeasonParticipation {
   team_name: string | null
   present: boolean
+  placement?: string
+  rank?: number | null
 }
 
 export interface OwnerParticipant {

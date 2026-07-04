@@ -49,6 +49,28 @@ def sync_league(league_id):
         return league
 
 
+def sync_league_chain(league_id):
+    """Sync a league and all its linked previous seasons."""
+    seen: set[str] = set()
+    current = league_id
+    while current and current not in seen:
+        seen.add(current)
+        with get_session() as session:
+            league = session.get(League, current)
+            if league:
+                has_matchups = session.query(Matchup).filter_by(league_id=current).first() is not None
+                if has_matchups:
+                    current = league.previous_league_id
+                    continue
+        try:
+            sync_league_all(current)
+        except Exception:
+            break
+        with get_session() as session:
+            league = session.get(League, current)
+            current = league.previous_league_id if league else None
+
+
 def sync_rosters(league_id):
     data = api.get_league_rosters(league_id)
     with get_session() as session:

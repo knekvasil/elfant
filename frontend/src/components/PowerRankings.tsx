@@ -23,7 +23,8 @@ const TEAM_COLORS = [
 ]
 
 function rankHue(index: number, total: number): number {
-  return 120 - (total > 1 ? (index / (total - 1)) : 0) * 120
+  const ratio = total > 1 ? index / (total - 1) : 0
+  return (1 - Math.pow(ratio, 0.85)) * 120
 }
 
 interface PowerRow {
