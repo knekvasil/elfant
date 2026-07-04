@@ -46,7 +46,7 @@ class Roster(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     roster_id = Column(Integer, nullable=False)
     league_id = Column(String, ForeignKey("leagues.league_id"), nullable=False)
-    owner_id = Column(String, ForeignKey("users.user_id"))
+    owner_id = Column(String, ForeignKey("users.user_id"), index=True)
     settings = Column(JSONB)
     starters = Column(JSONB)
     players = Column(JSONB)
