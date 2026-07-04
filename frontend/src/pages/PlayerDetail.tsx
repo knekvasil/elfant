@@ -308,26 +308,18 @@ export default function PlayerDetail() {
                     <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
                       <UsageStat label="Sacks" value={d.sacks} />
                       <UsageStat label="INT" value={d.interceptions} />
-                      <UsageStat label="Tackles" value={d.tackles} />
+                      <UsageStat label="FF" value={d.fumbles_forced} />
                       <UsageStat label="Def TD" value={d.defensive_tds} />
+                      <UsageStat label="TFL" value={d.tackles_for_loss} />
+                      <UsageStat label="Takeaways" value={takeaways} />
                     </div>
                     <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
                       <UsageStat label="Pts/g" value={d.pts_allowed_avg.toFixed(1)} />
                       <UsageStat label="Yds/g" value={d.yds_allowed_avg.toFixed(0)} />
-                      <UsageStat label="FF" value={d.fumbles_forced} />
-                      <UsageStat label="Safety" value={d.safeties} />
-                    </div>
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="Takeaways" value={takeaways} />
-                      <UsageStat label="4th Stop" value={d.fourth_down_stops} />
                       <UsageStat label="PD" value={d.passes_defended} />
-                      <UsageStat label="Blk Kick" value={d.kicks_blocked} />
-                    </div>
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="TFL" value={d.tackles_for_loss} />
-                      <UsageStat label="3&Out" value={d.three_and_outs} />
+                      <UsageStat label={d.defense_pct > 0 ? 'Snap%' : 'Plays/g'} value={d.defense_pct > 0 ? `${d.defense_pct.toFixed(0)}%` : d.plays_per_game.toFixed(0)} />
+                      <UsageStat label="TOP/g" value={d.time_of_possession_avg > 0 ? `${d.time_of_possession_avg.toFixed(1)}m` : '—'} />
                       <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
-                      <UsageStat label="ST TD" value={d.special_teams_tds} />
                     </div>
                   </div>
                 )

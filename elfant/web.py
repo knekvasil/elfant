@@ -1793,6 +1793,9 @@ async def api_player_career(league_id: str, player_id: str):
                     "def_4_and_stop": row.def_4_and_stop,
                     "def_3_and_out": row.def_3_and_out,
                     "kicks_blocked": row.kicks_blocked,
+                    "defense_pct": row.defense_pct,
+                    "def_time_of_possession": row.def_time_of_possession,
+                    "def_plays": row.def_plays,
                 })
 
             fps = [w["fantasy_points"] for w in weeks]
@@ -1826,6 +1829,9 @@ async def api_player_career(league_id: str, player_id: str):
             total_kicks_blocked = sum(w.get("kicks_blocked") or 0 for w in weeks)
             avg_pts_allowed = sum(w.get("pts_allowed") or 0 for w in weeks) / len(weeks) if weeks else 0
             avg_yds_allowed = sum(w.get("yds_allowed") or 0 for w in weeks) / len(weeks) if weeks else 0
+            avg_def_pct = sum(w.get("defense_pct") or 0 for w in weeks) / len(weeks) if weeks else 0
+            avg_top = sum(w.get("def_time_of_possession") or 0 for w in weeks) / len(weeks) if weeks else 0
+            avg_def_plays = sum(w.get("def_plays") or 0 for w in weeks) / len(weeks) if weeks else 0
 
             seasons_out.append({
                 "season": season,
@@ -1872,6 +1878,9 @@ async def api_player_career(league_id: str, player_id: str):
                     "fourth_down_stops": total_4_stops,
                     "three_and_outs": total_3_outs,
                     "kicks_blocked": total_kicks_blocked,
+                    "defense_pct": round(avg_def_pct, 1),
+                    "time_of_possession_avg": round(avg_top / 60, 1),
+                    "plays_per_game": round(avg_def_plays, 0),
                 },
                 "weeks": weeks,
             })
@@ -1899,6 +1908,7 @@ async def api_player_career(league_id: str, player_id: str):
                             "tfl": 0, "td": 0, "safe": 0, "ff": 0,
                             "fum_rec": 0, "pd": 0, "pts": 0, "yds": 0,
                             "f_stops": 0, "th_outs": 0, "blk": 0,
+                            "top": 0, "plays": 0, "games": 0,
                         }
                     a = agg[tid]
                     a["sacks"] += row.def_sacks or 0
@@ -1915,6 +1925,15 @@ async def api_player_career(league_id: str, player_id: str):
                     a["f_stops"] += row.def_4_and_stop or 0
                     a["th_outs"] += row.def_3_and_out or 0
                     a["blk"] += row.kicks_blocked or 0
+                    a["top"] += row.def_time_of_possession or 0
+                    a["plays"] += row.def_plays or 0
+                    a["games"] += 1
+
+                # Convert totals to per-game averages for TOP and plays
+                for tid in agg:
+                    g = max(agg[tid]["games"], 1)
+                    agg[tid]["top_pg"] = agg[tid]["top"] / g
+                    agg[tid]["plays_pg"] = agg[tid]["plays"] / g
 
                 def rank_stat(stats: dict, key: str, asc: bool = False) -> int:
                     items = [(tid, s[key]) for tid, s in stats.items()]
@@ -1941,6 +1960,8 @@ async def api_player_career(league_id: str, player_id: str):
                         "fourth_down_stops": rank_stat(agg, "f_stops"),
                         "three_and_outs": rank_stat(agg, "th_outs"),
                         "kicks_blocked": rank_stat(agg, "blk"),
+                        "time_of_possession": rank_stat(agg, "top_pg", asc=True),
+                        "plays_per_game": rank_stat(agg, "plays_pg", asc=True),
                     }
 
         return {

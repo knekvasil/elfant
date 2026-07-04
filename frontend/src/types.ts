@@ -403,6 +403,9 @@ export interface PlayerDefense {
   fourth_down_stops: number
   three_and_outs: number
   kicks_blocked: number
+  defense_pct: number
+  time_of_possession_avg: number
+  plays_per_game: number
 }
 
 export interface PlayerDefRanking {
@@ -420,6 +423,8 @@ export interface PlayerDefRanking {
   fourth_down_stops: number
   three_and_outs: number
   kicks_blocked: number
+  time_of_possession: number
+  plays_per_game: number
 }
 
 export interface PlayerCareerSeason {

@@ -20,6 +20,8 @@ const RANK_LABELS: [keyof PlayerDefRanking, string][] = [
   ['kicks_blocked', 'Blk Kick'],
   ['pts_allowed', 'Pts/g'],
   ['yds_allowed', 'Yds/g'],
+  ['time_of_possession', 'TOP/g'],
+  ['plays_per_game', 'Plays/g'],
 ]
 
 const STAT_VALUES: Record<keyof PlayerDefRanking, (d: PlayerDefense) => string> = {
@@ -37,6 +39,8 @@ const STAT_VALUES: Record<keyof PlayerDefRanking, (d: PlayerDefense) => string> 
   kicks_blocked: (d) => String(d.kicks_blocked),
   pts_allowed: (d) => d.pts_allowed_avg.toFixed(1),
   yds_allowed: (d) => d.yds_allowed_avg.toFixed(0),
+  time_of_possession: (d) => `${d.time_of_possession_avg.toFixed(1)}m`,
+  plays_per_game: (d) => d.plays_per_game.toFixed(0),
 }
 
 export default function DefRankings({ defense, rankings }: Props) {

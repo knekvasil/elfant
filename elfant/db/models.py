@@ -314,6 +314,15 @@ class PlayerWeeklyStat(Base):
     def_4_and_stop = Column(Integer)
     def_3_and_out = Column(Integer)
 
+    offense_snaps = Column(Integer)
+    defense_snaps = Column(Integer)
+    st_snaps = Column(Integer)
+    offense_pct = Column(Float)
+    defense_pct = Column(Float)
+    st_pct = Column(Float)
+    def_time_of_possession = Column(Integer)
+    def_plays = Column(Integer)
+
     pts_allowed = Column(Float)
     yds_allowed = Column(Integer)
 

@@ -897,3 +897,169 @@ def sync_bracket(league_id, bracket_type):
 def sync_playoffs(league_id):
     sync_bracket(league_id, "winners")
     sync_bracket(league_id, "losers")
+
+
+def sync_player_snap_counts(seasons=None):
+    """Sync per-player snap counts from nflreadpy for defensive players."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed. Run: pip install nflreadpy")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    # Build PFR → sleeper ID map
+    ids = nfl.load_ff_playerids().drop_nulls(subset=["pfr_id", "gsis_id"])
+    pfr_to_sleeper: dict[str, str] = {}
+    for row in ids.iter_rows(named=True):
+        gsis = row["gsis_id"]
+        # Find sleeper_id from our DB
+        with get_session() as session:
+            player = session.query(Player).filter(
+                Player.gsis_id == gsis,
+                Player.position.in_(["CB", "DB", "DE", "DT", "LB", "S", "SS", "FS", "NT", "OLB", "ILB", "MLB"]),
+            ).first()
+            if player:
+                pfr_to_sleeper[row["pfr_id"]] = player.player_id
+
+    for season in seasons:
+        print(f"Loading snap counts for {season}...")
+        df = nfl.load_snap_counts(seasons=[season])
+        if df is None or len(df) == 0:
+            print(f"  No snap data for {season}")
+            continue
+
+        total = len(df)
+        upserted = 0
+        batch: list[PlayerWeeklyStat] = []
+
+        for row in df.iter_rows(named=True):
+            pfr_id = row.get("pfr_player_id")
+            sleeper_id = pfr_to_sleeper.get(pfr_id)
+            if not sleeper_id:
+                continue
+
+            season_type = row.get("game_type") or "REG"
+            with get_session() as session:
+                existing = session.query(PlayerWeeklyStat).filter_by(
+                    player_id=sleeper_id,
+                    season=row["season"],
+                    week=row["week"],
+                    season_type=season_type,
+                ).first()
+                if existing:
+                    existing.offense_snaps = row.get("offense_snaps")
+                    existing.defense_snaps = row.get("defense_snaps")
+                    existing.st_snaps = row.get("st_snaps")
+                    existing.offense_pct = row.get("offense_pct")
+                    existing.defense_pct = row.get("defense_pct")
+                    existing.st_pct = row.get("st_pct")
+                else:
+                    stat = PlayerWeeklyStat(
+                        player_id=sleeper_id,
+                        season=row["season"],
+                        week=row["week"],
+                        season_type=season_type,
+                        team=row.get("team"),
+                        opponent=row.get("opponent"),
+                        offense_snaps=row.get("offense_snaps"),
+                        defense_snaps=row.get("defense_snaps"),
+                        st_snaps=row.get("st_snaps"),
+                        offense_pct=row.get("offense_pct"),
+                        defense_pct=row.get("defense_pct"),
+                        st_pct=row.get("st_pct"),
+                    )
+                    batch.append(stat)
+                upserted += 1
+
+            if len(batch) >= 500:
+                with get_session() as session:
+                    session.add_all(batch)
+                    session.commit()
+                batch = []
+
+        if batch:
+            with get_session() as session:
+                session.add_all(batch)
+                session.commit()
+
+        print(f"  {season}: {upserted} snap records")
+
+    print("Done.")
+
+
+def sync_defense_time_of_possession(seasons=None):
+    """Sync time of possession and plays faced for team defenses from PBP."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed. Run: pip install nflreadpy")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    for season in seasons:
+        print(f"Loading defense time of possession for {season}...")
+        pbp = nfl.load_pbp(seasons=[season])
+
+        def _top_to_secs(top: str | None) -> int:
+            if not top:
+                return 0
+            try:
+                parts = top.split(":")
+                return int(parts[0]) * 60 + int(parts[1])
+            except (ValueError, IndexError):
+                return 0
+
+        # Unique drives per game
+        drives = (
+            pbp.filter(
+                pl.col("drive_time_of_possession").is_not_null()
+                & pl.col("defteam").is_not_null()
+            )
+            .select(["game_id", "defteam", "drive", "drive_time_of_possession", "season", "week"])
+            .unique()
+        )
+
+        # Convert TOP to seconds and sum per defteam per game - iterate rows in Python
+        top_by_game: dict[tuple, int] = {}
+        drives_by_game: dict[tuple, set] = {}
+        for row in drives.iter_rows(named=True):
+            key = (row["game_id"], row["defteam"], row["season"], row["week"])
+            top_by_game[key] = top_by_game.get(key, 0) + _top_to_secs(row.get("drive_time_of_possession"))
+            if key not in drives_by_game:
+                drives_by_game[key] = set()
+            drives_by_game[key].add(row["drive"])
+
+        # Aggregate plays per defensive team per game
+        plays_by_game: dict[tuple, int] = {}
+        for row in pbp.filter(pl.col("defteam").is_not_null()).iter_rows(named=True):
+            key = (row["game_id"], row["defteam"], row["season"], row["week"])
+            plays_by_game[key] = plays_by_game.get(key, 0) + 1
+
+        updates = 0
+        with get_session() as session:
+            for key, top_secs in top_by_game.items():
+                game_id, team, season_num, week = key
+                if team not in _TEAM_ABBREVIATIONS:
+                    continue
+                def_plays_count = plays_by_game.get(key, 0)
+                stat = session.query(PlayerWeeklyStat).filter_by(
+                    player_id=team,
+                    season=season_num,
+                    week=week,
+                ).first()
+                if stat:
+                    stat.def_time_of_possession = top_secs
+                    stat.def_plays = def_plays_count
+                    updates += 1
+            session.commit()
+
+        print(f"  {season}: {updates} team-defense TOP records updated")
+
+    print("Done.")

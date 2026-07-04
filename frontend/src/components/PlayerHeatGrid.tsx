@@ -135,13 +135,13 @@ export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }:
                             W{wk}{isPost ? ' (POST)' : ''} @ {week.opponent}
                           </div>
                           {breakdown.length > 0 ? (
-                            <table className="w-full border-collapse">
+                            <table className="border-collapse">
                               <tbody>
                                 {breakdown.map((b) => (
                                   <tr key={b.label} className="border-b border-border/10 last:border-0">
-                                    <td className="py-px pr-3 text-[9px] text-muted-foreground whitespace-nowrap">{b.label}</td>
-                                    <td className="py-px text-right text-[9px] tabular-nums text-muted-foreground/60 w-8">{b.value}</td>
-                                    <td className={cn('py-px text-right text-[10px] tabular-nums font-medium w-14', b.points < 0 ? 'text-red-400' : 'text-amber-400')}>
+                                    <td className="py-px pr-1.5 text-[9px] text-muted-foreground whitespace-nowrap">{b.label}</td>
+                                    <td className="py-px text-right text-[9px] tabular-nums text-muted-foreground/60 w-6">{b.value}</td>
+                                    <td className={cn('py-px text-right text-[10px] tabular-nums font-medium w-12', b.points < 0 ? 'text-red-400' : 'text-amber-400')}>
                                       {b.points > 0 ? '+' : ''}{b.points.toFixed(1)}
                                     </td>
                                   </tr>
