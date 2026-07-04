@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse, Shield } from 'lucide-react'
+import { UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse, Shield, Info } from 'lucide-react'
 import {
   BreadcrumbRoot,
   BreadcrumbList,
@@ -22,6 +22,8 @@ import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule } from '../lib
 import type { PlayerScheduleResponse } from '../lib/api'
 import { cn } from '../lib/utils'
 import type { PlayerCareerResponse, PlayerStats } from '../types'
+
+const idpPositions = ['LB', 'DE', 'DT', 'CB', 'S', 'DB', 'DL', 'OLB', 'ILB', 'MLB', 'NT', 'SS', 'FS', 'EDGE']
 
 const posColors: Record<string, string> = {
   QB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
@@ -322,7 +324,26 @@ export default function PlayerDetail() {
                   </div>
                 )
               })()}
-              {!['QB', 'RB', 'WR', 'TE', 'DEF'].includes(p.position) && (
+              {idpPositions.includes(p.position) && currentSeason.defense && (() => {
+                const d = currentSeason.defense!
+                return (
+                  <div className="space-y-2">
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="Tackles" value={d.tackles} />
+                      <UsageStat label="Asst" value={d.tackles_assist} />
+                      <UsageStat label="Sacks" value={d.sacks} />
+                      <UsageStat label="TFL" value={d.tackles_for_loss} />
+                    </div>
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="INT" value={d.interceptions} />
+                      <UsageStat label="PD" value={d.passes_defended} />
+                      <UsageStat label="FF" value={d.fumbles_forced} />
+                      <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
+                    </div>
+                  </div>
+                )
+              })()}
+              {!['QB', 'RB', 'WR', 'TE', 'DEF', ...idpPositions].includes(p.position) && (
                 <div className="text-xs text-muted-foreground text-center py-6">Usage stats not tracked for {p.position}s</div>
               )}
             </CardContent>
@@ -477,6 +498,20 @@ export default function PlayerDetail() {
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                 <Calendar className="size-3 text-muted-foreground" />
                 Schedule
+                <Tooltip content={
+                  <div className="text-[10px] leading-relaxed max-w-[200px]">
+                    <p className="mb-1"><b>Difficulty Rank</b> (#1–32)</p>
+                    <p>{p.position === 'DEF'
+                      ? 'Higher = opponent\'s offense scores more fantasy points per game (harder matchup).'
+                      : 'Higher = opponent\'s defense allows fewer fantasy points per game (harder matchup).'}
+                    </p>
+                    <p className="mt-1 text-muted-foreground/60">
+                      Based on avg fantasy pts/g using this league&apos;s scoring rules.
+                    </p>
+                  </div>
+                }>
+                  <Info className="size-3 text-muted-foreground/50 cursor-help" />
+                </Tooltip>
                 {schedule?.games.some(g => g.is_next) && <span className="text-[8px] font-normal text-primary/60 ml-auto">Next: W{schedule.games.find(g => g.is_next)?.week}</span>}
               </CardTitle>
             </CardHeader>
@@ -492,35 +527,24 @@ export default function PlayerDetail() {
                         className={cn(
                           'flex items-center gap-1 py-1 px-1.5 rounded text-[9px] transition-colors',
                           g.is_next && 'bg-primary/10 border border-primary/30',
-                          g.played && !g.is_next && 'opacity-50',
                         )}
                       >
                         <span className="w-5 tabular-nums text-muted-foreground/50 font-medium shrink-0">W{g.week}</span>
+                        <span className={cn('text-[8px] font-medium w-3 text-center shrink-0', g.is_home ? 'text-muted-foreground/40' : 'text-muted-foreground/60')}>
+                          {g.is_home ? 'vs' : '@'}
+                        </span>
                         <img src={g.opponent_logo} alt="" className="size-3.5 rounded-full object-contain shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                         <span className="flex-1 truncate font-medium ml-0.5">{g.opponent}</span>
                         {hue != null && (
-                          <Tooltip content={
-                            <div className="text-[10px] leading-relaxed max-w-[200px]">
-                              <p className="mb-1"><b>Difficulty Rank</b> (#1–32)</p>
-                              <p>{p.position === 'DEF'
-                                ? 'Higher = opponent\'s offense scores more fantasy points per game (harder matchup).'
-                                : 'Higher = opponent\'s defense allows fewer fantasy points per game (harder matchup).'}
-                              </p>
-                              <p className="mt-1 text-muted-foreground/60">
-                                Based on avg fantasy pts/g using this league&apos;s scoring rules.
-                              </p>
-                            </div>
-                          }>
-                            <span
-                              className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5 cursor-help"
-                              style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
-                            >
-                              {diff}
-                            </span>
-                          </Tooltip>
+                          <span
+                            className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5"
+                            style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
+                          >
+                            {diff}
+                          </span>
                         )}
-                        <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-400' : g.result === 'L' ? 'text-red-400' : 'text-muted-foreground/50')}>
-                          {g.result || (g.is_home ? 'vs' : '@')}
+                        <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-400' : g.result === 'L' ? 'text-red-400' : 'text-muted-foreground/40')}>
+                          {g.result || '—'}
                         </span>
                       </div>
                     )
