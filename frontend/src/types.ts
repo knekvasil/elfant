@@ -390,13 +390,33 @@ export interface PlayerDefense {
   interceptions_per_game: number
   tackles: number
   tackles_per_game: number
+  tackles_assist: number
+  tackles_for_loss: number
   defensive_tds: number
   safeties: number
   fumbles_forced: number
   fumble_recoveries: number
+  passes_defended: number
   special_teams_tds: number
   pts_allowed_avg: number
   yds_allowed_avg: number
+  fourth_down_stops: number
+  three_and_outs: number
+  kicks_blocked: number
+}
+
+export interface PlayerDefRanking {
+  sacks: number
+  interceptions: number
+  tackles: number
+  tackles_for_loss: number
+  defensive_tds: number
+  safeties: number
+  fumbles_forced: number
+  fumble_recoveries: number
+  passes_defended: number
+  pts_allowed: number
+  yds_allowed: number
   fourth_down_stops: number
   three_and_outs: number
   kicks_blocked: number
@@ -415,6 +435,7 @@ export interface PlayerCareerSeason {
   bust_rate: number
   usage: PlayerUsage
   defense?: PlayerDefense
+  def_rankings?: PlayerDefRanking
   weeks: PlayerWeek[]
 }
 

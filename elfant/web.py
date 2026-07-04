@@ -1813,10 +1813,13 @@ async def api_player_career(league_id: str, player_id: str):
             total_sacks = sum(w.get("def_sacks") or 0 for w in weeks)
             total_def_int = sum(w.get("def_interceptions") or 0 for w in weeks)
             total_tackles = sum(w.get("def_tackles_solo") or 0 for w in weeks)
+            total_tackles_asst = sum(w.get("def_tackles_with_assist") or 0 for w in weeks)
+            total_tackles_loss = sum(w.get("def_tackles_for_loss") or 0 for w in weeks)
             total_def_tds = sum(w.get("def_tds") or 0 for w in weeks)
             total_safeties = sum(w.get("def_safeties") or 0 for w in weeks)
             total_ff = sum(w.get("def_fumbles_forced") or 0 for w in weeks)
             total_fum_rec = sum(w.get("fumble_recovery_opp") or 0 for w in weeks)
+            total_def_pd = sum(w.get("def_pass_defended") or 0 for w in weeks)
             total_st_tds = sum(w.get("special_teams_tds") or 0 for w in weeks)
             total_4_stops = sum(w.get("def_4_and_stop") or 0 for w in weeks)
             total_3_outs = sum(w.get("def_3_and_out") or 0 for w in weeks)
@@ -1856,10 +1859,13 @@ async def api_player_career(league_id: str, player_id: str):
                     "interceptions_per_game": round(total_def_int / len(weeks), 2) if weeks else 0,
                     "tackles": total_tackles,
                     "tackles_per_game": round(total_tackles / len(weeks), 1) if weeks else 0,
+                    "tackles_assist": total_tackles_asst,
+                    "tackles_for_loss": total_tackles_loss,
                     "defensive_tds": total_def_tds,
                     "safeties": total_safeties,
                     "fumbles_forced": total_ff,
                     "fumble_recoveries": total_fum_rec,
+                    "passes_defended": total_def_pd,
                     "special_teams_tds": total_st_tds,
                     "pts_allowed_avg": round(avg_pts_allowed, 1),
                     "yds_allowed_avg": round(avg_yds_allowed, 0),
@@ -1869,6 +1875,73 @@ async def api_player_career(league_id: str, player_id: str):
                 },
                 "weeks": weeks,
             })
+
+        # Compute NFL defense rankings for DEF players
+        if player.position == "DEF" and seasons_out:
+            def_teams = session.query(Player.player_id).filter(
+                Player.position == "DEF",
+            ).all()
+            def_ids = [row[0] for row in def_teams]
+
+            for so in seasons_out:
+                ssn = so["season"]
+                all_def = session.query(PlayerWeeklyStat).filter(
+                    PlayerWeeklyStat.player_id.in_(def_ids),
+                    PlayerWeeklyStat.season == ssn,
+                ).all()
+
+                agg: dict[str, dict[str, float]] = {}
+                for row in all_def:
+                    tid = row.player_id
+                    if tid not in agg:
+                        agg[tid] = {
+                            "sacks": 0, "int": 0, "tackles": 0,
+                            "tfl": 0, "td": 0, "safe": 0, "ff": 0,
+                            "fum_rec": 0, "pd": 0, "pts": 0, "yds": 0,
+                            "f_stops": 0, "th_outs": 0, "blk": 0,
+                        }
+                    a = agg[tid]
+                    a["sacks"] += row.def_sacks or 0
+                    a["int"] += row.def_interceptions or 0
+                    a["tackles"] += row.def_tackles_solo or 0
+                    a["tfl"] += row.def_tackles_for_loss or 0
+                    a["td"] += row.def_tds or 0
+                    a["safe"] += row.def_safeties or 0
+                    a["ff"] += row.def_fumbles_forced or 0
+                    a["fum_rec"] += row.fumble_recovery_opp or 0
+                    a["pd"] += row.def_pass_defended or 0
+                    a["pts"] += row.pts_allowed or 0
+                    a["yds"] += row.yds_allowed or 0
+                    a["f_stops"] += row.def_4_and_stop or 0
+                    a["th_outs"] += row.def_3_and_out or 0
+                    a["blk"] += row.kicks_blocked or 0
+
+                def rank_stat(stats: dict, key: str, asc: bool = False) -> int:
+                    items = [(tid, s[key]) for tid, s in stats.items()]
+                    items.sort(key=lambda x: x[1], reverse=not asc)
+                    for i, (tid, _) in enumerate(items):
+                        if tid == player_id:
+                            return i + 1
+                    return 32
+
+                de = so.get("defense")
+                if de:
+                    so["def_rankings"] = {
+                        "sacks": rank_stat(agg, "sacks"),
+                        "interceptions": rank_stat(agg, "int"),
+                        "tackles": rank_stat(agg, "tackles"),
+                        "tackles_for_loss": rank_stat(agg, "tfl"),
+                        "defensive_tds": rank_stat(agg, "td"),
+                        "safeties": rank_stat(agg, "safe"),
+                        "fumbles_forced": rank_stat(agg, "ff"),
+                        "fumble_recoveries": rank_stat(agg, "fum_rec"),
+                        "passes_defended": rank_stat(agg, "pd"),
+                        "pts_allowed": rank_stat(agg, "pts", asc=True),
+                        "yds_allowed": rank_stat(agg, "yds", asc=True),
+                        "fourth_down_stops": rank_stat(agg, "f_stops"),
+                        "three_and_outs": rank_stat(agg, "th_outs"),
+                        "kicks_blocked": rank_stat(agg, "blk"),
+                    }
 
         return {
             "player_id": player_id,

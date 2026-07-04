@@ -16,6 +16,7 @@ import PlayerHeatGrid from '../components/PlayerHeatGrid'
 import PlayerLineChart from '../components/PlayerLineChart'
 import UsagePie from '../components/UsagePie'
 import VolatilityChart from '../components/VolatilityChart'
+import DefRankings from '../components/DefRankings'
 import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule } from '../lib/api'
 import type { PlayerScheduleResponse } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -319,8 +320,14 @@ export default function PlayerDetail() {
                     <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
                       <UsageStat label="Takeaways" value={takeaways} />
                       <UsageStat label="4th Stop" value={d.fourth_down_stops} />
-                      <UsageStat label="3&Out" value={d.three_and_outs} />
+                      <UsageStat label="PD" value={d.passes_defended} />
                       <UsageStat label="Blk Kick" value={d.kicks_blocked} />
+                    </div>
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="TFL" value={d.tackles_for_loss} />
+                      <UsageStat label="3&Out" value={d.three_and_outs} />
+                      <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
+                      <UsageStat label="ST TD" value={d.special_teams_tds} />
                     </div>
                   </div>
                 )
@@ -436,6 +443,20 @@ export default function PlayerDetail() {
               <PlayerLineChart seasons={p.seasons} focusedSeason={showAllSeasons ? null : (focusedSeason || p.seasons[0]?.season)} />
             </CardContent>
           </Card>
+
+          {p.position === 'DEF' && currentSeason?.defense && currentSeason?.def_rankings && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <Shield className="size-3 text-muted-foreground" />
+                  NFL Defense Rankings &apos;{String(currentSeason.season).slice(2)}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DefRankings defense={currentSeason.defense} rankings={currentSeason.def_rankings} />
+              </CardContent>
+            </Card>
+          )}
 
           {p.position !== 'DEF' && (
             <Card>
