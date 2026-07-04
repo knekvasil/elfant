@@ -220,18 +220,19 @@ async def api_league(league_id: str):
             ).order_by(Matchup.week.desc()).first()
             existing_max = max_week_row[0] if max_week_row else 0
 
-        # Probe forward from existing_max + 1 until we hit an empty week
-        probe = existing_max + 1
-        while probe <= 22:
-            try:
-                data = sleeper_api.get_league_matchups(league_id, probe)
-            except Exception:
-                break
-            if not data:
-                break
-            sync_matchups(league_id, probe)
-            sync_transactions(league_id, probe)
-            probe += 1
+        # Skip probe if all possible weeks are already synced
+        if existing_max < 22:
+            probe = existing_max + 1
+            while probe <= 22:
+                try:
+                    data = sleeper_api.get_league_matchups(league_id, probe)
+                except Exception:
+                    break
+                if not data:
+                    break
+                sync_matchups(league_id, probe)
+                sync_transactions(league_id, probe)
+                probe += 1
 
     except (HTTPError, ConnectionError, Timeout):
         pass
