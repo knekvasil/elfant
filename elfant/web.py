@@ -1790,6 +1790,8 @@ async def api_player_career(league_id: str, player_id: str):
                     "special_teams_tds": row.special_teams_tds,
                     "pts_allowed": row.pts_allowed,
                     "yds_allowed": row.yds_allowed,
+                    "fumble_recovery_opp": row.fumble_recovery_opp,
+                    "fumble_recovery_tds": row.fumble_recovery_tds,
                     "def_4_and_stop": row.def_4_and_stop,
                     "def_3_and_out": row.def_3_and_out,
                     "kicks_blocked": row.kicks_blocked,

@@ -932,58 +932,56 @@ def sync_player_snap_counts(seasons=None):
             print(f"  No snap data for {season}")
             continue
 
-        total = len(df)
+        from sqlalchemy import bindparam, text
+
         upserted = 0
-        batch: list[PlayerWeeklyStat] = []
+        updates: list[dict] = []
+        inserts: list[dict] = []
 
         for row in df.iter_rows(named=True):
             pfr_id = row.get("pfr_player_id")
             sleeper_id = pfr_to_sleeper.get(pfr_id)
             if not sleeper_id:
                 continue
-
             season_type = row.get("game_type") or "REG"
-            with get_session() as session:
-                existing = session.query(PlayerWeeklyStat).filter_by(
-                    player_id=sleeper_id,
-                    season=row["season"],
-                    week=row["week"],
-                    season_type=season_type,
-                ).first()
-                if existing:
-                    existing.offense_snaps = row.get("offense_snaps")
-                    existing.defense_snaps = row.get("defense_snaps")
-                    existing.st_snaps = row.get("st_snaps")
-                    existing.offense_pct = row.get("offense_pct")
-                    existing.defense_pct = row.get("defense_pct")
-                    existing.st_pct = row.get("st_pct")
-                else:
-                    stat = PlayerWeeklyStat(
-                        player_id=sleeper_id,
-                        season=row["season"],
-                        week=row["week"],
-                        season_type=season_type,
-                        team=row.get("team"),
-                        opponent=row.get("opponent"),
-                        offense_snaps=row.get("offense_snaps"),
-                        defense_snaps=row.get("defense_snaps"),
-                        st_snaps=row.get("st_snaps"),
-                        offense_pct=row.get("offense_pct"),
-                        defense_pct=row.get("defense_pct"),
-                        st_pct=row.get("st_pct"),
-                    )
-                    batch.append(stat)
-                upserted += 1
+            rec = {
+                "player_id": sleeper_id,
+                "season": row["season"],
+                "week": row["week"],
+                "season_type": season_type,
+                "team": row.get("team"),
+                "opponent": row.get("opponent"),
+                "offense_snaps": row.get("offense_snaps"),
+                "defense_snaps": row.get("defense_snaps"),
+                "st_snaps": row.get("st_snaps"),
+                "offense_pct": row.get("offense_pct"),
+                "defense_pct": row.get("defense_pct"),
+                "st_pct": row.get("st_pct"),
+            }
+            updates.append(rec)
+            upserted += 1
 
-            if len(batch) >= 500:
-                with get_session() as session:
-                    session.add_all(batch)
-                    session.commit()
-                batch = []
-
-        if batch:
+        if updates:
             with get_session() as session:
-                session.add_all(batch)
+                stmt = text("""
+                    INSERT INTO player_weekly_stats
+                        (player_id, season, week, season_type, team, opponent,
+                         offense_snaps, defense_snaps, st_snaps,
+                         offense_pct, defense_pct, st_pct)
+                    VALUES
+                        (:player_id, :season, :week, :season_type, :team, :opponent,
+                         :offense_snaps, :defense_snaps, :st_snaps,
+                         :offense_pct, :defense_pct, :st_pct)
+                    ON CONFLICT (player_id, season, week, season_type)
+                    DO UPDATE SET
+                        offense_snaps = EXCLUDED.offense_snaps,
+                        defense_snaps = EXCLUDED.defense_snaps,
+                        st_snaps = EXCLUDED.st_snaps,
+                        offense_pct = EXCLUDED.offense_pct,
+                        defense_pct = EXCLUDED.defense_pct,
+                        st_pct = EXCLUDED.st_pct
+                """)
+                session.execute(stmt, updates)
                 session.commit()
 
         print(f"  {season}: {upserted} snap records")
