@@ -302,24 +302,21 @@ export default function PlayerDetail() {
               })()}
               {p.position === 'DEF' && currentSeason.defense && (() => {
                 const d = currentSeason.defense!
-                const takeaways = d.interceptions + d.fumbles_forced
                 return (
-                  <div className="space-y-2">
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="Sacks" value={d.sacks} />
-                      <UsageStat label="INT" value={d.interceptions} />
-                      <UsageStat label="FF" value={d.fumbles_forced} />
-                      <UsageStat label="Def TD" value={d.defensive_tds} />
-                      <UsageStat label="TFL" value={d.tackles_for_loss} />
-                      <UsageStat label="Takeaways" value={takeaways} />
+                  <div className="flex items-start gap-4">
+                    <div className="flex gap-3 shrink-0">
+                      <UsagePie label="Plays" value={d.plays_per_game} max={d.total_plays_avg || d.plays_per_game * 2} unit="/g" size="lg" />
+                      <UsagePie label="TOP" value={d.time_of_possession_avg} max={60} unit="m" size="lg" />
                     </div>
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="Pts/g" value={d.pts_allowed_avg.toFixed(1)} />
-                      <UsageStat label="Yds/g" value={d.yds_allowed_avg.toFixed(0)} />
-                      <UsageStat label="PD" value={d.passes_defended} />
-                      <UsageStat label={d.defense_pct > 0 ? 'Snap%' : 'Plays/g'} value={d.defense_pct > 0 ? `${d.defense_pct.toFixed(0)}%` : d.plays_per_game.toFixed(0)} />
-                      <UsageStat label="TOP/g" value={d.time_of_possession_avg > 0 ? `${d.time_of_possession_avg.toFixed(1)}m` : '—'} />
-                      <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                        <UsageStat label="Sacks" value={d.sacks} />
+                        <UsageStat label="INT" value={d.interceptions} />
+                      </div>
+                      <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                        <UsageStat label="FF" value={d.fumbles_forced} />
+                        <UsageStat label="Def TD" value={d.defensive_tds} />
+                      </div>
                     </div>
                   </div>
                 )

@@ -409,6 +409,7 @@ export interface PlayerDefense {
   defense_pct: number
   time_of_possession_avg: number
   plays_per_game: number
+  total_plays_avg: number
 }
 
 export interface PlayerDefRanking {

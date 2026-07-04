@@ -1798,6 +1798,7 @@ async def api_player_career(league_id: str, player_id: str):
                     "defense_pct": row.defense_pct,
                     "def_time_of_possession": row.def_time_of_possession,
                     "def_plays": row.def_plays,
+                    "total_plays": row.total_plays,
                 })
 
             fps = [w["fantasy_points"] for w in weeks]
@@ -1834,6 +1835,7 @@ async def api_player_career(league_id: str, player_id: str):
             avg_def_pct = sum(w.get("defense_pct") or 0 for w in weeks) / len(weeks) if weeks else 0
             avg_top = sum(w.get("def_time_of_possession") or 0 for w in weeks) / len(weeks) if weeks else 0
             avg_def_plays = sum(w.get("def_plays") or 0 for w in weeks) / len(weeks) if weeks else 0
+            avg_total_plays = sum(w.get("total_plays") or 0 for w in weeks) / len(weeks) if weeks else 0
 
             seasons_out.append({
                 "season": season,
@@ -1883,6 +1885,7 @@ async def api_player_career(league_id: str, player_id: str):
                     "defense_pct": round(avg_def_pct, 1),
                     "time_of_possession_avg": round(avg_top / 60, 1),
                     "plays_per_game": round(avg_def_plays, 0),
+                    "total_plays_avg": round(avg_total_plays, 0),
                 },
                 "weeks": weeks,
             })

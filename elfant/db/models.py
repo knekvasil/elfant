@@ -322,6 +322,7 @@ class PlayerWeeklyStat(Base):
     st_pct = Column(Float)
     def_time_of_possession = Column(Integer)
     def_plays = Column(Integer)
+    total_plays = Column(Integer)
 
     pts_allowed = Column(Float)
     yds_allowed = Column(Integer)

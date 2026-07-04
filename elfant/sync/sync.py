@@ -1040,6 +1040,12 @@ def sync_defense_time_of_possession(seasons=None):
             key = (row["game_id"], row["defteam"], row["season"], row["week"])
             plays_by_game[key] = plays_by_game.get(key, 0) + 1
 
+        # Total plays per game (both teams)
+        total_plays_by_game: dict[str, int] = {}
+        for (game_id, team, season_num, week), count in plays_by_game.items():
+            gk = f"{game_id}_{season_num}_{week}"
+            total_plays_by_game[gk] = total_plays_by_game.get(gk, 0) + count
+
         updates = 0
         with get_session() as session:
             for key, top_secs in top_by_game.items():
@@ -1047,6 +1053,8 @@ def sync_defense_time_of_possession(seasons=None):
                 if team not in _TEAM_ABBREVIATIONS:
                     continue
                 def_plays_count = plays_by_game.get(key, 0)
+                gk = f"{game_id}_{season_num}_{week}"
+                total_count = total_plays_by_game.get(gk, 0)
                 stat = session.query(PlayerWeeklyStat).filter_by(
                     player_id=team,
                     season=season_num,
@@ -1055,6 +1063,7 @@ def sync_defense_time_of_possession(seasons=None):
                 if stat:
                     stat.def_time_of_possession = top_secs
                     stat.def_plays = def_plays_count
+                    stat.total_plays = total_count
                     updates += 1
             session.commit()
 
