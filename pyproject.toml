@@ -2,7 +2,7 @@
 name = "elfant"
 version = "0.1.0"
 description = "Sleeper fantasy football league data sync & query tool"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "sqlalchemy>=2.0",
     "psycopg2-binary>=2.9",
