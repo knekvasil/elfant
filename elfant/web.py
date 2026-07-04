@@ -14,7 +14,9 @@ from elfant.db.models import (
 from elfant.scoring import fantasy_points
 from elfant.sync.sync import (
     sync_league_all, sync_league, sync_league_chain, sync_rosters,
-    sync_league_users, sync_playoffs,
+    sync_league_users, sync_playoffs, sync_drafts, sync_draft_picks,
+    sync_matchups, sync_transactions, sync_traded_picks,
+    get_league_week_count,
 )
 
 app = FastAPI(title="elfant")
@@ -145,33 +147,35 @@ def _get_full_league_chain(league_id, session):
 
 @app.get("/api/league/{league_id}")
 async def api_league(league_id: str):
-    with get_session() as session:
-        existing = session.get(League, league_id)
-        has_rosters = session.query(Roster).filter_by(league_id=league_id).first() is not None
+    try:
+        sync_league(league_id)
+        sync_league_users(league_id)
+        sync_rosters(league_id)
+        sync_drafts(league_id)
 
-    if not existing:
-        try:
-            sync_league_all(league_id)
-        except (HTTPError, ConnectionError, Timeout):
-            pass
-    elif not has_rosters:
-        try:
-            sync_league(league_id)
-            sync_league_users(league_id)
-            sync_rosters(league_id)
-        except (HTTPError, ConnectionError, Timeout):
-            pass
+        with get_session() as session:
+            league = session.get(League, league_id)
+            if league and league.draft_id:
+                sync_draft_picks(league.draft_id)
+
+        # Sync any new matchup weeks beyond what's already stored
+        with get_session() as session:
+            max_week_row = session.query(Matchup.week).filter_by(
+                league_id=league_id
+            ).order_by(Matchup.week.desc()).first()
+            existing_max = max_week_row[0] if max_week_row else 0
+
+        total = get_league_week_count(league_id)
+        for w in range(existing_max + 1, total + 1):
+            sync_matchups(league_id, w)
+            sync_transactions(league_id, w)
+
+        sync_traded_picks(league_id)
+        sync_playoffs(league_id)
+    except (HTTPError, ConnectionError, Timeout):
+        pass
 
     sync_league_chain(league_id)
-
-    # Auto-sync full data if matchups aren't synced yet
-    with get_session() as session:
-        has_matchups = session.query(Matchup).filter_by(league_id=league_id).first() is not None
-    if existing and not has_matchups:
-        try:
-            sync_league_all(league_id)
-        except (HTTPError, ConnectionError, Timeout):
-            pass
 
     with get_session() as session:
         league = session.get(League, league_id)

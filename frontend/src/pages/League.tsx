@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { RefreshCw, ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import Tooltip from '../components/ui/tooltip'
-import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Skeleton } from '../components/ui/skeleton'
@@ -28,7 +27,7 @@ import WeeklyBarChart from '../components/WeeklyBarChart'
 import EfficiencyBarChart from '../components/EfficiencyBarChart'
 import ScatterPlots from '../components/ScatterPlots'
 import PowerRankings from '../components/PowerRankings'
-import { fetchLeague, refreshLeague, fetchTeamStats } from '../lib/api'
+import { fetchLeague, fetchTeamStats } from '../lib/api'
 import type { LeagueData, TeamStatsData } from '../types'
 
 export default function League() {
@@ -73,12 +72,6 @@ export default function League() {
   useEffect(() => {
     if (seasonLeagueId) load(seasonLeagueId)
   }, [seasonLeagueId, load])
-
-  const handleRefresh = async () => {
-    if (!seasonLeagueId) return
-    await refreshLeague(seasonLeagueId)
-    await load(seasonLeagueId)
-  }
 
   if (loading) {
     return (
@@ -149,10 +142,7 @@ export default function League() {
               <ChevronRight className="size-3.5" />
             </Link>
           )}
-          <Button size="sm" variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="size-3.5 mr-1" />
-            Refresh
-          </Button>
+
         </div>
       </div>
 
