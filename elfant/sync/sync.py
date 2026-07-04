@@ -1,4 +1,5 @@
 import polars as pl
+import datetime
 from elfant.api.sleeper import SleeperAPI
 from elfant.db.base import get_session
 from elfant.db.models import (
@@ -46,6 +47,7 @@ def sync_league(league_id):
         league.draft_id = data.get("draft_id")
         league.avatar = data.get("avatar")
         league.league_metadata = data.get("metadata")
+        league.last_synced_at = datetime.datetime.utcnow()
         session.commit()
         return league
 

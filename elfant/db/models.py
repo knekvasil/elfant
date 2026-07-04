@@ -36,6 +36,7 @@ class League(Base):
     draft_id = Column(String)
     avatar = Column(String)
     league_metadata = Column(JSONB)
+    last_synced_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

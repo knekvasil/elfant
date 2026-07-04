@@ -1,4 +1,5 @@
 import os
+import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
@@ -183,18 +184,33 @@ def _get_full_league_chain(league_id, session):
 
 @app.get("/api/league/{league_id}")
 async def api_league(league_id: str):
-    try:
-        sync_league(league_id)
-        sync_league_users(league_id)
-        sync_rosters(league_id)
-        sync_drafts(league_id)
+    _STALE_SECS = 300  # 5 minutes
 
+    def _is_stale(last_synced) -> bool:
+        if last_synced is None:
+            return True
+        return (datetime.datetime.utcnow() - last_synced).total_seconds() > _STALE_SECS
+
+    try:
         with get_session() as session:
             league = session.get(League, league_id)
-            if league and league.draft_id:
-                sync_draft_picks(league.draft_id)
+            stale = _is_stale(league.last_synced_at if league else None)
 
-        # Sync any new matchup weeks beyond what's already stored
+        if stale or not league:
+            sync_league(league_id)
+            sync_league_users(league_id)
+            sync_rosters(league_id)
+            sync_drafts(league_id)
+
+            with get_session() as session:
+                lg = session.get(League, league_id)
+                if lg and lg.draft_id:
+                    sync_draft_picks(lg.draft_id)
+
+            sync_traded_picks(league_id)
+            sync_playoffs(league_id)
+
+        # Sync any new matchup weeks beyond what's already stored — always runs
         with get_session() as session:
             max_week_row = session.query(Matchup.week).filter_by(
                 league_id=league_id
@@ -206,8 +222,6 @@ async def api_league(league_id: str):
             sync_matchups(league_id, w)
             sync_transactions(league_id, w)
 
-        sync_traded_picks(league_id)
-        sync_playoffs(league_id)
     except (HTTPError, ConnectionError, Timeout):
         pass
 
