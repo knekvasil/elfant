@@ -1,14 +1,14 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Search, ArrowRight, Trash2 } from 'lucide-react'
+import { ArrowRight, Trash2, ShieldHalf } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Badge } from '../components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Card } from '../components/ui/card'
 import { fetchLeagueChain } from '../lib/api'
 import type { LeagueChain } from '../types'
 
 const STORAGE_KEY = 'elfant_leagues'
+const EXAMPLE_ID = '1250519825399169024'
 
 function getStoredLeagues(): string[] {
   try {
@@ -62,117 +62,81 @@ export default function Home() {
     setChains(prev => prev.filter(c => c.league_id !== id))
   }
 
-  const statusBadge = (status: string) => {
-    const color =
-      status === 'complete'
-        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-        : status === 'in_season'
-          ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-          : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
-    const label = status === 'in_season' ? 'Live' : status === 'complete' ? 'Done' : status
-    return <Badge variant="outline" className={color}>{label}</Badge>
+  const handleExample = () => {
+    addStoredLeague(EXAMPLE_ID)
+    navigate(`/league/${EXAMPLE_ID}`)
   }
 
-  const isEmpty = chains.length === 0 && !loading
-
   return (
-    <div className={isEmpty ? 'min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-4' : 'max-w-4xl mx-auto p-4 space-y-6'}>
-      {isEmpty ? (
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-3 size-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Search className="size-6 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">elfant</CardTitle>
-            <CardDescription>
-              Enter a Sleeper league ID to view standings, rosters, matchups, and draft history.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <Input
-                placeholder="e.g. 1250519825399169024"
-                value={leagueId}
-                onChange={(e) => setLeagueId(e.target.value)}
-                className="flex-1"
-              />
-              <Button type="submit" size="icon">
-                <ArrowRight className="size-4" />
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card className="shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">elfant</CardTitle>
-              <CardDescription>
-                Enter a Sleeper league ID to view standings, rosters, matchups, and draft history.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
-                  placeholder="e.g. 1250519825399169024"
-                  value={leagueId}
-                  onChange={(e) => setLeagueId(e.target.value)}
-                  className="flex-1"
-                />
-                <Button type="submit" size="icon">
-                  <ArrowRight className="size-4" />
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+    <div className="min-h-[calc(100vh-3.5rem)] flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-lg mx-auto text-center space-y-8">
+        <div>
+          <ShieldHalf className="size-10 mx-auto text-primary mb-4" />
+          <h1 className="text-3xl font-bold tracking-tight">elfant</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Sleeper fantasy league history, stats, and analysis.
+          </p>
+        </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Your Leagues</h2>
-            {loading && <p className="text-muted-foreground text-sm">Loading leagues...</p>}
-            {chains.map(chain => {
-              const maxTeams = chain.seasons.reduce((m, s) => Math.max(m, s.total_rosters), 0)
-              return (
-                <Card key={chain.league_id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0">
-                        <CardTitle className="text-lg truncate">{chain.name}</CardTitle>
-                        <CardDescription>
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input
+            placeholder="Paste your Sleeper league ID…"
+            value={leagueId}
+            onChange={(e) => setLeagueId(e.target.value)}
+            className="flex-1 h-11 text-sm"
+          />
+          <Button type="submit" size="default" className="h-11 px-5 gap-1.5" disabled={!leagueId.trim()}>
+            View
+            <ArrowRight className="size-4" />
+          </Button>
+        </form>
+
+        <div>
+          <button
+            type="button"
+            onClick={handleExample}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4 decoration-muted-foreground/30 hover:decoration-foreground/50"
+          >
+            Try an example league &rarr;
+          </button>
+        </div>
+
+        {chains.length > 0 && (
+          <div className="pt-4 border-t border-border/40 w-full text-left">
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Saved Leagues</h2>
+            <div className="space-y-2">
+              {loading && <p className="text-xs text-muted-foreground">Loading…</p>}
+              {chains.map(chain => {
+                const maxTeams = chain.seasons.reduce((m, s) => Math.max(m, s.total_rosters), 0)
+                const years = chain.seasons.map(s => s.season).sort()
+                const yearRange = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]
+                return (
+                  <Card key={chain.league_id} className="relative">
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <Link to={`/league/${chain.group_id}`} className="min-w-0 flex-1 after:absolute after:inset-0">
+                        <p className="text-sm font-medium truncate">{chain.name}</p>
+                        <p className="text-xs text-muted-foreground mt-px">
                           {chain.seasons.length} {chain.seasons.length === 1 ? 'season' : 'seasons'}
+                          {` · ${yearRange}`}
                           {maxTeams > 0 && ` · ${maxTeams} teams`}
-                        </CardDescription>
-                      </div>
-                      <Link
-                        to={`/league/${chain.group_id}`}
-                        className="text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors inline-flex items-center"
-                      >
-                        Overview
+                        </p>
                       </Link>
-                      <Button variant="ghost" size="icon" onClick={() => handleRemove(chain.league_id)} className="shrink-0">
-                        <Trash2 className="size-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => { e.preventDefault(); handleRemove(chain.league_id) }}
+                        className="size-7 shrink-0 relative z-10 text-muted-foreground/50 hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {chain.seasons.map(s => (
-                        <Link
-                          key={s.league_id}
-                          to={`/league/${chain.group_id}/${s.league_id}`}
-                          className="inline-flex items-center gap-1.5 text-sm font-medium h-8 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-                        >
-                          {s.season}
-                          {statusBadge(s.status)}
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                  </Card>
+                )
+              })}
+            </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }
