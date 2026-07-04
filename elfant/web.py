@@ -184,19 +184,21 @@ def _get_full_league_chain(league_id, session):
 
 @app.get("/api/league/{league_id}")
 async def api_league(league_id: str):
-    _STALE_SECS = 300  # 5 minutes
-
-    def _is_stale(last_synced) -> bool:
-        if last_synced is None:
+    def _check_stale(league) -> bool:
+        """Returns True if the league needs a re-sync from Sleeper."""
+        if league is None or league.last_synced_at is None:
             return True
-        return (datetime.datetime.utcnow() - last_synced).total_seconds() > _STALE_SECS
+        age = (datetime.datetime.utcnow() - league.last_synced_at).total_seconds()
+        if league.status == "complete":
+            return age > 3600  # 1 hour for completed seasons
+        return age > 900  # 15 minutes for active seasons
 
     try:
         with get_session() as session:
             league = session.get(League, league_id)
-            stale = _is_stale(league.last_synced_at if league else None)
+            stale = _check_stale(league)
 
-        if stale or not league:
+        if stale:
             sync_league(league_id)
             sync_league_users(league_id)
             sync_rosters(league_id)
