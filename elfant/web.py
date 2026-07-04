@@ -107,6 +107,7 @@ def _enrich_rosters(rosters_list, session, league_id=None):
 def _get_drafts(league_id, session):
     drafts = session.query(Draft).filter_by(league_id=league_id).order_by(Draft.season.desc()).all()
     result = []
+    all_player_ids: set[str] = set()
     for d in drafts:
         picks = (
             session.query(DraftPick)
@@ -116,19 +117,19 @@ def _get_drafts(league_id, session):
         )
         pick_list = []
         for p in picks:
-            player = session.get(Player, p.player_id) if p.player_id else None
+            if p.player_id:
+                all_player_ids.add(p.player_id)
             meta = p.pick_metadata or {}
-            draft_team = meta.get("team") or meta.get("team_abbr") or (player.team if player else None)
             pick_list.append({
                 "pick_no": p.pick_no,
                 "round": p.round,
                 "roster_id": p.roster_id,
                 "player_id": p.player_id,
-                "first_name": meta.get("first_name") or (player.first_name if player else None),
-                "last_name": meta.get("last_name") or (player.last_name if player else None),
-                "team": draft_team,
-                "position": meta.get("position") or (player.position if player else None),
-                "team_logo": f"{TEAM_LOGO}/{draft_team.lower()}.png" if draft_team else None,
+                "first_name": meta.get("first_name"),
+                "last_name": meta.get("last_name"),
+                "team": meta.get("team") or meta.get("team_abbr"),
+                "position": meta.get("position"),
+                "team_logo": None,
             })
         result.append({
             "draft_id": d.draft_id,
@@ -137,6 +138,21 @@ def _get_drafts(league_id, session):
             "status": d.status,
             "picks": pick_list,
         })
+
+    # Bulk-load all referenced players and patch in
+    if all_player_ids:
+        player_map = {pl.player_id: pl for pl in session.query(Player).filter(Player.player_id.in_(list(all_player_ids))).all()}
+        for dr in result:
+            for pk in dr["picks"]:
+                pl = player_map.get(pk["player_id"]) if pk["player_id"] else None
+                if pl:
+                    pk["first_name"] = pk["first_name"] or pl.first_name
+                    pk["last_name"] = pk["last_name"] or pl.last_name
+                    pk["team"] = pk["team"] or pl.team
+                    pk["position"] = pk["position"] or pl.position
+                if pk["team"]:
+                    pk["team_logo"] = f"{TEAM_LOGO}/{pk['team'].lower()}.png"
+
     return result
 
 
