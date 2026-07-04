@@ -338,6 +338,9 @@ export interface PlayerWeek {
   def_4_and_stop?: number
   def_3_and_out?: number
   kicks_blocked?: number
+  fg_yds_bonus?: number
+  fg_missed?: number
+  pat_missed?: number
 }
 
 export interface PlayerStats {

@@ -23,6 +23,15 @@ const STAT_RULES: [string, string, number][] = [
   ['special_teams_tds', 'st_td', 6],
   ['fg_made', 'fgm', 3],
   ['pat_made', 'xpm', 1],
+  ['kicks_blocked', 'blk_kick', 0],
+  ['def_4_and_stop', 'def_4_and_stop', 0],
+  ['def_3_and_out', 'def_3_and_out', 0],
+  ['def_tackles_for_loss', 'tkl_loss', 0],
+  ['def_pass_defended', 'def_pass_def', 0],
+  ['def_tackles_solo', 'def_tkl_solo', 0],
+  ['fg_missed', 'fgmiss', 0],
+  ['pat_missed', 'xpmiss', 0],
+  ['fg_yds_bonus', 'fgm_yds_over_30', 0],
 ]
 
 const STAT_LABELS: Record<string, string> = {
@@ -46,10 +55,54 @@ const STAT_LABELS: Record<string, string> = {
   special_teams_tds: 'ST TD',
   fg_made: 'FG',
   pat_made: 'XP',
+  kicks_blocked: 'Blk Kick',
+  def_4_and_stop: '4th Stop',
+  def_3_and_out: '3&Out',
+  def_tackles_for_loss: 'TFL',
+  def_pass_defended: 'PD',
+  def_tackles_solo: 'Tackle',
+  fg_missed: 'FG Miss',
+  pat_missed: 'XP Miss',
+  fg_yds_bonus: 'FG Yds Bonus',
+}
+
+const PTS_BUCKETS: [number, string, number][] = [
+  [0, 'pts_allow_0', 0],
+  [1, 'pts_allow_1_6', 6],
+  [7, 'pts_allow_7_13', 13],
+  [14, 'pts_allow_14_20', 20],
+  [21, 'pts_allow_21_27', 27],
+  [28, 'pts_allow_28_34', 34],
+  [35, 'pts_allow_35p', 999],
+]
+
+const YDS_BUCKETS: [number, string, number][] = [
+  [0, 'yds_allow_0_349', 349],
+  [350, 'yds_allow_350_399', 399],
+  [400, 'yds_allow_400_449', 449],
+  [450, 'yds_allow_450_499', 499],
+  [500, 'yds_allow_500_549', 549],
+  [550, 'yds_allow_550p', 9999],
+]
+
+function bucketLabel(bucket: [number, string, number]): string {
+  const [, ruleKey, hi] = bucket
+  if (ruleKey === 'pts_allow_0') return '0 PA'
+  if (ruleKey === 'pts_allow_35p') return '35+ PA'
+  if (ruleKey === 'yds_allow_0_349') return '0–349 YA'
+  if (ruleKey === 'yds_allow_550p') return '550+ YA'
+  if (ruleKey.startsWith('pts_allow_')) {
+    const lo = bucket[0]
+    return `${lo}–${hi} PA`
+  }
+  const lo = bucket[0]
+  return `${lo}–${hi} YA`
 }
 
 function weekBreakdown(week: PlayerWeek, rules: Record<string, number>): { label: string; value: string; points: number }[] {
   const result: { label: string; value: string; points: number }[] = []
+
+  // Direct stat rules
   for (const [statKey, ruleKey, defaultMult] of STAT_RULES) {
     const val = (week as any)[statKey]
     if (!val) continue
@@ -57,6 +110,65 @@ function weekBreakdown(week: PlayerWeek, rules: Record<string, number>): { label
     const pts = val * mult
     result.push({ label: STAT_LABELS[statKey] || statKey, value: String(val), points: pts })
   }
+
+  // Detect defense for rule disambiguation
+  const isDef = !!(week.def_sacks || week.def_interceptions || week.def_tackles_solo)
+
+  // ST TD correction for defense (uses def_st_td instead of st_td)
+  if (week.special_teams_tds) {
+    const defaultStTd = 6
+    const appliedStTd = rules['st_td'] ?? defaultStTd
+    const correctStTd = rules[isDef ? 'def_st_td' : 'st_td'] ?? defaultStTd
+    const correction = week.special_teams_tds * (correctStTd - appliedStTd)
+    if (correction !== 0) {
+      result.push({ label: 'ST TD', value: String(week.special_teams_tds), points: correction })
+    }
+  }
+
+  // Kicker stat deductions for defense
+  if (isDef) {
+    const fgMissMult = rules['fgmiss'] ?? 0
+    if (week.fg_missed && fgMissMult) {
+      result.push({ label: 'FG Miss', value: String(week.fg_missed), points: -(week.fg_missed * fgMissMult) })
+    }
+    const xpMissMult = rules['xpmiss'] ?? 0
+    if (week.pat_missed && xpMissMult) {
+      result.push({ label: 'XP Miss', value: String(week.pat_missed), points: -(week.pat_missed * xpMissMult) })
+    }
+    const fgYdsBonusMult = rules['fgm_yds_over_30'] ?? 0
+    if (week.fg_yds_bonus && fgYdsBonusMult) {
+      result.push({ label: 'FG Yds Bonus', value: String(week.fg_yds_bonus), points: -(week.fg_yds_bonus * fgYdsBonusMult) })
+    }
+  }
+
+  // Points-allowed bucket
+  if (week.pts_allowed != null) {
+    for (const bucket of PTS_BUCKETS) {
+      const [, ruleKey, hi] = bucket
+      if (week.pts_allowed <= hi) {
+        const pts = rules[ruleKey] ?? 0
+        if (pts !== 0) {
+          result.push({ label: bucketLabel(bucket), value: String(week.pts_allowed), points: pts })
+        }
+        break
+      }
+    }
+  }
+
+  // Yards-allowed bucket
+  if (week.yds_allowed != null) {
+    for (const bucket of YDS_BUCKETS) {
+      const [, ruleKey, hi] = bucket
+      if (week.yds_allowed <= hi) {
+        const pts = rules[ruleKey] ?? 0
+        if (pts !== 0) {
+          result.push({ label: bucketLabel(bucket), value: String(week.yds_allowed), points: pts })
+        }
+        break
+      }
+    }
+  }
+
   return result
 }
 
