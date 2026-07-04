@@ -52,16 +52,36 @@ def _resolve_players(player_ids, session, players_points=None, positions=None):
     return result
 
 
-def _enrich_rosters(rosters_list, session):
+def _load_owner_maps(session, league_id):
+    """Bulk-load User and LeagueUser dicts for a league."""
+    rosters = session.query(Roster).filter_by(league_id=league_id).all()
+    owner_ids = {r.owner_id for r in rosters if r.owner_id}
+    user_map = {}
+    if owner_ids:
+        for u in session.query(User).filter(User.user_id.in_(owner_ids)).all():
+            user_map[u.user_id] = u
+    lu_map: dict[tuple[str, str], LeagueUser] = {}
+    for lu in session.query(LeagueUser).filter_by(league_id=league_id).all():
+        lu_map[(lu.league_id, lu.user_id)] = lu
+    return rosters, user_map, lu_map
+
+
+def _enrich_rosters(rosters_list, session, league_id=None):
     result = []
+    # Bulk load if league_id provided
+    _user_map = None
+    _lu_map = None
+    if league_id:
+        _, _user_map, _lu_map = _load_owner_maps(session, league_id)
     for r in rosters_list:
         s = r.settings or {}
-        owner = session.get(User, r.owner_id) if r.owner_id else None
-        lu = (
-            session.query(LeagueUser)
-            .filter_by(league_id=r.league_id, user_id=r.owner_id)
-            .first()
-        ) if r.owner_id else None
+        uid = r.owner_id if r.owner_id else None
+        if _user_map and _lu_map:
+            owner = _user_map.get(uid)
+            lu = _lu_map.get((r.league_id, uid)) if uid else None
+        else:
+            owner = session.get(User, uid) if uid else None
+            lu = session.query(LeagueUser).filter_by(league_id=r.league_id, user_id=uid).first() if uid else None
         team_name = None
         if lu and lu.user_metadata:
             team_name = lu.user_metadata.get("team_name")
@@ -183,7 +203,7 @@ async def api_league(league_id: str):
             raise HTTPException(404, "League not found")
 
         rosters = _enrich_rosters(
-            session.query(Roster).filter_by(league_id=league_id).all(), session
+            session.query(Roster).filter_by(league_id=league_id).all(), session, league_id
         )
         drafts = _get_drafts(league_id, session)
 
@@ -829,10 +849,11 @@ async def api_league_matchups(league_id: str, week: int):
         if not rows:
             return []
 
+        rosters, user_map, lu_map = _load_owner_maps(session, league_id)
         owners = {}
-        for r in session.query(Roster).filter_by(league_id=league_id).all():
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+        for r in rosters:
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -960,10 +981,11 @@ async def api_playoffs(league_id: str):
         playoff_week_start = (league.settings or {}).get("playoff_week_start", 15) if league else 15
 
         # Build roster -> owner info map
+        rosters, user_map, lu_map = _load_owner_maps(session, league_id)
         owners = {}
-        for r in session.query(Roster).filter_by(league_id=league_id).all():
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+        for r in rosters:
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -1035,11 +1057,11 @@ async def api_rankings(league_id: str, mode: str = "standard"):
         if not league:
             raise HTTPException(404, "League not found")
 
-        rosters_raw = session.query(Roster).filter_by(league_id=league_id).all()
+        rosters_raw, user_map, lu_map = _load_owner_maps(session, league_id)
         owners = {}
         for r in rosters_raw:
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -1185,13 +1207,13 @@ async def api_team_stats(league_id: str):
         if not league:
             raise HTTPException(404, "League not found")
 
-        rosters_raw = session.query(Roster).filter_by(league_id=league_id).all()
+        rosters_raw, user_map, lu_map = _load_owner_maps(session, league_id)
         roster_ids = sorted([r.roster_id for r in rosters_raw])
 
         owners = {}
         for r in rosters_raw:
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -1305,11 +1327,11 @@ async def api_transactions(league_id: str, leg: int | None = None):
         q = q.order_by(Transaction.created.desc()).all()
 
         # Build roster -> display name map
-        rosters = session.query(Roster).filter_by(league_id=league_id).all()
+        _rosters, user_map, lu_map = _load_owner_maps(session, league_id)
         name_map = {}
-        for r in rosters:
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+        for r in _rosters:
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -1365,13 +1387,9 @@ async def api_transactions(league_id: str, leg: int | None = None):
 
         # Build roster info map
         roster_info = {}
-        for r in rosters:
-            owner = session.get(User, r.owner_id) if r.owner_id else None
-            lu = (
-                session.query(LeagueUser)
-                .filter_by(league_id=league_id, user_id=r.owner_id)
-                .first()
-            ) if r.owner_id else None
+        for r in _rosters:
+            owner = user_map.get(r.owner_id) if r.owner_id else None
+            lu = lu_map.get((league_id, r.owner_id)) if r.owner_id else None
             team_name = None
             if lu and lu.user_metadata:
                 team_name = lu.user_metadata.get("team_name")
@@ -1501,14 +1519,13 @@ async def api_player_stats(
 
         owned_ids: set[str] = set()
         owned_info: dict[str, dict] = {}
-        rostered = session.query(Roster).filter_by(league_id=league_id).all()
+        rostered, _user_map, _lu_map = _load_owner_maps(session, league_id)
         for r in rostered:
             for pid in (r.players or []):
                 owned_ids.add(str(pid))
                 if str(pid) not in owned_info:
-                    from elfant.db.models import LeagueUser
-                    owner = session.get(User, r.owner_id) if r.owner_id else None
-                    lu = session.query(LeagueUser).filter_by(league_id=league_id, user_id=r.owner_id).first() if r.owner_id else None
+                    owner = _user_map.get(r.owner_id) if r.owner_id else None
+                    lu = _lu_map.get((league_id, r.owner_id)) if r.owner_id else None
                     tname = None
                     if lu and lu.user_metadata:
                         tname = lu.user_metadata.get("team_name")
