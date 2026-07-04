@@ -1505,7 +1505,7 @@ async def api_transactions(league_id: str, leg: int | None = None):
 # In-memory cache: {(league_id, season) -> (players_out, rules)}
 _player_stats_cache: dict[tuple[str, int], tuple[list[dict], dict]] = {}
 _player_stats_cache_time: dict[tuple[str, int], float] = {}
-_CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL = 3600  # 1 hour
 
 
 @app.get("/api/league/{league_id}/player-stats")
