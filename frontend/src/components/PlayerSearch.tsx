@@ -13,7 +13,7 @@ interface Props {
   groupId: string
 }
 
-const POSITIONS = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const
+const POSITIONS = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DE', 'DT', 'CB', 'S', 'DB'] as const
 const posColors: Record<string, string> = {
   QB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
   RB: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
@@ -21,6 +21,12 @@ const posColors: Record<string, string> = {
   TE: 'text-orange-300 border-orange-500/30 bg-orange-500/10',
   DEF: 'text-zinc-300 border-zinc-500/30 bg-zinc-500/10',
   K: 'text-red-300 border-red-500/30 bg-red-500/10',
+  LB: 'text-violet-300 border-violet-500/30 bg-violet-500/10',
+  DE: 'text-fuchsia-300 border-fuchsia-500/30 bg-fuchsia-500/10',
+  DT: 'text-purple-300 border-purple-500/30 bg-purple-500/10',
+  CB: 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10',
+  S: 'text-teal-300 border-teal-500/30 bg-teal-500/10',
+  DB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
 }
 
 export default function PlayerSearch({ leagueId, groupId }: Props) {
@@ -31,7 +37,6 @@ export default function PlayerSearch({ leagueId, groupId }: Props) {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [position, setPosition] = useState('All')
   const [owned, setOwned] = useState<'all' | 'owned' | 'free'>('all')
-  const [sort, setSort] = useState('total')
   const [players, setPlayers] = useState<PlayerStats[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -46,12 +51,11 @@ export default function PlayerSearch({ leagueId, groupId }: Props) {
       position: position === 'All' ? undefined : position,
       search: debouncedSearch || undefined,
       owned: owned === 'all' ? undefined : owned === 'owned',
-      sort,
     })
       .then((data) => setPlayers(data.players || []))
       .catch(() => setPlayers([]))
       .finally(() => setLoading(false))
-  }, [leagueId, debouncedSearch, position, owned, sort])
+  }, [leagueId, debouncedSearch, position, owned])
 
   return (
     <div className="space-y-3">
@@ -83,33 +87,21 @@ export default function PlayerSearch({ leagueId, groupId }: Props) {
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex gap-1">
-            {(['all', 'owned', 'free'] as const).map((o) => (
-              <button
-                key={o}
-                onClick={() => setOwned(o)}
-                className={cn(
-                  'text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors',
-                  owned === o
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/60',
-                )}
-              >
-                {o === 'all' ? 'All' : o === 'owned' ? 'Owned' : 'Free'}
-              </button>
-            ))}
-          </div>
-
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="text-[10px] bg-muted/30 border border-border/40 rounded-full px-2.5 py-1 text-muted-foreground font-semibold outline-none"
-          >
-            <option value="total">Total Pts</option>
-            <option value="avg">Avg Pts</option>
-            <option value="name">Name</option>
-          </select>
+        <div className="flex gap-1">
+          {(['all', 'owned', 'free'] as const).map((o) => (
+            <button
+              key={o}
+              onClick={() => setOwned(o)}
+              className={cn(
+                'text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors',
+                owned === o
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/60',
+              )}
+            >
+              {o === 'all' ? 'All' : o === 'owned' ? 'Owned' : 'Free'}
+            </button>
+          ))}
         </div>
       </div>
 

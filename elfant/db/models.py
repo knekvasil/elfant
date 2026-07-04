@@ -35,6 +35,7 @@ class League(Base):
     previous_league_id = Column(String)
     draft_id = Column(String)
     avatar = Column(String)
+    league_metadata = Column(JSONB)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -108,6 +109,10 @@ class Player(Base):
     practice_participation = Column(String)
     news_updated = Column(BigInteger)
     birth_country = Column(String)
+    birth_city = Column(String)
+    birth_state = Column(String)
+    rookie_year = Column(Integer)
+    injury_notes = Column(String)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
@@ -279,7 +284,12 @@ class PlayerWeeklyStat(Base):
 
     fumbles = Column(Integer)
     fumbles_lost = Column(Integer)
+    fumbles_own_recovery = Column(Integer)
     special_teams_tds = Column(Integer)
+    kickoff_return_yards = Column(Integer)
+    kickoff_returns = Column(Integer)
+    punt_return_yards = Column(Integer)
+    punt_returns = Column(Integer)
 
     fg_made = Column(Integer)
     fg_att = Column(Integer)
@@ -296,9 +306,13 @@ class PlayerWeeklyStat(Base):
     def_tackles_with_assist = Column(Integer)
     def_tackles_for_loss = Column(Integer)
     def_sacks = Column(Float)
+    def_sack_yards = Column(Float)
     def_interceptions = Column(Integer)
+    def_interception_yards = Column(Integer)
     def_pass_defended = Column(Integer)
     def_fumbles_forced = Column(Integer)
+    def_fumbles = Column(Integer)
+    def_qb_hits = Column(Integer)
     def_tds = Column(Integer)
     def_safeties = Column(Integer)
 
@@ -323,6 +337,15 @@ class PlayerWeeklyStat(Base):
     def_time_of_possession = Column(Integer)
     def_plays = Column(Integer)
     total_plays = Column(Integer)
+
+    target_share = Column(Float)
+    air_yards = Column(Integer)
+    racr = Column(Float)
+    wopr = Column(Float)
+    passing_air_yards = Column(Integer)
+    passing_epa = Column(Float)
+    receiving_epa = Column(Float)
+    rushing_epa = Column(Float)
 
     pts_allowed = Column(Float)
     yds_allowed = Column(Integer)

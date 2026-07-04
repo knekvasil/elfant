@@ -11,6 +11,7 @@ from elfant.sync.sync import (
     sync_matchups, sync_transactions, sync_nfl_state,
     sync_player_ids, sync_player_weekly_stats, sync_team_weekly_stats,
     sync_team_defense_opp_stats, sync_defense_pbp_stats,
+    sync_player_snap_counts, sync_defense_time_of_possession,
 )
 
 
@@ -110,6 +111,8 @@ def cmd_sync_stats(args):
     sync_team_weekly_stats(seasons)
     sync_team_defense_opp_stats(seasons)
     sync_defense_pbp_stats(seasons)
+    sync_player_snap_counts(seasons)
+    sync_defense_time_of_possession(seasons)
 
 
 def cmd_info(args):

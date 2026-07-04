@@ -45,6 +45,7 @@ def sync_league(league_id):
         league.previous_league_id = data.get("previous_league_id")
         league.draft_id = data.get("draft_id")
         league.avatar = data.get("avatar")
+        league.league_metadata = data.get("metadata")
         session.commit()
         return league
 
@@ -156,6 +157,10 @@ def sync_players():
             player.practice_participation = pd.get("practice_participation")
             player.news_updated = pd.get("news_updated")
             player.birth_country = pd.get("birth_country")
+            player.birth_city = pd.get("birth_city")
+            player.birth_state = pd.get("birth_state")
+            player.rookie_year = pd.get("rookie_year")
+            player.injury_notes = pd.get("injury_notes")
         session.commit()
 
 
@@ -288,6 +293,25 @@ def sync_player_weekly_stats(seasons=None):
         ("def_fumbles_forced", "def_fumbles_forced"),
         ("def_tds", "def_tds"),
         ("def_safeties", "def_safeties"),
+        ("def_sack_yards", "def_sack_yards"),
+        ("def_interception_yards", "def_interception_yards"),
+        ("def_fumbles", "def_fumbles"),
+        ("def_qb_hits", "def_qb_hits"),
+        ("kickoff_return_yards", "kickoff_return_yards"),
+        ("kickoff_returns", "kickoff_returns"),
+        ("punt_return_yards", "punt_return_yards"),
+        ("punt_returns", "punt_returns"),
+        ("target_share", "target_share"),
+        ("air_yards", "air_yards"),
+        ("racr", "racr"),
+        ("wopr", "wopr"),
+        ("passing_air_yards", "passing_air_yards"),
+        ("passing_epa", "passing_epa"),
+        ("receiving_epa", "receiving_epa"),
+        ("rushing_epa", "rushing_epa"),
+        ("fg_missed", "fg_missed"),
+        ("pat_missed", "pat_missed"),
+        ("fg_blocked", "fg_blocked"),
     ]
 
     for season in seasons:
@@ -327,6 +351,14 @@ def sync_player_weekly_stats(seasons=None):
                 v = row.get(nfl_key)
                 if v is not None and not (isinstance(v, float) and v != v):
                     vals[model_key] = int(v) if isinstance(v, float) and v == v and v == int(v) else v
+
+            # Compute total fumbles from components
+            rf = vals.get("rushing_fumbles") or 0
+            recf = vals.get("receiving_fumbles") or 0
+            vals["fumbles"] = rf + recf
+            rfl = vals.get("rushing_fumbles_lost") or 0
+            refl = vals.get("receiving_fumbles_lost") or 0
+            vals["fumbles_lost"] = rfl + refl
 
             batch.append(PlayerWeeklyStat(**vals))
             inserted += 1
@@ -383,6 +415,10 @@ _DEF_STAT_FIELDS = [
     ("pat_blocked", "pat_blocked"),
     ("fumble_recovery_opp", "fumble_recovery_opp"),
     ("fumble_recovery_tds", "fumble_recovery_tds"),
+    ("def_sack_yards", "def_sack_yards"),
+    ("def_interception_yards", "def_interception_yards"),
+    ("def_fumbles", "def_fumbles"),
+    ("def_qb_hits", "def_qb_hits"),
 ]
 
 
@@ -1069,4 +1105,207 @@ def sync_defense_time_of_possession(seasons=None):
 
         print(f"  {season}: {updates} team-defense TOP records updated")
 
+    print("Done.")
+
+
+def sync_migrate_new_columns(seasons=None):
+    """One-time migration: upsert new stat columns for existing rows from nflreadpy."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    _NEW_FIELDS = [
+        ("def_sack_yards", "def_sack_yards"),
+        ("def_interception_yards", "def_interception_yards"),
+        ("def_fumbles", "def_fumbles"),
+        ("def_qb_hits", "def_qb_hits"),
+        ("kickoff_return_yards", "kickoff_return_yards"),
+        ("kickoff_returns", "kickoff_returns"),
+        ("punt_return_yards", "punt_return_yards"),
+        ("punt_returns", "punt_returns"),
+        ("target_share", "target_share"),
+        ("air_yards", "air_yards"),
+        ("racr", "racr"),
+        ("wopr", "wopr"),
+        ("passing_air_yards", "passing_air_yards"),
+        ("passing_epa", "passing_epa"),
+        ("receiving_epa", "receiving_epa"),
+        ("rushing_epa", "rushing_epa"),
+        ("fg_missed", "fg_missed"),
+        ("pat_missed", "pat_missed"),
+        ("fg_blocked", "fg_blocked"),
+    ]
+
+    from sqlalchemy import bindparam, text
+
+    for season in seasons:
+        print(f"Migrating new columns for {season}...")
+        df = nfl.load_player_stats(seasons=[season])
+
+        updates = []
+        gsis_to_sleeper = {}
+        ids = nfl.load_ff_playerids().drop_nulls(subset=["sleeper_id", "gsis_id"])
+        for row in ids.iter_rows(named=True):
+            gsis_to_sleeper[row["gsis_id"]] = str(row["sleeper_id"])
+
+        for row in df.iter_rows(named=True):
+            pid = row["player_id"]
+            sleeper_id = gsis_to_sleeper.get(pid)
+            if not sleeper_id:
+                if pid and pid in _TEAM_ABBREVIATIONS:
+                    sleeper_id = pid
+                else:
+                    continue
+            rec = {"player_id": sleeper_id, "season": row["season"], "week": row["week"], "season_type": row.get("season_type") or "REG"}
+            # Initialize all fields to 0
+            for _, model in _NEW_FIELDS:
+                rec[model] = 0
+            rec["fumbles"] = 0
+            rec["fumbles_lost"] = 0
+            for nf, model in _NEW_FIELDS:
+                v = row.get(nf)
+                if v is not None and not (isinstance(v, float) and v != v):
+                    rec[model] = int(v) if isinstance(v, float) and v == v and v == int(v) else v
+            # Fumbles from components
+            rf = row.get("rushing_fumbles") or 0
+            recf = row.get("receiving_fumbles") or 0
+            rec["fumbles"] = rf + recf
+            rfl = row.get("rushing_fumbles_lost") or 0
+            refl = row.get("receiving_fumbles_lost") or 0
+            rec["fumbles_lost"] = rfl + refl
+            updates.append(rec)
+
+        if updates:
+            extra_cols = ["fumbles", "fumbles_lost"]
+            all_new_cols = _NEW_FIELDS + [("fumbles", "fumbles"), ("fumbles_lost", "fumbles_lost")]
+            set_clause = ", ".join(f"{col} = EXCLUDED.{col}" for _, col in all_new_cols)
+            col_names = ", ".join(c for _, c in all_new_cols)
+            bind_names = ", ".join(f":{c}" for _, c in all_new_cols)
+            stmt = text(f"""
+                INSERT INTO player_weekly_stats (player_id, season, week, season_type, {col_names})
+                VALUES (:player_id, :season, :week, :season_type, {bind_names})
+                ON CONFLICT (player_id, season, week, season_type)
+                DO UPDATE SET {set_clause}
+            """)
+            with get_session() as session:
+                session.execute(stmt, updates)
+                session.commit()
+            print(f"  {season}: {len(updates)} rows migrated")
+
+    print("Done.")
+
+
+def sync_injuries(seasons=None):
+    """Sync weekly injury data from nflreadpy to Player.injury_notes."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed. Run: pip install nflreadpy")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    for season in seasons:
+        print(f"Loading injuries for {season}...")
+        df = nfl.load_injuries(seasons=[season])
+        if df is None or len(df) == 0:
+            print(f"  No injury data for {season}")
+            continue
+
+        updated = 0
+        with get_session() as session:
+            for row in df.iter_rows(named=True):
+                gsis = row.get("gsis_id")
+                if not gsis:
+                    continue
+                practice = row.get("practice_status") or row.get("injury", "")
+                desc = row.get("description") or ""
+                notes = f"{practice}: {desc}" if desc else practice
+                player = session.query(Player).filter(Player.gsis_id == gsis).first()
+                if player:
+                    if notes:
+                        player.injury_notes = notes
+                        updated += 1
+            session.commit()
+        print(f"  {season}: {updated} players updated")
+
+    print("Done.")
+
+
+def sync_nextgen_stats(seasons=None):
+    """Sync Next Gen Stats for advanced passing metrics (uses player_gsis_id)."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed. Run: pip install nflreadpy")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    _NGS_FIELDS = [
+        ("avg_intended_air_yards", "passing_air_yards"),
+        ("completion_percentage_above_expectation", "passing_cpoe"),
+    ]
+
+    for season in seasons:
+        print(f"Loading Next Gen Stats for {season}...")
+        try:
+            df = nfl.load_nextgen_stats(seasons=[season])
+        except Exception as e:
+            print(f"  Error: {e}")
+            continue
+        if df is None or len(df) == 0:
+            print(f"  No NGS data")
+            continue
+
+        updates = 0
+        for row in df.iter_rows(named=True):
+            gsis = row.get("player_gsis_id")
+            if not gsis:
+                continue
+            with get_session() as session:
+                player = session.query(Player).filter(Player.gsis_id == gsis).first()
+                if not player:
+                    continue
+                stat = session.query(PlayerWeeklyStat).filter_by(
+                    player_id=player.player_id,
+                    season=row.get("season"),
+                    week=row.get("week"),
+                ).first()
+                if stat:
+                    for nf, model in _NGS_FIELDS:
+                        v = row.get(nf)
+                        if v is not None:
+                            setattr(stat, model, v)
+                    updates += 1
+                    session.commit()
+        print(f"  {season}: {updates} NGS records")
+
+    print("Done.")
+
+
+def sync_ftn_charting(seasons=None):
+    """Sync FTN charting data. Note: requires player ID mapping, skipped if unavailable."""
+    try:
+        import nflreadpy as nfl
+    except ImportError:
+        print("nflreadpy not installed")
+        return
+
+    if seasons is None:
+        import datetime
+        seasons = [datetime.date.today().year]
+
+    for season in seasons:
+        print(f"FTN charting for {season} requires player ID mapping — skipping (data available via nfl.read_csv if needed)")
     print("Done.")

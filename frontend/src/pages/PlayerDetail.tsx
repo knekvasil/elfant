@@ -327,18 +327,23 @@ export default function PlayerDetail() {
               {idpPositions.includes(p.position) && currentSeason.defense && (() => {
                 const d = currentSeason.defense!
                 return (
-                  <div className="space-y-2">
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="Tackles" value={d.tackles} />
-                      <UsageStat label="Asst" value={d.tackles_assist} />
-                      <UsageStat label="Sacks" value={d.sacks} />
-                      <UsageStat label="TFL" value={d.tackles_for_loss} />
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0">
+                      <UsagePie label="Snap%" value={d.defense_pct * 100} max={100} unit="%" size="lg" />
                     </div>
-                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
-                      <UsageStat label="INT" value={d.interceptions} />
-                      <UsageStat label="PD" value={d.passes_defended} />
-                      <UsageStat label="FF" value={d.fumbles_forced} />
-                      <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                        <UsageStat label="Tackles" value={d.tackles} />
+                        <UsageStat label="Sacks" value={d.sacks} />
+                        <UsageStat label="TFL" value={d.tackles_for_loss} />
+                        <UsageStat label="INT" value={d.interceptions} />
+                      </div>
+                      <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                        <UsageStat label="PD" value={d.passes_defended} />
+                        <UsageStat label="FF" value={d.fumbles_forced} />
+                        <UsageStat label="Fum Rec" value={d.fumble_recoveries} />
+                        <UsageStat label="Def TD" value={d.defensive_tds} />
+                      </div>
                     </div>
                   </div>
                 )
