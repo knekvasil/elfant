@@ -29,9 +29,9 @@ const STAT_RULES: [string, string, number][] = [
   ['def_tackles_for_loss', 'tkl_loss', 0],
   ['def_pass_defended', 'def_pass_def', 0],
   ['def_tackles_solo', 'def_tkl_solo', 0],
-  ['fg_missed', 'fgmiss', 0],
-  ['pat_missed', 'xpmiss', 0],
-  ['fg_yds_bonus', 'fgm_yds_over_30', 0],
+  ['fumble_recovery_opp', 'fum_rec', 0],
+  ['fumble_recovery_tds', 'fum_rec_td', 0],
+  ['pts_allowed', 'pts_allow', 0],
 ]
 
 const STAT_LABELS: Record<string, string> = {
@@ -61,9 +61,9 @@ const STAT_LABELS: Record<string, string> = {
   def_tackles_for_loss: 'TFL',
   def_pass_defended: 'PD',
   def_tackles_solo: 'Tackle',
-  fg_missed: 'FG Miss',
-  pat_missed: 'XP Miss',
-  fg_yds_bonus: 'FG Yds Bonus',
+  fumble_recovery_opp: 'Fum Rec',
+  fumble_recovery_tds: 'Fum Rec TD',
+  pts_allowed: 'Pts Allowed',
 }
 
 const PTS_BUCKETS: [number, string, number][] = [
@@ -169,7 +169,7 @@ function weekBreakdown(week: PlayerWeek, rules: Record<string, number>): { label
     }
   }
 
-  return result
+  return result.filter((b) => b.points !== 0)
 }
 
 interface Props {
