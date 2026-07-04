@@ -21,7 +21,7 @@ elfant connects to the [Sleeper API](https://docs.sleeper.app/) and [nflreadpy](
 ## Tech Stack
 
 ### Backend
-- **Python 3.12** — FastAPI web framework
+- **Python 3.14** — FastAPI web framework (uv package manager)
 - **PostgreSQL** — Database with SQLAlchemy ORM
 - **nflreadpy** — NFL data (player stats, team stats, PBP, snap counts, schedules, injuries)
 - **Sleeper API** — League data, rosters, matchups, drafts, transactions
@@ -65,15 +65,16 @@ elfant/
 ## Quick Start
 
 ### Prerequisites
-- Python 3.12+
+- Python 3.14+
+- Node.js 26+
 - PostgreSQL
-- Node.js 20+
+- uv (Python package manager)
 
 ### Setup
 
 ```bash
 # Backend
-pip install . nflreadpy
+uv pip install . nflreadpy
 
 # Frontend
 cd frontend && npm install
