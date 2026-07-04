@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse } from 'lucide-react'
+import { UserCheck, UserX, TrendingUp, Calendar, BarChart3, Gauge, LineChart, HeartPulse, Shield } from 'lucide-react'
 import {
   BreadcrumbRoot,
   BreadcrumbList,
@@ -96,6 +96,8 @@ export default function PlayerDetail() {
       .finally(() => setLoading(false))
   }, [seasonLeagueId, playerId])
 
+  const currentYear = career?.seasons[0]?.season
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-4 space-y-4">
@@ -135,6 +137,14 @@ export default function PlayerDetail() {
             <BreadcrumbLink href={`/league/${groupId}`}>League Home</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
+          {currentYear && (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink href={`/league/${groupId}/${seasonLeagueId}`}>{currentYear}</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+            </>
+          )}
           <BreadcrumbItem>
             <BreadcrumbPage>{p.name}</BreadcrumbPage>
           </BreadcrumbItem>
@@ -213,13 +223,13 @@ export default function PlayerDetail() {
 
       {/* Row 2: Usage (left) | Trend (mid) | Volatility (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Usage */}
-        {currentSeason?.usage && (
+        {/* Usage / Defense */}
+        {(currentSeason?.usage || currentSeason?.defense) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                <TrendingUp className="size-3 text-muted-foreground" />
-                Usage &apos;{String(currentSeason.season).slice(2)}
+                {p.position === 'DEF' ? <Shield className="size-3 text-muted-foreground" /> : <TrendingUp className="size-3 text-muted-foreground" />}
+                {p.position === 'DEF' ? 'Defense' : 'Usage'} &apos;{String(currentSeason.season).slice(2)}
               </CardTitle>
             </CardHeader>
             <CardContent className="py-2">
@@ -289,7 +299,33 @@ export default function PlayerDetail() {
                   </div>
                 )
               })()}
-              {!['QB', 'RB', 'WR', 'TE'].includes(p.position) && (
+              {p.position === 'DEF' && currentSeason.defense && (() => {
+                const d = currentSeason.defense!
+                const takeaways = d.interceptions + d.fumbles_forced
+                return (
+                  <div className="space-y-2">
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="Sacks" value={d.sacks} />
+                      <UsageStat label="INT" value={d.interceptions} />
+                      <UsageStat label="Tackles" value={d.tackles} />
+                      <UsageStat label="Def TD" value={d.defensive_tds} />
+                    </div>
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="Pts/g" value={d.pts_allowed_avg.toFixed(1)} />
+                      <UsageStat label="Yds/g" value={d.yds_allowed_avg.toFixed(0)} />
+                      <UsageStat label="FF" value={d.fumbles_forced} />
+                      <UsageStat label="Safety" value={d.safeties} />
+                    </div>
+                    <div className="flex justify-around px-1 py-2 rounded-lg bg-muted/10 border border-border/20">
+                      <UsageStat label="Takeaways" value={takeaways} />
+                      <UsageStat label="4th Stop" value={d.fourth_down_stops} />
+                      <UsageStat label="3&Out" value={d.three_and_outs} />
+                      <UsageStat label="Blk Kick" value={d.kicks_blocked} />
+                    </div>
+                  </div>
+                )
+              })()}
+              {!['QB', 'RB', 'WR', 'TE', 'DEF'].includes(p.position) && (
                 <div className="text-xs text-muted-foreground text-center py-6">Usage stats not tracked for {p.position}s</div>
               )}
             </CardContent>
@@ -379,7 +415,7 @@ export default function PlayerDetail() {
             <CardTitle className="text-xs font-semibold flex items-center gap-1.5"><BarChart3 className="size-3 text-muted-foreground" />Weekly Heatmap</CardTitle>
           </CardHeader>
           <CardContent>
-            <PlayerHeatGrid seasons={p.seasons} onHoverSeason={setFocusedSeason} />
+            <PlayerHeatGrid seasons={p.seasons} scoringRules={p.scoring_rules} onHoverSeason={setFocusedSeason} />
           </CardContent>
         </Card>
 
@@ -401,25 +437,26 @@ export default function PlayerDetail() {
             </CardContent>
           </Card>
 
-          {/* Injury History */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                <HeartPulse className="size-3 text-muted-foreground" />
-                Injury History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                {p.seasons.map((s) => (
-                  <HealthBar key={s.season} label={`'${String(s.season).slice(2)}`} played={s.games} total={s.games_possible} />
-                ))}
-              </div>
-              <div className="mt-1.5 pt-1.5 border-t border-border/20">
-                <HealthBar label="Career" played={allGames} total={allPossible} />
-              </div>
-            </CardContent>
-          </Card>
+          {p.position !== 'DEF' && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <HeartPulse className="size-3 text-muted-foreground" />
+                  Injury History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {p.seasons.map((s) => (
+                    <HealthBar key={s.season} label={`'${String(s.season).slice(2)}`} played={s.games} total={s.games_possible} />
+                  ))}
+                </div>
+                <div className="mt-1.5 pt-1.5 border-t border-border/20">
+                  <HealthBar label="Career" played={allGames} total={allPossible} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right 2/9: Schedule */}

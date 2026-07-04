@@ -1,8 +1,68 @@
 import { cn } from '../lib/utils'
-import type { PlayerCareerSeason } from '../types'
+import Tooltip from './ui/tooltip'
+import type { PlayerCareerSeason, PlayerWeek } from '../types'
+
+const STAT_RULES: [string, string, number][] = [
+  ['passing_yards', 'pass_yd', 0.04],
+  ['passing_tds', 'pass_td', 4],
+  ['passing_interceptions', 'pass_int', -1],
+  ['passing_2pt_conversions', 'pass_2pt', 2],
+  ['rushing_yards', 'rush_yd', 0.1],
+  ['rushing_tds', 'rush_td', 6],
+  ['rushing_2pt_conversions', 'rush_2pt', 2],
+  ['receptions', 'rec', 1],
+  ['receiving_yards', 'rec_yd', 0.1],
+  ['receiving_tds', 'rec_td', 6],
+  ['receiving_2pt_conversions', 'rec_2pt', 2],
+  ['fumbles_lost', 'fum_lost', -2],
+  ['def_sacks', 'sack', 1],
+  ['def_interceptions', 'int', 2],
+  ['def_fumbles_forced', 'ff', 1],
+  ['def_tds', 'def_td', 6],
+  ['def_safeties', 'safe', 2],
+  ['special_teams_tds', 'st_td', 6],
+  ['fg_made', 'fgm', 3],
+  ['pat_made', 'xpm', 1],
+]
+
+const STAT_LABELS: Record<string, string> = {
+  passing_yards: 'Pass Yds',
+  passing_tds: 'Pass TD',
+  passing_interceptions: 'INT',
+  passing_2pt_conversions: '2PT',
+  rushing_yards: 'Rush Yds',
+  rushing_tds: 'Rush TD',
+  rushing_2pt_conversions: '2PT',
+  receptions: 'Rec',
+  receiving_yards: 'Rec Yds',
+  receiving_tds: 'Rec TD',
+  receiving_2pt_conversions: '2PT',
+  fumbles_lost: 'Fum Lost',
+  def_sacks: 'Sack',
+  def_interceptions: 'INT',
+  def_fumbles_forced: 'FF',
+  def_tds: 'Def TD',
+  def_safeties: 'Safe',
+  special_teams_tds: 'ST TD',
+  fg_made: 'FG',
+  pat_made: 'XP',
+}
+
+function weekBreakdown(week: PlayerWeek, rules: Record<string, number>): { label: string; value: string; points: number }[] {
+  const result: { label: string; value: string; points: number }[] = []
+  for (const [statKey, ruleKey, defaultMult] of STAT_RULES) {
+    const val = (week as any)[statKey]
+    if (!val) continue
+    const mult = rules[ruleKey] ?? defaultMult
+    const pts = val * mult
+    result.push({ label: STAT_LABELS[statKey] || statKey, value: String(val), points: pts })
+  }
+  return result
+}
 
 interface Props {
   seasons: PlayerCareerSeason[]
+  scoringRules?: Record<string, number>
   onHoverSeason?: (season: number | null) => void
 }
 
@@ -14,7 +74,7 @@ function cellColor(points: number, min: number, max: number): string {
   return 'bg-red-500/35'
 }
 
-export default function PlayerHeatGrid({ seasons, onHoverSeason }: Props) {
+export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }: Props) {
   if (seasons.length === 0) return null
 
   const sorted = [...seasons].sort((a, b) => b.season - a.season)
@@ -65,21 +125,39 @@ export default function PlayerHeatGrid({ seasons, onHoverSeason }: Props) {
                     )
                   }
 
+                  const breakdown = weekBreakdown(week, scoringRules || {})
+
                   return (
-                    <td
-                      key={s.season}
-                      className="py-px"
-                      title={`${s.season} W${wk}${isPost ? ' (POST)' : ''}: ${week.fantasy_points.toFixed(1)} pts vs ${week.opponent}`}
-                    >
-                      <div
-                        className={cn(
-                          'size-4 rounded-sm flex items-center justify-center text-[6px] font-bold leading-none',
-                          cellColor(week.fantasy_points, min, max),
-                          isPost ? 'ring-1 ring-amber-400/50' : '',
-                        )}
-                      >
-                        {week.fantasy_points.toFixed(0)}
-                      </div>
+                    <td key={s.season} className="py-px">
+                      <Tooltip content={
+                        <div className="space-y-0.5 min-w-[180px]">
+                          <div className="text-[11px] font-semibold mb-1">
+                            W{wk}{isPost ? ' (POST)' : ''} · {week.opponent} · <span className="text-amber-400">{week.fantasy_points.toFixed(1)} pts</span>
+                          </div>
+                          {breakdown.length > 0 ? (
+                            <div className="space-y-px">
+                              {breakdown.map((b) => (
+                                <div key={b.label} className="flex justify-between gap-3 text-[10px]">
+                                  <span>{b.label}</span>
+                                  <span className="tabular-nums">{b.value} = <span className={b.points < 0 ? 'text-red-400' : 'text-amber-400'}>{b.points > 0 ? '+' : ''}{b.points.toFixed(1)}</span></span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">No scoring stats</span>
+                          )}
+                        </div>
+                      }>
+                        <div
+                          className={cn(
+                            'size-4 rounded-sm flex items-center justify-center text-[6px] font-bold leading-none',
+                            cellColor(week.fantasy_points, min, max),
+                            isPost ? 'ring-1 ring-amber-400/50' : '',
+                          )}
+                        >
+                          {week.fantasy_points.toFixed(0)}
+                        </div>
+                      </Tooltip>
                     </td>
                   )
                 })}

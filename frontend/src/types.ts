@@ -323,6 +323,21 @@ export interface PlayerWeek {
   rushing_tds?: number
   receiving_yards?: number
   receiving_tds?: number
+  def_sacks?: number
+  def_interceptions?: number
+  def_tackles_solo?: number
+  def_tackles_with_assist?: number
+  def_tackles_for_loss?: number
+  def_pass_defended?: number
+  def_fumbles_forced?: number
+  def_tds?: number
+  def_safeties?: number
+  special_teams_tds?: number
+  pts_allowed?: number
+  yds_allowed?: number
+  def_4_and_stop?: number
+  def_3_and_out?: number
+  kicks_blocked?: number
 }
 
 export interface PlayerStats {
@@ -368,6 +383,25 @@ export interface PlayerUsage {
   yards_per_target: number
 }
 
+export interface PlayerDefense {
+  sacks: number
+  sacks_per_game: number
+  interceptions: number
+  interceptions_per_game: number
+  tackles: number
+  tackles_per_game: number
+  defensive_tds: number
+  safeties: number
+  fumbles_forced: number
+  fumble_recoveries: number
+  special_teams_tds: number
+  pts_allowed_avg: number
+  yds_allowed_avg: number
+  fourth_down_stops: number
+  three_and_outs: number
+  kicks_blocked: number
+}
+
 export interface PlayerCareerSeason {
   season: number
   team: string
@@ -380,6 +414,7 @@ export interface PlayerCareerSeason {
   std_dev: number
   bust_rate: number
   usage: PlayerUsage
+  defense?: PlayerDefense
   weeks: PlayerWeek[]
 }
 
@@ -389,6 +424,7 @@ export interface PlayerCareerResponse {
   position: string
   player_img: string | null
   seasons: PlayerCareerSeason[]
+  scoring_rules: Record<string, number>
 }
 
 export interface ScheduleGame {

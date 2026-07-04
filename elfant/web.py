@@ -1693,10 +1693,17 @@ async def api_player_career(league_id: str, player_id: str):
             PlayerWeeklyStat.player_id == player_id,
         ).order_by(PlayerWeeklyStat.season, PlayerWeeklyStat.week).all()
 
+        # Scope to seasons up to this league's year
+        try:
+            max_season = int(league.season)
+        except (ValueError, TypeError):
+            max_season = 9999
+
         # Group by season
         season_map: dict[int, list] = {}
         for row in stats:
-            season_map.setdefault(row.season, []).append(row)
+            if row.season <= max_season:
+                season_map.setdefault(row.season, []).append(row)
 
         seasons_out = []
         for season, rows in sorted(season_map.items(), reverse=True):
@@ -1771,6 +1778,21 @@ async def api_player_career(league_id: str, player_id: str):
                     "receiving_tds": row.receiving_tds,
                     "rushing_yards": row.rushing_yards,
                     "rushing_tds": row.rushing_tds,
+                    "def_sacks": row.def_sacks,
+                    "def_interceptions": row.def_interceptions,
+                    "def_tackles_solo": row.def_tackles_solo,
+                    "def_tackles_with_assist": row.def_tackles_with_assist,
+                    "def_tackles_for_loss": row.def_tackles_for_loss,
+                    "def_pass_defended": row.def_pass_defended,
+                    "def_fumbles_forced": row.def_fumbles_forced,
+                    "def_tds": row.def_tds,
+                    "def_safeties": row.def_safeties,
+                    "special_teams_tds": row.special_teams_tds,
+                    "pts_allowed": row.pts_allowed,
+                    "yds_allowed": row.yds_allowed,
+                    "def_4_and_stop": row.def_4_and_stop,
+                    "def_3_and_out": row.def_3_and_out,
+                    "kicks_blocked": row.kicks_blocked,
                 })
 
             fps = [w["fantasy_points"] for w in weeks]
@@ -1786,6 +1808,21 @@ async def api_player_career(league_id: str, player_id: str):
             total_receptions = sum(w.get("receptions") or 0 for w in weeks)
             total_attempts = sum(w.get("attempts") or 0 for w in weeks)
             total_completions = sum(w.get("completions") or 0 for w in weeks)
+
+            # DEF aggregates
+            total_sacks = sum(w.get("def_sacks") or 0 for w in weeks)
+            total_def_int = sum(w.get("def_interceptions") or 0 for w in weeks)
+            total_tackles = sum(w.get("def_tackles_solo") or 0 for w in weeks)
+            total_def_tds = sum(w.get("def_tds") or 0 for w in weeks)
+            total_safeties = sum(w.get("def_safeties") or 0 for w in weeks)
+            total_ff = sum(w.get("def_fumbles_forced") or 0 for w in weeks)
+            total_fum_rec = sum(w.get("fumble_recovery_opp") or 0 for w in weeks)
+            total_st_tds = sum(w.get("special_teams_tds") or 0 for w in weeks)
+            total_4_stops = sum(w.get("def_4_and_stop") or 0 for w in weeks)
+            total_3_outs = sum(w.get("def_3_and_out") or 0 for w in weeks)
+            total_kicks_blocked = sum(w.get("kicks_blocked") or 0 for w in weeks)
+            avg_pts_allowed = sum(w.get("pts_allowed") or 0 for w in weeks) / len(weeks) if weeks else 0
+            avg_yds_allowed = sum(w.get("yds_allowed") or 0 for w in weeks) / len(weeks) if weeks else 0
 
             seasons_out.append({
                 "season": season,
@@ -1812,6 +1849,24 @@ async def api_player_career(league_id: str, player_id: str):
                     "yards_per_carry": round(sum(w.get("rushing_yards") or 0 for w in weeks) / total_carries, 1) if total_carries else 0,
                     "yards_per_target": round(sum(w.get("receiving_yards") or 0 for w in weeks) / total_targets, 1) if total_targets else 0,
                 },
+                "defense": {
+                    "sacks": total_sacks,
+                    "sacks_per_game": round(total_sacks / len(weeks), 2) if weeks else 0,
+                    "interceptions": total_def_int,
+                    "interceptions_per_game": round(total_def_int / len(weeks), 2) if weeks else 0,
+                    "tackles": total_tackles,
+                    "tackles_per_game": round(total_tackles / len(weeks), 1) if weeks else 0,
+                    "defensive_tds": total_def_tds,
+                    "safeties": total_safeties,
+                    "fumbles_forced": total_ff,
+                    "fumble_recoveries": total_fum_rec,
+                    "special_teams_tds": total_st_tds,
+                    "pts_allowed_avg": round(avg_pts_allowed, 1),
+                    "yds_allowed_avg": round(avg_yds_allowed, 0),
+                    "fourth_down_stops": total_4_stops,
+                    "three_and_outs": total_3_outs,
+                    "kicks_blocked": total_kicks_blocked,
+                },
                 "weeks": weeks,
             })
 
@@ -1821,6 +1876,7 @@ async def api_player_career(league_id: str, player_id: str):
             "position": player.position or "",
             "player_img": f"{PLAYER_IMG}/{player_id}.jpg" if player_id and player_id.isdigit() else None,
             "seasons": seasons_out,
+            "scoring_rules": rules,
         }
 
 
