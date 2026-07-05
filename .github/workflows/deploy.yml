@@ -10,8 +10,8 @@ on:
       - 'frontend/**'
 
 jobs:
-  build-and-deploy:
-    runs-on: self-hosted
+  build:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -28,6 +28,11 @@ jobs:
           docker build -t $IMAGE:latest -t $IMAGE:${{ github.sha }} .
           docker push --all-tags $IMAGE
 
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
       - name: Deploy to k3s
         run: |
           kubectl set image deployment/elfant -n elfant \
