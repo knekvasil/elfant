@@ -14,4 +14,3 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8008
 CMD ["python3", "-m", "uvicorn", "elfant.web:app", "--host", "0.0.0.0", "--port", "8008"]
-# trigger build
