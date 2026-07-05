@@ -7,7 +7,7 @@ from requests.exceptions import HTTPError, ConnectionError, Timeout
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from elfant.db.base import get_session
+from elfant.db.base import get_session, Base, engine
 from elfant.db.models import (
     League, Roster, LeagueUser, User, Player, Draft, DraftPick, Matchup,
     Transaction, PlayoffBracket, NflState, PlayerWeeklyStat,
@@ -22,6 +22,11 @@ from elfant.sync.sync import (
 )
 
 app = FastAPI(title="elfant")
+
+
+@app.on_event("startup")
+def create_tables():
+    Base.metadata.create_all(engine)
 
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
