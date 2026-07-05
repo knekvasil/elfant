@@ -4,6 +4,8 @@ on:
   push:
     branches: [master]
     paths:
+      - '.github/**'
+      - '.github/**'
       - 'elfant/**'
       - 'pyproject.toml'
       - 'Dockerfile'
