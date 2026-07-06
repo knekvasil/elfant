@@ -1,6 +1,6 @@
 # elfant — Backend
 
-Python 3.12 + FastAPI backend serving the elfant fantasy football app.
+Python 3.14 + FastAPI backend serving the elfant fantasy football app.
 
 ## Modules
 
