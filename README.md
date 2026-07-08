@@ -107,7 +107,7 @@ elfant init                 # Create tables
 elfant sync-players         # Sync player data from Sleeper
 
 # Run (hot-reload enabled)
-elfant serve                # http://localhost:8008
+uvicorn elfant.web:app --reload --host 0.0.0.0 --port 8008  # http://localhost:8008
 ```
 
 > **Note:** The dev database is empty initially. Data is populated on-demand when you look up a league. If you need a fuller dataset, run `./scripts/dev-refresh.sh` to copy prod data into `dev_elfant`.
