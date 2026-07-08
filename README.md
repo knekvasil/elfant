@@ -101,8 +101,8 @@ With the tunnel running in another terminal:
 # Install
 uv pip install . nflreadpy
 
-# Initialise the dev database
-export ELFANT_DATABASE_URL="postgresql://postgres:__DB_PASSWORD__@localhost:5432/dev_elfant"
+# Set up the database URL (create a .env file or export directly)
+export ELFANT_DATABASE_URL="postgresql://user:pass@localhost:5432/dev_elfant"
 elfant init                 # Create tables
 elfant sync-players         # Sync player data from Sleeper
 
@@ -133,7 +133,7 @@ This replaces all data in `dev_elfant` with a fresh copy from `elfant` (producti
 If you prefer running the app in Docker while using the host tunnel:
 
 ```bash
-export ELFANT_DATABASE_URL="postgresql://postgres:__DB_PASSWORD__@host.docker.internal:5432/dev_elfant"
+export ELFANT_DATABASE_URL="postgresql://user:pass@host.docker.internal:5432/dev_elfant"
 docker compose up -d
 ```
 
