@@ -10,6 +10,8 @@ on:
       - 'pyproject.toml'
       - 'Dockerfile'
       - 'frontend/**'
+      - 'alembic/**'
+      - 'alembic.ini'
 
 jobs:
   build:
@@ -40,3 +42,8 @@ jobs:
           kubectl set image deployment/elfant -n elfant \
             app=ghcr.io/${{ github.repository }}:${{ github.sha }}
           kubectl rollout status deployment/elfant -n elfant --timeout=120s
+
+      - name: Run database migrations
+        run: |
+          kubectl exec deployment/elfant -n elfant -- \
+            python -m alembic upgrade head

@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from elfant.db.base import engine, Base, get_session
+from elfant.db.base import get_session
 from elfant.db.models import (
     League, Roster, LeagueUser, User, Player, Draft, DraftPick,
     Matchup, Transaction, TradedPick, NflState,
@@ -16,8 +16,10 @@ from elfant.sync.sync import (
 
 
 def cmd_init(args):
-    Base.metadata.create_all(engine)
-    print("Tables created.")
+    from alembic.config import Config
+    from alembic import command
+    command.upgrade(Config("alembic.ini"), "head")
+    print("Migrations applied.")
 
 
 def cmd_user(args):

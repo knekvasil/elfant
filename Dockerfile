@@ -8,6 +8,8 @@ COPY pyproject.toml .
 RUN uv pip install --system --no-cache . nflreadpy
 
 COPY elfant/ elfant/
+COPY alembic.ini .
+COPY alembic/ alembic/
 COPY frontend/dist frontend/dist/
 
 ENV PYTHONDONTWRITEBYTECODE=1

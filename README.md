@@ -57,48 +57,113 @@ elfant/
 │   │   ├── lib/               # API client, utilities
 │   │   └── types.ts           # TypeScript interfaces
 │   └── dist/                  # Built static files
+├── scripts/
+│   ├── db-tunnel.sh           # k3s database tunnel for local dev
+│   └── dev-refresh.sh         # Refresh dev DB from prod
 ├── Dockerfile                 # Container build
 ├── docker-compose.yml         # Container deployment
+├── .env.example               # Environment variable reference
 └── pyproject.toml             # Python dependencies
 ```
 
-## Quick Start
+## Development
+
+The database runs on the k3s cluster (namespace `database`). Local development uses a dedicated `dev_elfant` database — completely isolated from production. Connect via `kubectl port-forward`.
 
 ### Prerequisites
+
 - Python 3.14+
 - Node.js 26+
-- PostgreSQL
 - uv (Python package manager)
+- kubectl with access to the k3s cluster
+- `scripts/db-tunnel.sh` (port-forward) or PostgreSQL client (optional)
 
-### Setup
+### 1. Database tunnel
+
+Run this in a dedicated terminal (leave it running):
 
 ```bash
-# Backend
+./scripts/db-tunnel.sh
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `ELFANT_K8S_NAMESPACE` | `database` | Kubernetes namespace |
+| `ELFANT_DB_SERVICE` | `postgres` | Kubernetes service name |
+| `ELFANT_DB_LOCAL_PORT` | `5432` | Port on localhost |
+| `ELFANT_DB_REMOTE_PORT` | `5432` | Port on the service |
+
+### 2. Backend
+
+With the tunnel running in another terminal:
+
+```bash
+# Install
 uv pip install . nflreadpy
 
-# Frontend
-cd frontend && npm install
-
-# Database
-export ELFANT_DATABASE_URL="postgresql://user:pass@localhost:5432/elfant"
+# Initialise the dev database
+export ELFANT_DATABASE_URL="postgresql://postgres:__DB_PASSWORD__@localhost:5432/dev_elfant"
 elfant init                 # Create tables
 elfant sync-players         # Sync player data from Sleeper
-elfant sync-stats --seasons 2025  # Sync weekly stats
 
-# Run
-elfant serve                # Start on http://localhost:8008
+# Run (hot-reload enabled)
+elfant serve                # http://localhost:8008
 ```
 
-### Docker
+> **Note:** The dev database is empty initially. Data is populated on-demand when you look up a league. If you need a fuller dataset, run `./scripts/dev-refresh.sh` to copy prod data into `dev_elfant`.
+
+### 3. Frontend
 
 ```bash
+cd frontend
+npm install
+npm run dev                 # http://localhost:5173
+```
+
+### Refresh dev data from production (optional)
+
+```bash
+./scripts/dev-refresh.sh
+```
+
+This replaces all data in `dev_elfant` with a fresh copy from `elfant` (production). Useful when you want realistic data for UI work.
+
+### Docker (optional)
+
+If you prefer running the app in Docker while using the host tunnel:
+
+```bash
+export ELFANT_DATABASE_URL="postgresql://postgres:__DB_PASSWORD__@host.docker.internal:5432/dev_elfant"
 docker compose up -d
 ```
+
+## Schema Migrations
+
+Schema changes are managed with Alembic. Migration files live in `alembic/versions/`.
+
+### Workflow for making schema changes
+
+1. Edit the models in `elfant/db/models.py`
+2. Generate a migration:
+   ```bash
+   alembic revision --autogenerate -m "description of change"
+   ```
+3. Review the generated file in `alembic/versions/`
+4. Apply to your dev database:
+   ```bash
+   elfant init
+   ```
+   Or directly:
+   ```bash
+   alembic upgrade head
+   ```
+5. Commit both the model changes and the migration file
+6. Push to master — CI/CD applies migrations to production automatically
 
 ## Data Sources
 
 | Source | Data | Sync Function |
-|--------|------|--------------|
+|---|---|---|
 | Sleeper API | Leagues, rosters, users, matchups, drafts, transactions, playoff brackets | On-demand via league lookup |
 | nflreadpy (`load_player_stats`) | Weekly player stats (passing, rushing, receiving, defense, kicking) | `sync_player_weekly_stats` |
 | nflreadpy (`load_team_stats`) | Weekly team defense stats | `sync_team_weekly_stats` |
@@ -117,5 +182,7 @@ The project deploys as a single Docker container serving both the FastAPI backen
 docker build -t knekvasil/elfant:latest .
 docker compose up -d
 ```
+
+The production database is managed on the k3s cluster directly (not via tunnel).
 
 See `elfant.kajnekvasil.com` for the live instance.
