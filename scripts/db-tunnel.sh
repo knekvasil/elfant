@@ -12,8 +12,10 @@ fi
 
 NAMESPACE="${ELFANT_K8S_NAMESPACE:-database}"
 SERVICE="${ELFANT_DB_SERVICE:-postgres}"
-LOCAL_PORT="${ELFANT_DB_LOCAL_PORT:-5432}"
+LOCAL_PORT="${ELFANT_DB_LOCAL_PORT:-5433}"
 REMOTE_PORT="${ELFANT_DB_REMOTE_PORT:-5432}"
+
+lsof -ti ":$LOCAL_PORT" 2>/dev/null | xargs kill 2>/dev/null || true
 
 export SSHPASS="$ELFANT_SSH_PASSWORD"
 
@@ -21,4 +23,4 @@ echo "→ Tunnelling $NAMESPACE/$SERVICE to localhost:$LOCAL_PORT via $ELFANT_SS
 sshpass -e ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
   -L "$LOCAL_PORT:localhost:$REMOTE_PORT" \
   "$ELFANT_SSH_HOST" \
-  kubectl port-forward -n "$NAMESPACE" "svc/$SERVICE" "$REMOTE_PORT:$REMOTE_PORT"
+  sh -c "pkill -f 'port-forward.*$SERVICE' 2>/dev/null; exec kubectl port-forward -n $NAMESPACE svc/$SERVICE $REMOTE_PORT:$REMOTE_PORT"
