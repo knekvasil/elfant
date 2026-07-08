@@ -1,6 +1,8 @@
 import os
 
-_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 if os.path.exists(_env_path):
     with open(_env_path) as _f:
         for _line in _f:

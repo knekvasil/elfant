@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Users, Circle, Trophy, Trash2, Medal, CalendarDays, Crown, TrendingUp, ArrowUp, Swords, Zap, Info } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -56,6 +56,7 @@ export default function LeagueOverview() {
   const [data, setData] = useState<LeagueOverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [rankingMode, setRankingMode] = useState<'all' | 'active'>('all')
 
   useEffect(() => {
     if (!groupId) return
@@ -66,6 +67,21 @@ export default function LeagueOverview() {
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load league'))
       .finally(() => setLoading(false))
   }, [groupId])
+
+  const displayStats = useMemo(() => {
+    if (!data?.career_stats) return []
+    if (rankingMode === 'all') return data.career_stats
+    const active = data.career_stats.filter((cs: { is_active: boolean }) => cs.is_active)
+    if (active.length === 0) return data.career_stats
+    const mWin = Math.max(...active.map((c: { win_pct: number }) => c.win_pct), 0) || 1
+    const mPf  = Math.max(...active.map((c: { avg_pf: number }) => c.avg_pf), 0) || 1
+    const mPo  = Math.max(...active.map((c: { playoff_pct: number }) => c.playoff_pct), 0) || 1
+    return active.map((cs: { championship_score: number; win_pct: number; avg_pf: number; playoff_pct: number }) => {
+      const csNorm = Math.min(cs.championship_score / 300, 1)
+      const composite = (cs.win_pct / mWin * 0.30 + cs.avg_pf / mPf * 0.20 + cs.playoff_pct / mPo * 0.25 + csNorm * 0.25) * 100
+      return { ...cs, win_pct_norm: cs.win_pct / mWin, avg_pf_norm: cs.avg_pf / mPf, playoff_pct_norm: cs.playoff_pct / mPo, championship_score_norm: csNorm, composite: Math.round(composite * 10) / 10 }
+    }).sort((a: { composite: number; win_pct: number }, b: { composite: number; win_pct: number }) => b.composite - a.composite || b.win_pct - a.win_pct)
+  }, [data?.career_stats, rankingMode])
 
   if (loading) {
     return (
@@ -228,20 +244,43 @@ export default function LeagueOverview() {
             </>
           )}
 
-          {data.career_stats && data.career_stats.length > 0 && (
+          {displayStats && displayStats.length > 0 && (
             <div className="rounded-lg border border-border/40 bg-card/30 p-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-2">
                 <TrendingUp className="size-3.5" />
-                All Time Power Ranking
+                <span>{rankingMode === 'all' ? 'All Time Power Ranking' : 'Active Power Ranking'}</span>
+                <div className="flex items-center ml-auto gap-0.5 bg-muted/40 rounded-md p-0.5">
+                  <button
+                    onClick={() => setRankingMode('all')}
+                    className={`px-2 py-0.5 text-[10px] rounded transition-colors ${rankingMode === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    All Time
+                  </button>
+                  <button
+                    onClick={() => setRankingMode('active')}
+                    className={`px-2 py-0.5 text-[10px] rounded transition-colors ${rankingMode === 'active' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Active
+                  </button>
+                </div>
                 <Tooltip content={
-                  <div className="space-y-1">
-                    <p><b>Composite Score</b> — weighted average of 4 normalized metrics</p>
-                    <p>▸ Win% (30%) — career regular season win rate</p>
-                    <p>▸ Avg PF (20%) — average points for per season</p>
-                    <p>▸ Playoff Rate (25%) — % of seasons making winners bracket</p>
-                    <p>▸ Championship Score (25%) — (gold×3 + silver×2 + bronze) ÷ seasons × 100</p>
-                    <p className="pt-1 text-muted-foreground/60">Each metric scaled 0-1 relative to the league leader, then averaged and scored 0-100.</p>
-                  </div>
+                  rankingMode === 'all'
+                  ? <div className="space-y-1">
+                      <p><b>Composite Score</b> — weighted average of 4 normalized metrics</p>
+                      <p>▸ Win% (30%) — career regular season win rate</p>
+                      <p>▸ Avg PF (20%) — average points for per season</p>
+                      <p>▸ Playoff Rate (25%) — % of seasons making winners bracket</p>
+                      <p>▸ Championship Score (25%) — (gold×3 + silver×2 + bronze) ÷ seasons × 100</p>
+                      <p className="pt-1 text-muted-foreground/60">Each metric scaled 0-1 relative to the league leader, then averaged and scored 0-100.</p>
+                    </div>
+                  : <div className="space-y-1">
+                      <p><b>Composite Score</b> — same 4 metrics, renormalized against <b>current owners only</b></p>
+                      <p>▸ Win% (30%) — career win rate</p>
+                      <p>▸ Avg PF (20%) — average points per season</p>
+                      <p>▸ Playoff Rate (25%) — % of seasons making playoffs</p>
+                      <p>▸ Championship Score (25%) — (gold×3 + silver×2 + bronze) ÷ seasons × 100</p>
+                      <p className="pt-1 text-muted-foreground/60">Historical owners filtered out. Max values recomputed from active pool.</p>
+                    </div>
                 }>
                   <Info className="size-3 text-muted-foreground/50 cursor-help" />
                 </Tooltip>
@@ -256,8 +295,9 @@ export default function LeagueOverview() {
                   <span className="w-8 text-right">PF</span>
                   <span className="w-8 text-right">PO%</span>
                 </div>
-                {data.career_stats.map((cs, i) => {
-                  const hue = 120 - (data.career_stats.length > 1 ? (i / (data.career_stats.length - 1)) : 0) * 120
+                {displayStats.map((cs, i) => {
+                  const n = displayStats.length
+                  const hue = 120 - (n > 1 ? (i / (n - 1)) : 0) * 120
                   const wCont = (cs.win_pct_norm * 0.30 * 100).toFixed(1)
                   const pCont = (cs.avg_pf_norm * 0.20 * 100).toFixed(1)
                   const poCont = (cs.playoff_pct_norm * 0.25 * 100).toFixed(1)

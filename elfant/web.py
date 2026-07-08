@@ -661,6 +661,8 @@ async def api_league_overview(league_id: str):
 
                 oid = r.owner_id
                 if oid not in career_stats:
+                    is_active = owner_data.get(oid, {}).get("seasons", {}).get(last_season, {}).get("present", False)
+
                     career_stats[oid] = {
                         "owner_id": oid,
                         "display_name": owner.display_name,
@@ -670,6 +672,7 @@ async def api_league_overview(league_id: str):
                         "total_pf": 0.0,
                         "playoff_appearances": 0,
                         "championships": medals_by_owner.get(owner.display_name, {}).get("gold", 0),
+                        "is_active": is_active,
                     }
 
                 s = r.settings or {}
@@ -757,9 +760,9 @@ async def api_league_overview(league_id: str):
                             entry["b_wins"] += 1
 
                     margin = abs(a_pts - b_pts)
-                    for rid, pts, owner_data in [(a.roster_id, a_pts, a_owner), (b.roster_id, b_pts, b_owner)]:
+                    for rid, pts, od in [(a.roster_id, a_pts, a_owner), (b.roster_id, b_pts, b_owner)]:
                         if pts > highest_score["pts"]:
-                            highest_score.update({"pts": round(pts, 1), "week": w, "season": season, "team_name": owner_data["display"], "owner_name": owner_data["owner_name"], "avatar": owner_data["avatar"]})
+                            highest_score.update({"pts": round(pts, 1), "week": w, "season": season, "team_name": od["display"], "owner_name": od["owner_name"], "avatar": od["avatar"]})
 
                     if margin > biggest_blowout["margin"]:
                         winner_name = a_name if a_pts > b_pts else b_name

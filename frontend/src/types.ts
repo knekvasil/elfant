@@ -194,6 +194,7 @@ export interface CareerStatsEntry {
   avg_pf_norm: number
   playoff_pct_norm: number
   championship_score_norm: number
+  is_active: boolean
 }
 
 export interface RegSeasonEvent {
