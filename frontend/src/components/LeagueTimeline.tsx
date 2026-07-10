@@ -8,6 +8,7 @@ interface Props {
   groupId: string
   participants: ParticipantsData
   seasonLinks: Record<string, string>
+  seasonStatus: Record<string, string>
 }
 
 function rankHue(rank: number, total: number): number {
@@ -34,7 +35,7 @@ function sortedOwners(participants: ParticipantsData): OwnerParticipant[] {
   return all
 }
 
-export default function LeagueTimeline({ groupId, participants, seasonLinks }: Props) {
+export default function LeagueTimeline({ groupId, participants, seasonLinks, seasonStatus }: Props) {
   const seasons = participants.seasons
   const owners = sortedOwners(participants)
 
@@ -95,22 +96,24 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks }: P
                   const isChampion = p.placement === 'champion'
                   const isTrashKing = p.placement === 'trash_king'
                   const maxRank = seasonMaxRank[sy] || 1
+                  const completed = seasonStatus[sy] === 'complete'
                   return (
                     <Tooltip key={sy} content={
                       <span className="capitalize">{o.display_name} · {sy} · {p.team_name}{p.placement ? ` · ${p.placement.replace(/_/g, ' ')}` : ''}{p.rank ? ` · ${p.rank} of ${maxRank}` : ''}</span>
                     }>
                       <div
                         className={cn(
-                          'size-5 rounded-sm border border-border/30 flex items-center justify-center transition-colors',
+                          'size-5 rounded-sm border flex items-center justify-center transition-colors',
+                          completed ? 'border-border/30' : 'border-border/10',
                           isChampion && 'bg-amber-400',
                           isTrashKing && 'bg-gray-400',
-                          !isChampion && !isTrashKing && 'bg-muted/30',
+                          !isChampion && !isTrashKing && (completed ? 'bg-muted/30' : 'bg-muted/10'),
                         )}
-                        style={!isChampion && !isTrashKing && p.rank ? { backgroundColor: rankBg(p.rank, maxRank) } : undefined}
+                        style={!isChampion && !isTrashKing && p.rank && completed ? { backgroundColor: rankBg(p.rank, maxRank) } : undefined}
                       >
                         {isChampion && <Crown className="size-3 text-white drop-shadow-sm" />}
                         {isTrashKing && <Trash2 className="size-2.5 text-white drop-shadow-sm" />}
-                        {!isChampion && !isTrashKing && <div className="size-1.5 rounded-full bg-white/40" />}
+                        {!isChampion && !isTrashKing && completed && <div className="size-1.5 rounded-full bg-white/40" />}
                       </div>
                     </Tooltip>
                   )

@@ -23,8 +23,17 @@ const statusStyle = (status: string) => {
   }
 }
 
-const statusLabel = (status: string) =>
-  status === 'in_season' ? 'Live' : status === 'complete' ? 'Complete' : status
+const statusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    complete: 'Complete',
+    in_season: 'Live',
+    pre_draft: 'Pre-Draft',
+    drafting: 'Drafting',
+    pre_season: 'Pre-Season',
+    post_season: 'Post-Season',
+  }
+  return labels[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
 
 const placementClass = (i: number) =>
   i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'
@@ -108,6 +117,7 @@ export default function LeagueOverview() {
   }
 
   const last = data.seasons[data.seasons.length - 1]
+  const lastCompleted = [...data.seasons].reverse().find(s => s.status === 'complete') || last
   const seasonLinks = Object.fromEntries(data.seasons.map(s => [s.season, s.league_id]))
 
   return (
@@ -121,7 +131,7 @@ export default function LeagueOverview() {
       </BreadcrumbRoot>
 
       <div>
-        <h1 className="text-2xl font-bold">Sleeper League History</h1>
+        <h1 className="text-2xl font-bold">League History</h1>
         <p className="text-muted-foreground text-sm mt-0.5 flex items-center gap-1.5">
           <Users className="size-3.5" />
           {data.total_seasons} {data.total_seasons === 1 ? 'season' : 'seasons'}
@@ -154,6 +164,7 @@ export default function LeagueOverview() {
               groupId={data.group_id}
               participants={data.participants}
               seasonLinks={seasonLinks}
+              seasonStatus={Object.fromEntries(data.seasons.map(s => [s.season, s.status]))}
             />
           )}
           {data.individual_events?.best_reg_season && (
@@ -204,19 +215,19 @@ export default function LeagueOverview() {
         </div>
 
         <div className="space-y-3">
-          {last && (
+          {lastCompleted && (
             <>
               <div className="rounded-lg border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent ring-1 ring-amber-500/30 shadow-[0_0_15px_-3px_rgba(251,191,36,0.15)] p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Crown className="size-4 text-amber-400" />
                   <span className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider">Reigning Champion</span>
                 </div>
-                {last.champion ? (
+                {lastCompleted.champion ? (
                   <div className="flex items-center gap-2">
-                    {last.champion_avatar && <img src={last.champion_avatar} alt="" className="size-7 rounded-full ring-1 ring-amber-500/30" />}
+                    {lastCompleted.champion_avatar && <img src={lastCompleted.champion_avatar} alt="" className="size-7 rounded-full ring-1 ring-amber-500/30" />}
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{last.champion}</div>
-                      <div className="text-[10px] text-muted-foreground">{last.champion_owner} · {last.season}</div>
+                      <div className="text-sm font-semibold truncate">{lastCompleted.champion}</div>
+                      <div className="text-[10px] text-muted-foreground">{lastCompleted.champion_owner} · {lastCompleted.season}</div>
                     </div>
                   </div>
                 ) : (
@@ -229,12 +240,12 @@ export default function LeagueOverview() {
                   <Trash2 className="size-4 text-muted-foreground" />
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reigning Trash King</span>
                 </div>
-                {last.trash_king ? (
+                {lastCompleted.trash_king ? (
                   <div className="flex items-center gap-2">
-                    {last.trash_king_avatar && <img src={last.trash_king_avatar} alt="" className="size-7 rounded-full" />}
+                    {lastCompleted.trash_king_avatar && <img src={lastCompleted.trash_king_avatar} alt="" className="size-7 rounded-full" />}
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{last.trash_king}</div>
-                      <div className="text-[10px] text-muted-foreground">{last.trash_king_owner} · {last.season}</div>
+                      <div className="text-sm font-semibold truncate">{lastCompleted.trash_king}</div>
+                      <div className="text-[10px] text-muted-foreground">{lastCompleted.trash_king_owner} · {lastCompleted.season}</div>
                     </div>
                   </div>
                 ) : (

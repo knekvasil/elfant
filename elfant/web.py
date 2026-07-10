@@ -690,12 +690,13 @@ async def api_league_overview(league_id: str):
                 display_name = owner.display_name
                 display_team = team_name or (f"Team {display_name}" if display_name else f"Roster {r.roster_id}")
 
-                if wins > best_reg_season["wins"] or (wins == best_reg_season["wins"] and pf > best_reg_season["pf"]):
-                    avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
-                    best_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
-                if wins < worst_reg_season["wins"] or (wins == worst_reg_season["wins"] and pf < worst_reg_season["pf"]):
-                    avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
-                    worst_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
+                if lg.status == "complete":
+                    if wins > best_reg_season["wins"] or (wins == best_reg_season["wins"] and pf > best_reg_season["pf"]):
+                        avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                        best_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
+                    if wins < worst_reg_season["wins"] or (wins == worst_reg_season["wins"] and pf < worst_reg_season["pf"]):
+                        avatar_url = f"{AVATAR_THUMB}/{owner.avatar}" if owner and owner.avatar else None
+                        worst_reg_season.update({"wins": wins, "losses": losses, "ties": ties, "pf": pf, "season": season, "owner_name": display_name, "team_name": display_team, "avatar": avatar_url})
 
                 # Playoff appearance check using pre-fetched brackets
                 wb = _winners_for(lid)
@@ -835,6 +836,13 @@ async def api_league_overview(league_id: str):
         upset = biggest_upset["winner_name"] and biggest_upset or None
 
         owner_avatar_map = {cs["display_name"]: cs["avatar"] for cs in career_stats_list if cs["avatar"]}
+
+        for m in all_time_medals:
+            if not m["avatar"]:
+                m["avatar"] = owner_avatar_map.get(m["owner_name"])
+        for m in trash_king_medals:
+            if not m["avatar"]:
+                m["avatar"] = owner_avatar_map.get(m["owner_name"])
 
         rivalries = []
         for entry in h2h_map.values():
