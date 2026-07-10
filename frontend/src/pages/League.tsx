@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { cn, formatStatus } from '../lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import Tooltip from '../components/ui/tooltip'
 import { Badge } from '../components/ui/badge'
@@ -117,7 +117,7 @@ export default function League() {
             <span>{league.season}</span>
             <span className="text-border">·</span>
             <Badge variant="outline" className={statusColor}>
-              {league.status === 'in_season' ? 'Live' : league.status === 'complete' ? 'Complete' : league.status}
+              {formatStatus(league.status)}
             </Badge>
             <span className="text-border">·</span>
             <span>{rosters.length} teams</span>
@@ -172,18 +172,14 @@ export default function League() {
             <Table2 className="size-3.5 mr-1.5" />
             Standings
           </TabsTrigger>
-          {drafts.length > 0 && (
-            <TabsTrigger value="draft">
-              <ScrollText className="size-3.5 mr-1.5" />
-              Draft
-            </TabsTrigger>
-          )}
-          {max_week > 0 && (
-            <TabsTrigger value="matchups">
-              <Swords className="size-3.5 mr-1.5" />
-              Matchups
-            </TabsTrigger>
-          )}
+        <TabsTrigger value="draft">
+          <ScrollText className="size-3.5 mr-1.5" />
+          Draft
+        </TabsTrigger>
+        <TabsTrigger value="matchups">
+          <Swords className="size-3.5 mr-1.5" />
+          Matchups
+        </TabsTrigger>
           <TabsTrigger value="playoffs">
             <Trophy className="size-3.5 mr-1.5" />
             Playoffs
@@ -208,7 +204,7 @@ export default function League() {
           />
         </TabsContent>
         <TabsContent value="charts">
-          {teamStats && (
+          {teamStats ? (
             <ScatterPlots
               teamStats={teamStats}
               rosters={rosters}
@@ -217,6 +213,16 @@ export default function League() {
               onClick={handleClick}
               highlightedRosterIds={activeHighlightIds}
             />
+          ) : (
+            <Card>
+              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
+                <BarChart3 className="size-8 text-muted-foreground/30" />
+                <div>
+                  <p className="font-medium">No season data yet</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Stats become available once the season starts.</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
         <TabsContent value="standings">
@@ -290,16 +296,36 @@ export default function League() {
             </div>
           </div>
         </TabsContent>
-        {drafts.length > 0 && (
-          <TabsContent value="draft">
+        <TabsContent value="draft">
+          {drafts.length > 0 ? (
             <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
-          </TabsContent>
-        )}
-        {max_week > 0 && (
-          <TabsContent value="matchups">
+          ) : (
+            <Card>
+              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
+                <ScrollText className="size-8 text-muted-foreground/30" />
+                <div>
+                  <p className="font-medium">No draft data</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">The draft hasn't taken place yet for this season.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="matchups">
+          {max_week > 0 ? (
             <Matchups leagueId={league.league_id} maxWeek={max_week} groupId={groupId!} />
-          </TabsContent>
-        )}
+          ) : (
+            <Card>
+              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
+                <Swords className="size-8 text-muted-foreground/30" />
+                <div>
+                  <p className="font-medium">No matchups yet</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Matchups will appear once the season starts.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
         <TabsContent value="playoffs">
           <PlayoffBracket leagueId={league.league_id} />
         </TabsContent>

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Users, Circle, Trophy, Trash2, Medal, CalendarDays, Crown, TrendingUp, ArrowUp, Swords, Zap, Info } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { cn, formatStatus } from '../lib/utils'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import {
@@ -23,17 +23,7 @@ const statusStyle = (status: string) => {
   }
 }
 
-const statusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    complete: 'Complete',
-    in_season: 'Live',
-    pre_draft: 'Pre-Draft',
-    drafting: 'Drafting',
-    pre_season: 'Pre-Season',
-    post_season: 'Post-Season',
-  }
-  return labels[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
+
 
 const placementClass = (i: number) =>
   i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'
@@ -152,7 +142,7 @@ export default function LeagueOverview() {
                   <Circle className={cn('size-2 shrink-0 fill-current', statusStyle(s.status).dot)} />
                   <span className="text-xs font-semibold w-7 shrink-0">{'\''}{s.season.slice(2)}</span>
                   <Badge variant="outline" className={cn('text-[9px] px-1 py-0 h-4', statusStyle(s.status).badge)}>
-                    {statusLabel(s.status)}
+                    {formatStatus(s.status)}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">{s.total_rosters} players</span>
                 </Link>
