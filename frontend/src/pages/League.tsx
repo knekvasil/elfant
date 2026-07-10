@@ -243,7 +243,7 @@ export default function League() {
                     }>
                       <button
                         onClick={() => setStandingsMode(m)}
-                        className={cn('text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize', standingsMode === m ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
+                        className={cn('text-[10px] sm:text-xs font-semibold px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all capitalize', standingsMode === m ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'text-muted-foreground hover:text-foreground')}
                       >
                         {m === 'all_play' ? 'All-Play' : m}
                       </button>
