@@ -97,26 +97,30 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks, sea
                   const isTrashKing = p.placement === 'trash_king'
                   const maxRank = seasonMaxRank[sy] || 1
                   const completed = seasonStatus[sy] === 'complete'
-                  return (
+                  const cell = (
+                    <div
+                      key={sy}
+                      className={cn(
+                        'size-5 rounded-sm border flex items-center justify-center transition-colors',
+                        completed ? 'border-border/30' : 'border-border/40',
+                        isChampion && 'bg-amber-400',
+                        isTrashKing && 'bg-gray-400',
+                        !isChampion && !isTrashKing && (completed ? 'bg-muted/30' : 'bg-muted/40'),
+                      )}
+                      style={!isChampion && !isTrashKing && p.rank && completed ? { backgroundColor: rankBg(p.rank, maxRank) } : undefined}
+                    >
+                      {isChampion && <Crown className="size-3 text-white drop-shadow-sm" />}
+                      {isTrashKing && <Trash2 className="size-2.5 text-white drop-shadow-sm" />}
+                      {!isChampion && !isTrashKing && completed && <div className="size-1.5 rounded-full bg-white/40" />}
+                    </div>
+                  )
+                  return completed ? (
                     <Tooltip key={sy} content={
                       <span className="capitalize">{o.display_name} · {sy} · {p.team_name}{p.placement ? ` · ${p.placement.replace(/_/g, ' ')}` : ''}{p.rank ? ` · ${p.rank} of ${maxRank}` : ''}</span>
                     }>
-                      <div
-                        className={cn(
-                          'size-5 rounded-sm border flex items-center justify-center transition-colors',
-                          completed ? 'border-border/30' : 'border-border/10',
-                          isChampion && 'bg-amber-400',
-                          isTrashKing && 'bg-gray-400',
-                          !isChampion && !isTrashKing && (completed ? 'bg-muted/30' : 'bg-muted/10'),
-                        )}
-                        style={!isChampion && !isTrashKing && p.rank && completed ? { backgroundColor: rankBg(p.rank, maxRank) } : undefined}
-                      >
-                        {isChampion && <Crown className="size-3 text-white drop-shadow-sm" />}
-                        {isTrashKing && <Trash2 className="size-2.5 text-white drop-shadow-sm" />}
-                        {!isChampion && !isTrashKing && completed && <div className="size-1.5 rounded-full bg-white/40" />}
-                      </div>
+                      {cell}
                     </Tooltip>
-                  )
+                  ) : cell
                 })}
               </div>
             </div>
