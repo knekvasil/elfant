@@ -455,18 +455,28 @@ async def api_league_overview(league_id: str):
             loser_brackets = _losers_for(lid)
             if loser_brackets:
                 by_pos = {b.position: b for b in loser_brackets if b.position is not None}
-                for i, label in enumerate(["trash_king", "trash_king_silver", "trash_king_bronze"]):
-                    rid = None
-                    if by_pos:
-                        pos = max(by_pos)
-                        b = by_pos.pop(pos)
-                        rid = b.loser or b.team_1
-                    if rid is not None:
-                        info = _resolve_roster(lid, rid)
-                        if info:
-                            s[label] = info["display"]
-                            s[f"{label}_owner"] = info["owner_name"]
-                            s[f"{label}_avatar"] = info["avatar"]
+                pos1 = by_pos.get(1)
+                pos3 = by_pos.get(3)
+                if pos1:
+                    rid = pos1.winner or pos1.team_1
+                    info = _resolve_roster(lid, rid)
+                    if info:
+                        s["trash_king"] = info["display"]
+                        s["trash_king_owner"] = info["owner_name"]
+                        s["trash_king_avatar"] = info["avatar"]
+                    rid2 = pos1.loser or pos1.team_2
+                    info2 = _resolve_roster(lid, rid2)
+                    if info2:
+                        s["trash_king_silver"] = info2["display"]
+                        s["trash_king_silver_owner"] = info2["owner_name"]
+                        s["trash_king_silver_avatar"] = info2["avatar"]
+                if pos3:
+                    rid = pos3.winner or pos3.team_1
+                    info = _resolve_roster(lid, rid)
+                    if info:
+                        s["trash_king_bronze"] = info["display"]
+                        s["trash_king_bronze_owner"] = info["owner_name"]
+                        s["trash_king_bronze_avatar"] = info["avatar"]
 
             seasons.append(s)
 
