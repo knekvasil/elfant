@@ -157,10 +157,10 @@ export default function PlayoffBracketView({ leagueId }: Props) {
   const wL = (lyL.maxCol + 1) * (CW + CG) + 40
 
   return (
-    <div className="min-w-[900px] space-y-3">
+    <div className="space-y-3">
       {/* Podium grid: left column = top 3, right column = trash king */}
       {(m1 || trashKing) && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-muted/10 rounded-lg border border-border/50 flex items-center justify-center gap-6 py-3 px-2">
             {runnerEntry && <PodiumEntry entry={runnerEntry} icon={<Medal className="size-4 text-gray-300" />} label="Runner-Up" ringColor="ring-2 ring-gray-300/30" />}
             {champEntry && <PodiumEntry entry={champEntry} icon={<Crown className="size-5 text-yellow-400" />} label="Champion" ringColor="ring-2 ring-yellow-400/40" size="size-12" />}

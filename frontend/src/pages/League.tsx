@@ -159,38 +159,38 @@ export default function League() {
       </BreadcrumbRoot>
 
       <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'power' ? {} : { tab: v })}>
-        <TabsList>
+        <TabsList className="overflow-x-auto flex-nowrap w-full">
           <TabsTrigger value="power">
-            <Gauge className="size-3.5 mr-1.5" />
-            Power
+            <Gauge className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Power</span>
           </TabsTrigger>
           <TabsTrigger value="charts">
-            <BarChart3 className="size-3.5 mr-1.5" />
-            Profiles
+            <BarChart3 className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Profiles</span>
           </TabsTrigger>
           <TabsTrigger value="standings">
-            <Table2 className="size-3.5 mr-1.5" />
-            Standings
+            <Table2 className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Standings</span>
           </TabsTrigger>
-        <TabsTrigger value="draft">
-          <ScrollText className="size-3.5 mr-1.5" />
-          Draft
-        </TabsTrigger>
-        <TabsTrigger value="matchups">
-          <Swords className="size-3.5 mr-1.5" />
-          Matchups
-        </TabsTrigger>
+          <TabsTrigger value="draft">
+            <ScrollText className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Draft</span>
+          </TabsTrigger>
+          <TabsTrigger value="matchups">
+            <Swords className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Matchups</span>
+          </TabsTrigger>
           <TabsTrigger value="playoffs">
-            <Trophy className="size-3.5 mr-1.5" />
-            Playoffs
+            <Trophy className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Playoffs</span>
           </TabsTrigger>
           <TabsTrigger value="players">
-            <Users className="size-3.5 mr-1.5" />
-            Players
+            <Users className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Players</span>
           </TabsTrigger>
           <TabsTrigger value="transactions">
-            <ArrowLeftRight className="size-3.5 mr-1.5" />
-            Activity
+            <ArrowLeftRight className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Activity</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="power">
