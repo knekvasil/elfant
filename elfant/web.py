@@ -453,49 +453,20 @@ async def api_league_overview(league_id: str):
                     s["third_place_avatar"] = info["avatar"]
 
             loser_brackets = _losers_for(lid)
-            loser_roster_ids = set()
-            for b in loser_brackets:
-                if b.team_1: loser_roster_ids.add(b.team_1)
-                if b.team_2: loser_roster_ids.add(b.team_2)
-
-            if loser_roster_ids and lg.settings:
-                playoff_start = int(lg.settings.get("playoff_week_start", 15))
-                max_week = max_week_by_league.get(lid, 0)
-
-                results = {rid: {"wins": 0, "losses": 0, "games": 0} for rid in loser_roster_ids}
-                for w in range(playoff_start, max_week + 1):
-                    for m in matchups_by_key.get((lid, w), []):
-                        mid = m.matchup_id if m.matchup_id else f"bye_{m.roster_id}"
-                        results.setdefault(m.roster_id, {"wins": 0, "losses": 0, "games": 0})
-                        # Group by matchup_id
-                    # Re-group after collecting all
-                    by_mid: dict = {}
-                    for m in matchups_by_key.get((lid, w), []):
-                        mid = m.matchup_id if m.matchup_id else f"bye_{m.roster_id}"
-                        by_mid.setdefault(mid, []).append(m)
-                    for group in by_mid.values():
-                        if len(group) < 2:
-                            continue
-                        a, b = group[0], group[1]
-                        for rid in [a.roster_id, b.roster_id]:
-                            if rid in results:
-                                results[rid]["games"] += 1
-                                a_pts = a.points or 0
-                                b_pts = b.points or 0
-                                if (rid == a.roster_id and a_pts > b_pts) or (rid == b.roster_id and b_pts > a_pts):
-                                    results[rid]["wins"] += 1
-                                else:
-                                    results[rid]["losses"] += 1
-
-                active = {rid: r for rid, r in results.items() if r["games"] > 0}
-                sorted_bottom = sorted(active.items(), key=lambda x: (x[1]["wins"], -x[1]["losses"]))
-                for i, (rid, _) in enumerate(sorted_bottom[:3]):
-                    info = _resolve_roster(lid, rid)
-                    label = ["trash_king", "trash_king_silver", "trash_king_bronze"][i]
-                    if info:
-                        s[label] = info["display"]
-                        s[f"{label}_owner"] = info["owner_name"]
-                        s[f"{label}_avatar"] = info["avatar"]
+            if loser_brackets:
+                by_pos = {b.position: b for b in loser_brackets if b.position is not None}
+                for i, label in enumerate(["trash_king", "trash_king_silver", "trash_king_bronze"]):
+                    rid = None
+                    if by_pos:
+                        pos = max(by_pos)
+                        b = by_pos.pop(pos)
+                        rid = b.loser or b.team_1
+                    if rid is not None:
+                        info = _resolve_roster(lid, rid)
+                        if info:
+                            s[label] = info["display"]
+                            s[f"{label}_owner"] = info["owner_name"]
+                            s[f"{label}_avatar"] = info["avatar"]
 
             seasons.append(s)
 
