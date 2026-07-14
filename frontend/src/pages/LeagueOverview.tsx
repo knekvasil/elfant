@@ -13,7 +13,7 @@ import {
 import Tooltip from '../components/ui/tooltip'
 import LeagueTimeline from '../components/LeagueTimeline'
 import { fetchLeagueOverview } from '../lib/api'
-import type { LeagueOverviewData } from '../types'
+import type { CareerStatsEntry, LeagueOverviewData } from '../types'
 
 const statusStyle = (status: string) => {
   const s = status === 'complete' ? 'emerald' : status === 'in_season' ? 'amber' : 'blue'
@@ -75,11 +75,11 @@ export default function LeagueOverview() {
     const mWin = Math.max(...active.map((c: { win_pct: number }) => c.win_pct), 0) || 1
     const mPf  = Math.max(...active.map((c: { avg_pf: number }) => c.avg_pf), 0) || 1
     const mPo  = Math.max(...active.map((c: { playoff_pct: number }) => c.playoff_pct), 0) || 1
-    return active.map((cs: { championship_score: number; win_pct: number; avg_pf: number; playoff_pct: number }) => {
+    return active.map((cs: CareerStatsEntry) => {
       const csNorm = Math.min(cs.championship_score / 300, 1)
       const composite = (cs.win_pct / mWin * 0.30 + cs.avg_pf / mPf * 0.20 + cs.playoff_pct / mPo * 0.25 + csNorm * 0.25) * 100
       return { ...cs, win_pct_norm: cs.win_pct / mWin, avg_pf_norm: cs.avg_pf / mPf, playoff_pct_norm: cs.playoff_pct / mPo, championship_score_norm: csNorm, composite: Math.round(composite * 10) / 10 }
-    }).sort((a: { composite: number; win_pct: number }, b: { composite: number; win_pct: number }) => b.composite - a.composite || b.win_pct - a.win_pct)
+    }).sort((a: CareerStatsEntry, b: CareerStatsEntry) => b.composite - a.composite || b.win_pct - a.win_pct)
   }, [data?.career_stats, rankingMode])
 
   if (loading) {
