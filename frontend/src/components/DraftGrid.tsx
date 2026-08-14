@@ -69,6 +69,8 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
 
   const hideTooltip = useCallback(() => setTooltip(null), [])
 
+  const hasStats = rankMap.size > 0
+
   if (drafts.length === 0) {
     return <p className="text-muted-foreground text-sm text-center py-4">No draft data available.</p>
   }
@@ -197,7 +199,13 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
 
         return (
           <div key={d.draft_id} className="space-y-4">
+            {!hasStats && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300 leading-relaxed">
+                Draft grades need this season's player stats, which aren't available yet. The board below shows every pick in order — grades will appear once the season's stats are synced.
+              </div>
+            )}
             {/* Top section: Draft Standings + Best/Worst Picks */}
+            {hasStats && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Draft Standings */}
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
@@ -401,8 +409,10 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                 </div>
               </div>
             </div>
+            )}
 
             {/* Bottom section: Distribution + Missed Picks */}
+            {hasStats && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Distribution Histogram */}
               <div className="rounded-lg border border-border/40 bg-card/30 p-3">
@@ -516,6 +526,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                 })()}
               </div>
             </div>
+            )}
 
             {/* Header bar */}
             <div className="flex items-center justify-between">
@@ -543,6 +554,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                 }>
                   <HelpCircle className="size-4 text-muted-foreground/30 cursor-help" />
                 </Tooltip>
+                {hasStats && (
                 <div className="flex gap-1 bg-muted/20 rounded-xl p-1 border border-border/40 shadow-sm">
                   <button
                     onClick={() => setMode('position')}
@@ -557,6 +569,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                     Value
                   </button>
                 </div>
+                )}
               </div>
             </div>
 
@@ -596,7 +609,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                     const value = rank ? Math.round(surplus * weight * 100) : null
                     const g = value != null ? zGradeFor(value, pickMean, pickStd) : gradeFor(null)
 
-                    if (mode === 'position') {
+                    if (!hasStats || mode === 'position') {
                       return (
                         <button
                           key={`${round}-${rid}`}
