@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
+import EmptyState from '../components/ui/empty-state'
 import { fetchTransactions } from '../lib/api'
 import { cn } from '../lib/utils'
 import type { TransactionEntry, PlayerMove, RosterBrief } from '../types'
@@ -315,7 +316,15 @@ export default function TransactionsTimeline({ leagueId }: Props) {
   }, [leagueId])
 
   if (loading) return <Skeleton className="h-48 w-full" />
-  if (data.length === 0) return <p className="text-muted-foreground text-sm text-center py-8">No transactions found.</p>
+  if (data.length === 0) {
+    return (
+      <EmptyState
+        icon={<ArrowLeftRight className="size-8 text-muted-foreground/30" />}
+        title="No activity yet"
+        description="Transactions will appear once the season starts."
+      />
+    )
+  }
 
   const byLeg = new Map<number, TransactionEntry[]>()
   for (const t of data) {

@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/badge'
 import Tooltip from '../components/ui/tooltip'
+import EmptyState from '../components/ui/empty-state'
 import { cn } from '../lib/utils'
 import { fetchPlayerStats } from '../lib/api'
 import type { Roster, Draft, DraftPick, PlayerStats } from '../types'
-import { Medal, Trophy, ArrowUp, ArrowDown, HelpCircle, BarChart3, SearchX } from 'lucide-react'
+import { Medal, Trophy, ArrowUp, ArrowDown, HelpCircle, BarChart3, SearchX, ScrollText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
 
 interface Props {
@@ -71,8 +72,14 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
 
   const hasStats = rankMap.size > 0
 
-  if (drafts.length === 0) {
-    return <p className="text-muted-foreground text-sm text-center py-4">No draft data available.</p>
+  if (drafts.length === 0 || drafts.every((d) => (d.picks || []).length === 0)) {
+    return (
+      <EmptyState
+        icon={<ScrollText className="size-8 text-muted-foreground/30" />}
+        title="No draft data"
+        description="The draft hasn't taken place yet for this season."
+      />
+    )
   }
 
   return (
@@ -199,11 +206,6 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
 
         return (
           <div key={d.draft_id} className="space-y-4">
-            {!hasStats && (
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300 leading-relaxed">
-                Draft grades need this season's player stats, which aren't available yet. The board below shows every pick in order — grades will appear once the season's stats are synced.
-              </div>
-            )}
             {/* Top section: Draft Standings + Best/Worst Picks */}
             {hasStats && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

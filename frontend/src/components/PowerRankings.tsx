@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Skeleton } from './ui/skeleton'
+import EmptyState from './ui/empty-state'
 import { fetchTeamStats } from '../lib/api'
 import type { TeamStatsData, Roster } from '../types'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 import { cn } from '../lib/utils'
 import Tooltip from './ui/tooltip'
-import { Info } from 'lucide-react'
+import { Info, Gauge } from 'lucide-react'
 
 interface Props {
   leagueId: string
@@ -50,7 +51,15 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
   }, [leagueId])
 
   if (loading) return <Skeleton className="h-96 w-full" />
-  if (!data || data.rosters.length === 0) return <div className="text-sm text-muted-foreground text-center py-12">No data available.</div>
+  if (!data || data.rosters.length === 0) {
+    return (
+      <EmptyState
+        icon={<Gauge className="size-8 text-muted-foreground/30" />}
+        title="No season data yet"
+        description="Stats become available once the season starts."
+      />
+    )
+  }
 
   const weeks = data.weeks.length
 

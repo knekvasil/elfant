@@ -7,6 +7,7 @@ import Tooltip from '../components/ui/tooltip'
 import { Badge } from '../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Skeleton } from '../components/ui/skeleton'
+import EmptyState from '../components/ui/empty-state'
 import {
   BreadcrumbRoot,
   BreadcrumbList,
@@ -214,15 +215,11 @@ export default function League() {
               highlightedRosterIds={activeHighlightIds}
             />
           ) : (
-            <Card>
-              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
-                <BarChart3 className="size-8 text-muted-foreground/30" />
-                <div>
-                  <p className="font-medium">No season data yet</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Stats become available once the season starts.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<BarChart3 className="size-8 text-muted-foreground/30" />}
+              title="No season data yet"
+              description="Stats become available once the season starts."
+            />
           )}
         </TabsContent>
         <TabsContent value="standings">
@@ -300,30 +297,22 @@ export default function League() {
           {drafts.length > 0 ? (
             <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
           ) : (
-            <Card>
-              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
-                <ScrollText className="size-8 text-muted-foreground/30" />
-                <div>
-                  <p className="font-medium">No draft data</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">The draft hasn't taken place yet for this season.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<ScrollText className="size-8 text-muted-foreground/30" />}
+              title="No draft data"
+              description="The draft hasn't taken place yet for this season."
+            />
           )}
         </TabsContent>
         <TabsContent value="matchups">
           {max_week > 0 ? (
             <Matchups leagueId={league.league_id} maxWeek={max_week} groupId={groupId!} />
           ) : (
-            <Card>
-              <CardContent className="pt-10 pb-10 text-muted-foreground text-sm text-center flex flex-col items-center justify-center gap-3">
-                <Swords className="size-8 text-muted-foreground/30" />
-                <div>
-                  <p className="font-medium">No matchups yet</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Matchups will appear once the season starts.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<Swords className="size-8 text-muted-foreground/30" />}
+              title="No matchups yet"
+              description="Matchups will appear once the season starts."
+            />
           )}
         </TabsContent>
         <TabsContent value="playoffs">
