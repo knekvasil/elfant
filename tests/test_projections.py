@@ -113,6 +113,32 @@ def test_k_statline_scores_points():
     assert 100 < pts < 160
 
 
+def test_elite_efficiency_preserved():
+    # Regression guard: an elite recent season (11 rush TD) should not be
+    # mean-reverted all the way down to a league-average TD total.
+    bijan = [
+        {"season": 2023, "games": 15, "carries": 214, "rushing_yards": 976, "rushing_tds": 4, "targets": 58, "receptions": 43, "receiving_yards": 340},
+        {"season": 2024, "games": 17, "carries": 304, "rushing_yards": 1456, "rushing_tds": 11, "targets": 70, "receptions": 55, "receiving_yards": 473},
+    ]
+    out = p.project_statline(bijan, "RB", 22)
+    # A top-2 RB should project well above league-average volume and keep a
+    # healthy TD total (previously it collapsed to ~4-5).
+    assert out["statline"]["carries"] >= 240
+    assert out["statline"]["rushing_tds"] >= 8
+    assert out["statline"]["rushing_yards"] >= 1100
+
+
+def test_thin_sample_more_conservative():
+    # A single, modest season should be trusted less than an established star.
+    thin = [
+        {"season": 2024, "games": 12, "carries": 150, "rushing_yards": 600, "rushing_tds": 5, "targets": 30, "receptions": 20, "receiving_yards": 160},
+    ]
+    out = p.project_statline(thin, "RB", 23)
+    # Regress toward baseline: volume shouldn't balloon above the modest observed
+    # workload, but shouldn't crater either.
+    assert 120 <= out["statline"]["carries"] <= 220
+
+
 def test_rank_projections():
     players = [
         {"player_id": "a", "position": "RB", "projected_points": 200},

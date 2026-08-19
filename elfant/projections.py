@@ -64,15 +64,37 @@ AGE_CURVES: dict[str, AgeCurve] = {
     "K": AgeCurve((26, 35), 0.04),
 }
 
-# Position baselines (per-game) used for shrinkage of efficiency/usage metrics.
-# These are league-average approximations for 2020s NFL.
+# Position baselines used for shrinkage.
+#  - volume metrics (carries, targets, attempts, FG/PAT attempts) shrink toward
+#    a league-average baseline.
+#  - efficiency/rate metrics (TD rate, YPC, YPT, catch rate, ...) shrink toward a
+#    top-quartile baseline and are shrunk less aggressively, because elite
+#    efficiency is the key differentiator we want to preserve.
 _POS_BASELINE = {
-    "QB": {"attempts": 34.0, "comp_pct": 0.65, "yards_per_att": 7.2, "td_pct": 0.043, "int_pct": 0.022},
-    "RB": {"carries": 12.0, "yards_per_carry": 4.2, "rush_td_rate": 0.012, "targets": 3.0, "catch_rate": 0.75, "yards_per_target": 6.2},
-    "WR": {"targets": 8.0, "catch_rate": 0.65, "yards_per_target": 8.0, "td_per_target": 0.055},
-    "TE": {"targets": 5.5, "catch_rate": 0.70, "yards_per_target": 7.2, "td_per_target": 0.05},
+    "QB": {"attempts": 34.0},
+    "RB": {"carries": 12.0, "targets": 3.0},
+    "WR": {"targets": 8.0},
+    "TE": {"targets": 5.5},
     "K": {"fg_made": 1.7, "pat_made": 2.4},
 }
+
+# Efficiency/rate metrics per position (all other keys in a position's extractor
+# are treated as volume). Each value is the top-quartile baseline for shrinkage.
+_POS_EFFICIENCY_BASELINE = {
+    "QB": {"comp_pct": 0.66, "yards_per_att": 7.6, "td_pct": 0.05, "int_pct": 0.018},
+    "RB": {"yards_per_carry": 4.5, "rush_td_rate": 0.025, "catch_rate": 0.78, "yards_per_target": 6.8},
+    "WR": {"catch_rate": 0.67, "yards_per_target": 8.8, "td_per_target": 0.065},
+    "TE": {"catch_rate": 0.72, "yards_per_target": 7.8, "td_per_target": 0.06},
+}
+
+# Number of games-equivalent of recent history needed to reach full confidence
+# in a player's observed rates (lower = workhorses trust their numbers sooner).
+_CONF_GAMES_CEILING = 16
+
+# Efficiency metrics are never shrunk below this fraction toward the baseline,
+# even at low confidence. This preserves elite players' efficiency instead of
+# mean-reverting it all the way to league/top-quartile average.
+_EFFICIENCY_MIN_TRUST = 0.7
 
 # Default games expected (of 17) when no history is available.
 DEFAULT_GAMES = 15
@@ -156,18 +178,28 @@ def _project_usage(seasons: list[dict], position: str, age: int | None) -> dict:
     ``seasons`` is a list of per-season dicts in chronological order (oldest
     first); we weight the most recent seasons most heavily and shrink toward
     position baselines.
+
+    Volume metrics (carries, targets, attempts) shrink toward a league-average
+    baseline, while efficiency/rate metrics (TD rate, YPC, YPT, catch rate)
+    shrink toward a top-quartile baseline and are preserved more aggressively so
+    elite players don't get mean-reverted into mediocrity.
     """
     extract = _EXTRACTORS.get(position)
     if not extract:
         return {}
 
-    baseline = _POS_BASELINE.get(position, {})
+    volume_baseline = _POS_BASELINE.get(position, {})
+    eff_baseline = _POS_EFFICIENCY_BASELINE.get(position, {})
     metrics = [extract(s) for s in seasons]
     # Weights grow with recency (most recent = last in the oldest-first list);
     # also weight by games played that season.
     n = len(metrics)
+    # All metric keys the extractor can produce.
+    all_keys = set(volume_baseline) | set(eff_baseline) | (
+        set(metrics[0]) if metrics else set()
+    )
     weighted: dict[str, float] = {}
-    for key in baseline:
+    for key in all_keys:
         values = []
         for i, m in enumerate(metrics):
             games = seasons[i].get("games") or 0
@@ -177,8 +209,17 @@ def _project_usage(seasons: list[dict], position: str, age: int | None) -> dict:
         total_w = sum(w for _, w in values) or 1.0
         raw = sum(v * w for v, w in values) / total_w
         # Shrink with confidence proportional to total recent games observed.
-        conf = min(1.0, total_w / 32.0)
-        weighted[key] = _shrink(raw, baseline[key], conf)
+        conf = min(1.0, total_w / _CONF_GAMES_CEILING)
+
+        if key in eff_baseline:
+            # Efficiency: shrink toward the top-quartile baseline, and never
+            # below the trust floor — preserve elite efficiency.
+            weight = _EFFICIENCY_MIN_TRUST + (1 - _EFFICIENCY_MIN_TRUST) * conf
+            weighted[key] = _shrink(raw, eff_baseline[key], weight)
+        else:
+            # Volume: shrink toward league-average baseline with full confidence.
+            baseline = volume_baseline.get(key, 0.0)
+            weighted[key] = _shrink(raw, baseline, conf)
 
     age_curve = AGE_CURVES.get(position)
     if age_curve:
