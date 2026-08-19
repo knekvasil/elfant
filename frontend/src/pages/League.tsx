@@ -18,6 +18,7 @@ import {
 } from '../components/ui/breadcrumb'
 import Standings, { type StandingsMode } from '../components/Standings'
 import DraftGrid from '../components/DraftGrid'
+import DraftProjections from '../components/DraftProjections'
 import Matchups from '../components/Matchups'
 import PlayoffBracket from '../components/PlayoffBracket'
 import RankingsChart from '../components/RankingsChart'
@@ -294,15 +295,27 @@ export default function League() {
           </div>
         </TabsContent>
         <TabsContent value="draft">
-          {drafts.length > 0 ? (
-            <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
-          ) : (
-            <EmptyState
-              icon={<ScrollText className="size-8 text-muted-foreground/30" />}
-              title="No draft data"
-              description="The draft hasn't taken place yet for this season."
-            />
-          )}
+          {(() => {
+            const hasPicks = drafts.some((d) => (d.picks || []).length > 0)
+            if (!hasPicks) {
+              return (
+                <DraftProjections
+                  leagueId={league.league_id}
+                  groupId={groupId!}
+                  tabParam={tab}
+                />
+              )
+            }
+            return drafts.length > 0 ? (
+              <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
+            ) : (
+              <EmptyState
+                icon={<ScrollText className="size-8 text-muted-foreground/30" />}
+                title="No draft data"
+                description="The draft hasn't taken place yet for this season."
+              />
+            )
+          })()}
         </TabsContent>
         <TabsContent value="matchups">
           {max_week > 0 ? (

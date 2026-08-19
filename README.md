@@ -16,6 +16,7 @@ elfant connects to the [Sleeper API](https://docs.sleeper.app/) and [nflreadpy](
 - **Schedule** — Full regular season schedule with opponent difficulty ratings (color-coded #1–32)
 - **Power Rankings** — Composite scoring across win%, avg PF, playoff rate, and championship score
 - **Player Search** — Filterable by position (including IDP), ownership status
+- **Draft Projections** — Pre-draft Draft tab shows homemade season projections (no ML) built from recent usage + efficiency, converted to fantasy points using the league's scoring rules
 - **Auto-refresh** — Data synced on every league lookup; no manual refresh needed
 
 ## Tech Stack

@@ -1,6 +1,7 @@
 .env
 .venv/
 elfant.egg-info/
+build/
 __pycache__/
 *.pyc
 *.pyo

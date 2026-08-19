@@ -2050,6 +2050,116 @@ async def api_player_career(league_id: str, player_id: str):
         }
 
 
+@app.get("/api/league/{league_id}/projections")
+async def api_league_projections(league_id: str, position: str | None = None):
+    """Return projected season fantasy points for draftable players.
+
+    Projections are built from recent-season usage + efficiency (no ML), then
+    converted to fantasy points using the league's scoring rules. For teams
+    (DEF) we project from recent team-defense fantasy points per game.
+    """
+    import elfant.projections as proj
+
+    with get_session() as session:
+        league = session.get(League, league_id)
+        if not league:
+            raise HTTPException(404, "League not found")
+        rules = league.scoring_settings or {}
+        try:
+            current_season = int(league.season)
+        except (ValueError, TypeError):
+            current_season = 2025
+        prior_seasons = [current_season - i for i in range(1, 4) if current_season - i >= 2000]
+
+        player_map: dict[str, dict] = {}
+        for pl in session.query(Player).all():
+            player_map[pl.player_id] = {
+                "name": f"{pl.first_name or ''} {pl.last_name or ''}".strip() or pl.player_id,
+                "position": pl.position or "",
+                "team": pl.team or "",
+                "age": pl.age,
+                "status": pl.status or "",
+                "player_img": f"{PLAYER_IMG}/{pl.player_id}.jpg" if pl.player_id and pl.player_id.isdigit() else None,
+                "team_logo": f"{TEAM_LOGO}/{pl.team.lower()}.png" if pl.team else None,
+            }
+
+        # Load all weekly stats for prior seasons in one bulk query.
+        rows = (
+            session.query(PlayerWeeklyStat)
+            .filter(PlayerWeeklyStat.season.in_(prior_seasons))
+            .order_by(PlayerWeeklyStat.player_id, PlayerWeeklyStat.season, PlayerWeeklyStat.week)
+            .all()
+        )
+
+        # Group rows by player.
+        rows_by_player: dict[str, list] = {}
+        for row in rows:
+            rows_by_player.setdefault(row.player_id, []).append(row)
+
+        # Track whether current league season has an existing draft with picks.
+        has_draft = False
+        for d in session.query(Draft).filter_by(league_id=league_id).all():
+            has_picks = session.query(DraftPick).filter_by(draft_id=d.draft_id).first() is not None
+            if has_picks:
+                has_draft = True
+                break
+
+    projections = []
+    for pid, pr_rows in rows_by_player.items():
+        pl = player_map.get(pid)
+        if not pl or not pl["position"]:
+            continue
+        pos = pl["position"]
+        team = pl["team"] or ""
+        is_def = pos == "DEF"
+        if is_def:
+            res = proj.def_projection(pr_rows, rules)
+            projected_points = res["projected_points"]
+            games = res["games"]
+            confidence = res["confidence"]
+            statline = {}
+            usage = {}
+        elif pos in proj.SKILL_POSITIONS:
+            seasons = proj.build_season_stats(pr_rows)
+            if not seasons:
+                continue
+            res = proj.project_statline(seasons, pos, pl["age"])
+            statline = res["statline"]
+            games = res["games"]
+            projected_points = round(proj.fantasy_projection(statline, rules), 1)
+            # Rough confidence: number of prior seasons with data.
+            confidence = round(min(1.0, len(seasons) / 3.0), 2)
+            usage = {"games_played": games, "seasons_used": len(seasons)}
+        else:
+            continue
+
+        projections.append({
+            "player_id": pid,
+            "name": pl["name"],
+            "position": pos,
+            "team": team,
+            "status": pl["status"],
+            "player_img": pl["player_img"],
+            "team_logo": f"{TEAM_LOGO}/{team.lower()}.png" if team else None,
+            "projected_points": projected_points,
+            "games": games,
+            "confidence": confidence,
+            "statline": statline,
+            "usage": usage,
+        })
+
+    projections = proj.rank_projections(projections)
+    if position:
+        projections = [p for p in projections if p["position"] == position]
+
+    return {
+        "season": current_season,
+        "scoring_rules": rules,
+        "has_draft": has_draft,
+        "players": projections,
+    }
+
+
 @app.get("/api/player/{player_id}/schedule")
 async def api_player_schedule(player_id: str, season: int | None = None, league_id: str | None = None):
     """Return the full season schedule for a player's team, marking played weeks."""

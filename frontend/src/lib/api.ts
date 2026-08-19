@@ -1,4 +1,4 @@
-import type { LeagueChain, LeagueData, LeagueOverviewData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse, TeamStatsData } from '../types'
+import type { LeagueChain, LeagueData, LeagueOverviewData, MatchupEntry, PlayoffData, RankingsData, TransactionEntry, PlayerStatsResponse, PlayerCareerResponse, TeamStatsData, ProjectionResponse } from '../types'
 
 const BASE = '/api'
 
@@ -84,6 +84,13 @@ export async function fetchPlayerStats(
 export async function fetchTeamStats(leagueId: string): Promise<TeamStatsData> {
   const res = await fetch(`${BASE}/league/${leagueId}/team-stats`)
   if (!res.ok) throw new Error(`Team stats not found (${res.status})`)
+  return res.json()
+}
+
+export async function fetchProjections(leagueId: string, position?: string): Promise<ProjectionResponse> {
+  const query = position ? `?position=${position}` : ''
+  const res = await fetch(`${BASE}/league/${leagueId}/projections${query}`)
+  if (!res.ok) throw new Error(`Projections not found (${res.status})`)
   return res.json()
 }
 

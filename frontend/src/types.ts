@@ -544,3 +544,27 @@ export interface TransactionEntry {
   draft_picks: string[]
   waiver_budget: { sender: number; receiver: number; amount: number }[]
 }
+
+export interface ProjectionPlayer {
+  player_id: string
+  name: string
+  position: string
+  team: string
+  status: string
+  player_img: string | null
+  team_logo: string | null
+  projected_points: number
+  games: number
+  confidence: number
+  statline: Record<string, number>
+  usage: Record<string, number>
+  overall_rank?: number
+  position_rank?: number
+}
+
+export interface ProjectionResponse {
+  season: number
+  scoring_rules: Record<string, number>
+  has_draft: boolean
+  players: ProjectionPlayer[]
+}
