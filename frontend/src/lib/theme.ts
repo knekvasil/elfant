@@ -19,6 +19,7 @@ interface ColorSet {
   card: string
   cardTitle: string
   dot: string
+  dotText: string
   dotCircle: string
   header: string
 }
@@ -32,6 +33,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-sky-500/20 bg-sky-500/5 dark:border-sky-500/30 dark:bg-sky-500/10',
     cardTitle: 'text-sky-700 dark:text-sky-400',
     dot: 'bg-sky-500 dark:bg-sky-400',
+    dotText: 'text-sky-500 dark:text-sky-400',
     dotCircle: 'bg-sky-500/10 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300',
     header: 'bg-sky-500/5 dark:bg-sky-500/10',
   },
@@ -43,6 +45,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-emerald-500/20 bg-emerald-500/5 dark:border-emerald-500/30 dark:bg-emerald-500/10',
     cardTitle: 'text-emerald-700 dark:text-emerald-400',
     dot: 'bg-emerald-500 dark:bg-emerald-400',
+    dotText: 'text-emerald-500 dark:text-emerald-400',
     dotCircle: 'bg-emerald-500/10 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     header: 'bg-emerald-500/5 dark:bg-emerald-500/10',
   },
@@ -54,6 +57,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-amber-500/20 bg-amber-500/5 dark:border-amber-500/30 dark:bg-amber-500/10',
     cardTitle: 'text-amber-700 dark:text-amber-400',
     dot: 'bg-amber-500 dark:bg-amber-400',
+    dotText: 'text-amber-500 dark:text-amber-400',
     dotCircle: 'bg-amber-500/10 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
     header: 'bg-amber-500/5 dark:bg-amber-500/10',
   },
@@ -65,6 +69,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-orange-500/20 bg-orange-500/5 dark:border-orange-500/30 dark:bg-orange-500/10',
     cardTitle: 'text-orange-700 dark:text-orange-400',
     dot: 'bg-orange-500 dark:bg-orange-400',
+    dotText: 'text-orange-500 dark:text-orange-400',
     dotCircle: 'bg-orange-500/10 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300',
     header: 'bg-orange-500/5 dark:bg-orange-500/10',
   },
@@ -76,6 +81,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-red-500/20 bg-red-500/5 dark:border-red-500/30 dark:bg-red-500/10',
     cardTitle: 'text-red-700 dark:text-red-400',
     dot: 'bg-red-500 dark:bg-red-400',
+    dotText: 'text-red-500 dark:text-red-400',
     dotCircle: 'bg-red-500/10 dark:bg-red-500/10 text-red-700 dark:text-red-300',
     header: 'bg-red-500/5 dark:bg-red-500/10',
   },
@@ -87,6 +93,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-zinc-500/20 bg-zinc-500/5 dark:border-zinc-500/30 dark:bg-zinc-500/10',
     cardTitle: 'text-zinc-700 dark:text-zinc-400',
     dot: 'bg-zinc-500 dark:bg-zinc-400',
+    dotText: 'text-zinc-500 dark:text-zinc-400',
     dotCircle: 'bg-zinc-500/10 dark:bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
     header: 'bg-zinc-500/5 dark:bg-zinc-500/10',
   },
@@ -98,6 +105,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-violet-500/20 bg-violet-500/5 dark:border-violet-500/30 dark:bg-violet-500/10',
     cardTitle: 'text-violet-700 dark:text-violet-400',
     dot: 'bg-violet-500 dark:bg-violet-400',
+    dotText: 'text-violet-500 dark:text-violet-400',
     dotCircle: 'bg-violet-500/10 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300',
     header: 'bg-violet-500/5 dark:bg-violet-500/10',
   },
@@ -109,6 +117,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-fuchsia-500/20 bg-fuchsia-500/5 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10',
     cardTitle: 'text-fuchsia-700 dark:text-fuchsia-400',
     dot: 'bg-fuchsia-500 dark:bg-fuchsia-400',
+    dotText: 'text-fuchsia-500 dark:text-fuchsia-400',
     dotCircle: 'bg-fuchsia-500/10 dark:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300',
     header: 'bg-fuchsia-500/5 dark:bg-fuchsia-500/10',
   },
@@ -120,6 +129,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-purple-500/20 bg-purple-500/5 dark:border-purple-500/30 dark:bg-purple-500/10',
     cardTitle: 'text-purple-700 dark:text-purple-400',
     dot: 'bg-purple-500 dark:bg-purple-400',
+    dotText: 'text-purple-500 dark:text-purple-400',
     dotCircle: 'bg-purple-500/10 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300',
     header: 'bg-purple-500/5 dark:bg-purple-500/10',
   },
@@ -131,6 +141,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-cyan-500/20 bg-cyan-500/5 dark:border-cyan-500/30 dark:bg-cyan-500/10',
     cardTitle: 'text-cyan-700 dark:text-cyan-400',
     dot: 'bg-cyan-500 dark:bg-cyan-400',
+    dotText: 'text-cyan-500 dark:text-cyan-400',
     dotCircle: 'bg-cyan-500/10 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
     header: 'bg-cyan-500/5 dark:bg-cyan-500/10',
   },
@@ -142,6 +153,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-teal-500/20 bg-teal-500/5 dark:border-teal-500/30 dark:bg-teal-500/10',
     cardTitle: 'text-teal-700 dark:text-teal-400',
     dot: 'bg-teal-500 dark:bg-teal-400',
+    dotText: 'text-teal-500 dark:text-teal-400',
     dotCircle: 'bg-teal-500/10 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300',
     header: 'bg-teal-500/5 dark:bg-teal-500/10',
   },
@@ -153,6 +165,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-blue-500/20 bg-blue-500/5 dark:border-blue-500/30 dark:bg-blue-500/10',
     cardTitle: 'text-blue-700 dark:text-blue-400',
     dot: 'bg-blue-500 dark:bg-blue-400',
+    dotText: 'text-blue-500 dark:text-blue-400',
     dotCircle: 'bg-blue-500/10 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
     header: 'bg-blue-500/5 dark:bg-blue-500/10',
   },
@@ -164,6 +177,7 @@ const C: Record<string, ColorSet> = {
     card: 'border-yellow-500/20 bg-yellow-500/5 dark:border-yellow-500/30 dark:bg-yellow-500/10',
     cardTitle: 'text-yellow-700 dark:text-yellow-400',
     dot: 'bg-yellow-500 dark:bg-yellow-400',
+    dotText: 'text-yellow-500 dark:text-yellow-400',
     dotCircle: 'bg-yellow-500/10 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-300',
     header: 'bg-yellow-500/5 dark:bg-yellow-500/10',
   },
@@ -175,18 +189,31 @@ const C: Record<string, ColorSet> = {
     card: 'border-gray-500/20 bg-gray-500/5 dark:border-gray-500/30 dark:bg-gray-500/10',
     cardTitle: 'text-gray-700 dark:text-gray-400',
     dot: 'bg-gray-500 dark:bg-gray-400',
+    dotText: 'text-gray-500 dark:text-gray-400',
     dotCircle: 'bg-gray-500/10 dark:bg-gray-500/10 text-gray-700 dark:text-gray-300',
     header: 'bg-gray-500/5 dark:bg-gray-500/10',
+  },
+  brown: {
+    bg: 'bg-[#8B5A2B]/15 dark:bg-[#8B5A2B]/20',
+    border: 'border-[#8B5A2B]/30',
+    text: 'text-[#5C3A1E] dark:text-[#D9A066]',
+    badge: 'text-[#5C3A1E] bg-[#8B5A2B]/15 border-[#8B5A2B]/30 dark:text-[#D9A066] dark:bg-[#8B5A2B]/20',
+    card: 'border-[#8B5A2B]/20 bg-[#8B5A2B]/5 dark:border-[#8B5A2B]/30 dark:bg-[#8B5A2B]/10',
+    cardTitle: 'text-[#5C3A1E] dark:text-[#D9A066]',
+    dot: 'bg-[#8B5A2B] dark:bg-[#D9A066]',
+    dotText: 'text-[#8B5A2B] dark:text-[#D9A066]',
+    dotCircle: 'bg-[#8B5A2B]/10 dark:bg-[#8B5A2B]/10 text-[#5C3A1E] dark:text-[#D9A066]',
+    header: 'bg-[#8B5A2B]/5 dark:bg-[#8B5A2B]/10',
   },
 }
 
 const POS_BASE: Record<string, string> = {
-  QB: 'sky',
+  QB: 'red',
   RB: 'emerald',
-  WR: 'amber',
+  WR: 'blue',
   TE: 'orange',
-  K: 'red',
-  DEF: 'zinc',
+  K: 'purple',
+  DEF: 'brown',
   LB: 'violet',
   DE: 'fuchsia',
   DT: 'purple',
@@ -285,7 +312,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function statusBadge(status: string): StatusStyle {
   const c = C[STATUS_COLOR[status] || 'blue']
-  return { dot: c.dot, badge: c.badge }
+  return { dot: c.dotText, badge: c.badge }
 }
 
 // --- Transaction type accents ----------------------------------------------

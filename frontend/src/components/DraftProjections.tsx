@@ -309,11 +309,11 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
 
       {/* Pagination */}
       {pageCount > 1 && (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-[10px] text-muted-foreground/60 tabular-nums">
             {players.length} player{players.length !== 1 ? 's' : ''} · page {currentPage} of {pageCount}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               variant="outline"
               size="sm"
