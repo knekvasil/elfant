@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Users, Circle, Trophy, Trash2, Medal, CalendarDays, Crown, TrendingUp, ArrowUp, Swords, Zap, Info } from 'lucide-react'
 import { cn, formatStatus } from '../lib/utils'
+import { statusBadge, rankMedal, eventPanel } from '../lib/theme'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import {
@@ -15,18 +16,9 @@ import LeagueTimeline from '../components/LeagueTimeline'
 import { fetchLeagueOverview } from '../lib/api'
 import type { CareerStatsEntry, LeagueOverviewData } from '../types'
 
-const statusStyle = (status: string) => {
-  const s = status === 'complete' ? 'emerald' : status === 'in_season' ? 'amber' : 'blue'
-  return {
-    dot: `text-${s}-400`,
-    badge: `border-${s}-500/30 bg-${s}-500/10 text-${s}-400`,
-  }
-}
+const statusStyle = (status: string) => statusBadge(status)
 
-
-
-const placementClass = (i: number) =>
-  i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'
+const placementClass = (i: number) => (i === 0 ? rankMedal(0) : i === 1 ? rankMedal(1) : i === 2 ? rankMedal(2) : 'text-muted-foreground')
 
 function AvatarImg({ src, name }: { src: string | null; name: string }) {
   return src ? (
@@ -158,8 +150,8 @@ export default function LeagueOverview() {
             />
           )}
           {data.individual_events?.best_reg_season && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('emerald').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('emerald').title}`}>
                 <ArrowUp className="size-3.5" />
                 Best Regular Season
               </div>
@@ -173,8 +165,8 @@ export default function LeagueOverview() {
             </div>
           )}
           {data.individual_events?.worst_reg_season && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('red').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('red').title}`}>
                 <ArrowUp className="size-3.5 rotate-180" />
                 Worst Regular Season
               </div>
@@ -188,8 +180,8 @@ export default function LeagueOverview() {
             </div>
           )}
           {data.individual_events?.highest_score && (
-            <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('sky').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('sky').title}`}>
                 <Zap className="size-3.5" />
                 Highest Scoring Week
               </div>
@@ -209,8 +201,8 @@ export default function LeagueOverview() {
             <>
               <div className="rounded-lg border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent ring-1 ring-amber-500/30 shadow-[0_0_15px_-3px_rgba(251,191,36,0.15)] p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Crown className="size-4 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider">Reigning Champion</span>
+                  <Crown className="size-4 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-700/80 dark:text-amber-400/80 uppercase tracking-wider">Reigning Champion</span>
                 </div>
                 {lastCompleted.champion ? (
                   <div className="flex items-center gap-2">
@@ -356,9 +348,9 @@ export default function LeagueOverview() {
                     <AvatarImg src={m.avatar} name={m.owner_name} />
                     <span className="text-xs truncate flex-1">{m.owner_name}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-400" />{m.gold}</span>}
-                      {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-gray-400" />{m.silver}</span>}
-                      {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className="size-3 text-amber-700" />{m.bronze}</span>}
+                      {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className={`size-3 ${rankMedal(0)}`} />{m.gold}</span>}
+                      {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className={`size-3 ${rankMedal(1)}`} />{m.silver}</span>}
+                      {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Medal className={`size-3 ${rankMedal(2)}`} />{m.bronze}</span>}
                     </div>
                   </div>
                 ))}
@@ -377,9 +369,9 @@ export default function LeagueOverview() {
                     <AvatarImg src={m.avatar} name={m.owner_name} />
                     <span className="text-xs truncate flex-1">{m.owner_name}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-amber-400" />{m.gold}</span>}
-                      {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-gray-400" />{m.silver}</span>}
-                      {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className="size-3 text-amber-700" />{m.bronze}</span>}
+                      {m.gold > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className={`size-3 ${rankMedal(0)}`} />{m.gold}</span>}
+                      {m.silver > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className={`size-3 ${rankMedal(1)}`} />{m.silver}</span>}
+                      {m.bronze > 0 && <span className="flex items-center gap-0.5 text-[10px]"><Trash2 className={`size-3 ${rankMedal(2)}`} />{m.bronze}</span>}
                     </div>
                   </div>
                 ))}
@@ -387,8 +379,8 @@ export default function LeagueOverview() {
             </SectionBox>
           )}
           {data.individual_events?.biggest_playoff_upset && (
-            <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('purple').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('purple').title}`}>
                 <TrendingUp className="size-3.5" />
                 Biggest Playoff Upset
               </div>
@@ -413,8 +405,8 @@ export default function LeagueOverview() {
             </div>
           )}
           {data.individual_events?.top_rivalries && data.individual_events.top_rivalries[0] && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('red').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('red').title}`}>
                 <Swords className="size-3.5" />
                 Stop, Stop he&apos;s already dead!
               </div>
@@ -423,7 +415,7 @@ export default function LeagueOverview() {
                   {data.individual_events.top_rivalries[0].dominant_avatar && <img src={data.individual_events.top_rivalries[0].dominant_avatar} alt="" className="size-6 rounded-full shrink-0" />}
                   <span className="text-xs font-semibold truncate">{data.individual_events.top_rivalries[0].dominant}</span>
                 </div>
-                <span className="text-xs font-mono tabular-nums font-semibold text-red-400">{data.individual_events.top_rivalries[0].dom_wins}</span>
+                <span className="text-xs font-mono tabular-nums font-semibold text-red-600 dark:text-red-400">{data.individual_events.top_rivalries[0].dom_wins}</span>
                 <span className="text-[10px] text-muted-foreground mx-0.5">v.</span>
                 <span className="text-xs font-mono tabular-nums font-semibold">{data.individual_events.top_rivalries[0].domed_wins}</span>
                 <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
@@ -435,8 +427,8 @@ export default function LeagueOverview() {
             </div>
           )}
           {data.individual_events?.biggest_blowout && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 mb-2">
+            <div className={`rounded-lg border p-3 ${eventPanel('amber').card}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${eventPanel('amber').title}`}>
                 <TrendingUp className="size-3.5" />
                 Biggest Blowout
               </div>
@@ -447,11 +439,11 @@ export default function LeagueOverview() {
                     <div className="text-xs font-semibold truncate">{data.individual_events.biggest_blowout.winner}</div>
                     <div className="text-[9px] text-muted-foreground">{data.individual_events.biggest_blowout.winner_owner}</div>
                   </div>
-                  <span className={cn('text-xs font-mono tabular-nums shrink-0', 'text-emerald-400')}>{data.individual_events.biggest_blowout.winner_pts}</span>
+                  <span className={cn('text-xs font-mono tabular-nums shrink-0', 'text-emerald-600 dark:text-emerald-400')}>{data.individual_events.biggest_blowout.winner_pts}</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground mx-1">vs</span>
                 <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-                  <span className={cn('text-xs font-mono tabular-nums shrink-0', 'text-red-400')}>{data.individual_events.biggest_blowout.loser_pts}</span>
+                  <span className={cn('text-xs font-mono tabular-nums shrink-0', 'text-red-600 dark:text-red-400')}>{data.individual_events.biggest_blowout.loser_pts}</span>
                   <div className="min-w-0 text-right">
                     <div className="text-xs font-semibold truncate">{data.individual_events.biggest_blowout.loser}</div>
                     <div className="text-[9px] text-muted-foreground">{data.individual_events.biggest_blowout.loser_owner}</div>

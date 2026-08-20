@@ -12,6 +12,7 @@ import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import EmptyState from '../components/ui/empty-state'
 import { fetchTransactions } from '../lib/api'
+import { positionStyle, txnAccent, type TxnAccent } from '../lib/theme'
 import { cn } from '../lib/utils'
 import type { TransactionEntry, PlayerMove, RosterBrief } from '../types'
 
@@ -19,10 +20,10 @@ interface Props {
   leagueId: string
 }
 
-const typeConfig: Record<string, { icon: typeof ArrowLeftRight; label: string; accent: string; dot: string }> = {
-  trade: { icon: ArrowLeftRight, label: 'Trade', accent: 'border-violet-500/30 bg-violet-500/10 text-violet-300', dot: 'bg-violet-400' },
-  waiver: { icon: ShoppingCart, label: 'Waiver', accent: 'border-amber-500/30 bg-amber-500/10 text-amber-300', dot: 'bg-amber-400' },
-  free_agent: { icon: UserPlus, label: 'Free Agent', accent: 'border-sky-500/30 bg-sky-500/10 text-sky-300', dot: 'bg-sky-400' },
+const typeConfig: Record<string, { icon: typeof ArrowLeftRight; label: string; accent: TxnAccent }> = {
+  trade: { icon: ArrowLeftRight, label: 'Trade', accent: txnAccent('trade') },
+  waiver: { icon: ShoppingCart, label: 'Waiver', accent: txnAccent('waiver') },
+  free_agent: { icon: UserPlus, label: 'Free Agent', accent: txnAccent('free_agent') },
 }
 
 function useInView() {
@@ -78,17 +79,9 @@ function TeamAvatar({ src, name }: { src: string | null | undefined; name: strin
 }
 
 function PositionBadge({ position }: { position: string }) {
-  const colorMap: Record<string, string> = {
-    QB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
-    RB: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
-    WR: 'text-amber-300 border-amber-500/30 bg-amber-500/10',
-    TE: 'text-orange-300 border-orange-500/30 bg-orange-500/10',
-    DEF: 'text-zinc-300 border-zinc-500/30 bg-zinc-500/10',
-    K: 'text-red-300 border-red-500/30 bg-red-500/10',
-  }
-  const style = colorMap[position] || 'text-muted-foreground border-border/50 bg-muted/50'
+  const style = positionStyle(position)
   return (
-    <span className={cn('inline-flex items-center justify-center text-[9px] font-semibold px-1 py-0 h-3.5 rounded border', style)}>
+    <span className={cn('inline-flex items-center justify-center text-[9px] font-semibold px-1 py-0 h-3.5 rounded border', style.text, style.border, style.bg)}>
       {position}
     </span>
   )
@@ -96,7 +89,7 @@ function PositionBadge({ position }: { position: string }) {
 
 function PlayerMoveRow({ move, action, align }: { move: PlayerMove; action: 'add' | 'drop'; align: 'left' | 'right' }) {
   const Icon = action === 'add' ? ArrowUp : ArrowDown
-  const accent = action === 'add' ? 'text-emerald-400' : 'text-red-400'
+  const accent = action === 'add' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
   const label = action === 'add' ? 'Added' : 'Dropped'
   const isReversed = align === 'right'
   const isDef = move.position === 'DEF'
@@ -195,20 +188,20 @@ function TransactionCard({ txn, side }: { txn: TransactionEntry; side: Side }) {
       <div className={cn(
         'flex items-center gap-1.5 px-3 py-1.5 border-b border-border/20',
         isOnLeft ? 'flex-row-reverse' : '',
-        cfg.accent.replace('border-', 'bg-opacity-5 '),
+        cfg.accent.header,
       )}>
-        <div className={cn('size-5 rounded-full flex items-center justify-center', cfg.accent.split(' ').slice(1).join(' '))}>
+        <div className={cn('size-5 rounded-full flex items-center justify-center', cfg.accent.dotCircle)}>
           <Icon className="size-2.5" />
         </div>
-        <span className={cn('text-[10px] font-semibold', cfg.accent.split(' ')[2] || 'text-muted-foreground')}>{cfg.label}</span>
+        <span className={cn('text-[10px] font-semibold', cfg.accent.accentText)}>{cfg.label}</span>
         {isPending && (
-          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 border-red-500/30 bg-red-500/10 text-red-300 font-medium flex items-center gap-0.5">
+          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300 font-medium flex items-center gap-0.5">
             <Clock className="size-2" />
             {txn.status}
           </Badge>
         )}
         {waiverBid != null && (
-          <span className={cn('text-[10px] font-mono font-semibold text-amber-400', isOnLeft ? 'mr-auto' : 'ml-auto')}>${waiverBid}</span>
+          <span className={cn('text-[10px] font-mono font-semibold text-amber-600 dark:text-amber-400', isOnLeft ? 'mr-auto' : 'ml-auto')}>${waiverBid}</span>
         )}
       </div>
 
@@ -292,7 +285,7 @@ function TimelineEvent({ txn, sideIdx, weekIdx }: { txn: TransactionEntry; sideI
 
       {/* Center dot */}
       <div className="relative flex flex-col items-center flex-shrink-0 pt-1">
-        <div className={cn('size-3 rounded-full ring-2 ring-background', cfg.dot)} />
+        <div className={cn('size-3 rounded-full ring-2 ring-background', cfg.accent.dot)} />
       </div>
 
       {/* Date side */}

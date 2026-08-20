@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/badge'
 import Tooltip from '../components/ui/tooltip'
 import EmptyState from '../components/ui/empty-state'
 import { cn } from '../lib/utils'
+import { positionStyle, gradeBadge, eventPanel, rankMedal } from '../lib/theme'
 import { fetchPlayerStats } from '../lib/api'
 import type { Roster, Draft, DraftPick, PlayerStats } from '../types'
 import { Medal, Trophy, ArrowUp, ArrowDown, HelpCircle, BarChart3, SearchX, ScrollText } from 'lucide-react'
@@ -17,24 +18,8 @@ interface Props {
   groupId: string
 }
 
-const positionStyles: Record<string, { bg: string; border: string; text: string }> = {
-  QB: { bg: 'bg-sky-500/15', border: 'border-sky-500/30', text: 'text-sky-300' },
-  RB: { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-300' },
-  WR: { bg: 'bg-violet-500/15', border: 'border-violet-500/30', text: 'text-violet-300' },
-  TE: { bg: 'bg-amber-500/15', border: 'border-amber-500/30', text: 'text-amber-300' },
-  K:  { bg: 'bg-zinc-500/15', border: 'border-zinc-500/30', text: 'text-zinc-300' },
-  DEF:{ bg: 'bg-red-500/15', border: 'border-red-500/30', text: 'text-red-300' },
-}
-const defaultStyle = { bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', text: 'text-zinc-300' }
-
 function gradeFor(pct: number | null): { grade: string; text: string; bg: string } {
-  if (pct == null) return { grade: 'F', text: 'text-zinc-500/50', bg: 'bg-zinc-500/10' }
-  if (pct > 70) return { grade: 'A+', text: 'text-emerald-400', bg: 'bg-emerald-500/20' }
-  if (pct > 40) return { grade: 'A', text: 'text-emerald-400', bg: 'bg-emerald-500/15' }
-  if (pct > 15) return { grade: 'B', text: 'text-emerald-300', bg: 'bg-emerald-500/10' }
-  if (pct > -15) return { grade: 'C', text: 'text-zinc-400', bg: 'bg-zinc-500/10' }
-  if (pct > -50) return { grade: 'D', text: 'text-red-300', bg: 'bg-red-500/10' }
-  return { grade: 'F', text: 'text-red-400', bg: 'bg-red-500/20' }
+  return gradeBadge(pct)
 }
 
 export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props) {
@@ -160,26 +145,26 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
         const pickStd = pickValuesFiltered.length > 1 ? Math.sqrt(pickValuesFiltered.reduce((s, v) => s + (v - pickMean) ** 2, 0) / pickValuesFiltered.length) : 0
 
         function zGradeFor(value: number | null, mean: number, std: number): { grade: string; text: string; bg: string } {
-          if (value == null) return { grade: 'F', text: 'text-zinc-500/50', bg: 'bg-zinc-500/10' }
-          if (std === 0) return { grade: 'C', text: 'text-zinc-400', bg: 'bg-zinc-500/10' }
+          if (value == null) return gradeBadge(null)
+          if (std === 0) return { grade: 'C', text: 'text-zinc-700 dark:text-zinc-400', bg: 'bg-zinc-500/10 dark:bg-zinc-500/10' }
           const z = (value - mean) / std
-          if (z > 1.0)  return { grade: 'A+', text: 'text-emerald-400', bg: 'bg-emerald-500/20' }
-          if (z > 0.5)  return { grade: 'A',  text: 'text-emerald-400', bg: 'bg-emerald-500/15' }
-          if (z > 0)    return { grade: 'B',  text: 'text-emerald-300', bg: 'bg-emerald-500/10' }
-          if (z > -0.5) return { grade: 'C',  text: 'text-zinc-400',    bg: 'bg-zinc-500/10' }
-          if (z > -1.0) return { grade: 'D',  text: 'text-red-300',     bg: 'bg-red-500/10' }
-          return          { grade: 'F',  text: 'text-red-400',     bg: 'bg-red-500/20' }
+          if (z > 1.0)  return gradeBadge(100)
+          if (z > 0.5)  return gradeBadge(50)
+          if (z > 0)    return gradeBadge(20)
+          if (z > -0.5) return { grade: 'C', text: 'text-zinc-700 dark:text-zinc-400', bg: 'bg-zinc-500/10 dark:bg-zinc-500/10' }
+          if (z > -1.0) return gradeBadge(-25)
+          return gradeBadge(-100)
         }
 
         function zColorFor(value: number, mean: number, std: number): string {
-          if (std === 0) return 'bg-zinc-500/10 border-zinc-500/20'
+          if (std === 0) return 'bg-zinc-500/10 border-zinc-500/20 dark:bg-zinc-500/10'
           const z = (value - mean) / std
-          if (z > 1.0)  return 'bg-emerald-500/40 border-emerald-500/40'
-          if (z > 0.5)  return 'bg-emerald-500/25 border-emerald-500/25'
-          if (z > 0)    return 'bg-emerald-500/12 border-emerald-500/12'
-          if (z > -0.5) return 'bg-zinc-500/10 border-zinc-500/20'
-          if (z > -1.0) return 'bg-red-500/12 border-red-500/12'
-          return 'bg-red-500/30 border-red-500/30'
+          if (z > 1.0)  return 'bg-emerald-500/40 border-emerald-500/40 dark:bg-emerald-500/30 dark:border-emerald-500/30'
+          if (z > 0.5)  return 'bg-emerald-500/25 border-emerald-500/25 dark:bg-emerald-500/20 dark:border-emerald-500/20'
+          if (z > 0)    return 'bg-emerald-500/12 border-emerald-500/12 dark:bg-emerald-500/15 dark:border-emerald-500/15'
+          if (z > -0.5) return 'bg-zinc-500/10 border-zinc-500/20 dark:bg-zinc-500/10'
+          if (z > -1.0) return 'bg-red-500/12 border-red-500/12 dark:bg-red-500/15 dark:border-red-500/15'
+          return 'bg-red-500/30 border-red-500/30 dark:bg-red-500/25 dark:border-red-500/25'
         }
 
         for (const p of allPicksWithValue) {
@@ -253,7 +238,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                     <div key={rid} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted/20 transition-all duration-200">
                       <div className="w-5 flex-shrink-0 text-center">
                         {idx < 3 ? (
-                          <Medal className={`size-3.5 ${['text-yellow-400', 'text-gray-400', 'text-amber-600'][idx]} mx-auto`} />
+                          <Medal className={`size-3.5 ${rankMedal(idx)} mx-auto`} />
                         ) : (
                           <span className="text-[10px] text-muted-foreground">{idx + 1}</span>
                         )}
@@ -282,8 +267,8 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
               </div>
 
               {/* Best Picks */}
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                <div className="text-xs font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+              <div className={`rounded-lg border p-3 ${eventPanel('emerald').card}`}>
+                <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${eventPanel('emerald').title}`}>
                   <ArrowUp className="size-3.5" />
                   Best Picks
                 </div>
@@ -331,7 +316,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-semibold truncate">{p.player}</span>
-                          {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyles[p.position]?.text || defaultStyle.text, positionStyles[p.position]?.bg || defaultStyle.bg)}>{p.position}</span>}
+                          {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyle(p.position).text, positionStyle(p.position).bg)}>{p.position}</span>}
                           {p.nfl_logo && <img src={p.nfl_logo} alt="" className="size-3 rounded-full object-contain flex-shrink-0" />}
                           {p.nfl_team && <span className="text-[8px] font-mono text-muted-foreground/40">{p.nfl_team}</span>}
                         </div>
@@ -347,8 +332,8 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
               </div>
 
               {/* Worst Picks */}
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                <div className="text-xs font-semibold text-red-400 mb-2 flex items-center gap-1.5">
+              <div className={`rounded-lg border p-3 ${eventPanel('red').card}`}>
+                <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${eventPanel('red').title}`}>
                   <ArrowDown className="size-3.5" />
                   Worst Picks
                 </div>
@@ -396,7 +381,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-semibold truncate">{p.player}</span>
-                          {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyles[p.position]?.text || defaultStyle.text, positionStyles[p.position]?.bg || defaultStyle.bg)}>{p.position}</span>}
+                          {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyle(p.position).text, positionStyle(p.position).bg)}>{p.position}</span>}
                           {p.nfl_logo && <img src={p.nfl_logo} alt="" className="size-3 rounded-full object-contain flex-shrink-0" />}
                           {p.nfl_team && <span className="text-[8px] font-mono text-muted-foreground/40">{p.nfl_team}</span>}
                         </div>
@@ -469,14 +454,14 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                 })()}
                 <div className="flex items-center justify-center gap-3 mt-2 text-[9px] text-muted-foreground/60">
                   <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-red-500/60" /> Underperformed</span>
-                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-zinc-400/30" /> No picks</span>
+                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-zinc-400/30 dark:bg-zinc-500/30" /> No picks</span>
                   <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500/60" /> Beat expectations</span>
                 </div>
               </div>
 
               {/* Missed Picks — Undrafted Gems */}
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                <div className="text-xs font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+              <div className={`rounded-lg border p-3 ${eventPanel('amber').card}`}>
+                <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${eventPanel('amber').title}`}>
                   <SearchX className="size-3.5" />
                   Missed Picks
                 </div>
@@ -513,7 +498,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
                               <span className="text-[11px] font-semibold truncate">{p.name}</span>
-                              {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyles[p.position]?.text || defaultStyle.text, positionStyles[p.position]?.bg || defaultStyle.bg)}>{p.position}</span>}
+                              {p.position && <span className={cn('text-[8px] font-semibold px-1 py-0 h-3 leading-none rounded border border-current/30', positionStyle(p.position).text, positionStyle(p.position).bg)}>{p.position}</span>}
                               {p.team_logo && <img src={p.team_logo} alt="" className="size-3 rounded-full object-contain flex-shrink-0" />}
                               {p.team && <span className="text-[8px] font-mono text-muted-foreground/40">{p.team}</span>}
                             </div>
@@ -603,7 +588,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
                       return <div key={`${round}-${rid}`} className="border-b border-r border-border bg-muted/5" />
                     }
                     const pos = pick.position || ''
-                    const posStyle = positionStyles[pos] || defaultStyle
+                    const posStyle = positionStyle(pos)
                     const rank = pick.player_id ? rankMap.get(pick.player_id) : undefined
                     const expected = pick.player_id ? expectedRanks.get(pick.player_id) ?? -999 : -999
                     const surplus = rank ? expected - rank.position_rank : 0

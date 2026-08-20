@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/badge'
 import { Card, CardContent } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 import { fetchMatchups } from '../lib/api'
+import { positionStyle, rankMedal } from '../lib/theme'
 import type { MatchupEntry } from '../types'
 
 interface Props {
@@ -14,22 +15,12 @@ interface Props {
   groupId: string
 }
 
-const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
-
-const positionStyles: Record<string, { bg: string; text: string }> = {
-  QB: { bg: 'bg-sky-400/15', text: 'text-sky-300' },
-  RB: { bg: 'bg-emerald-400/15', text: 'text-emerald-300' },
-  WR: { bg: 'bg-violet-400/15', text: 'text-violet-300' },
-  TE: { bg: 'bg-amber-400/15', text: 'text-amber-300' },
-  K:  { bg: 'bg-zinc-400/15', text: 'text-zinc-300' },
-  DEF:{ bg: 'bg-red-400/15', text: 'text-red-300' },
-}
-const defaultStyle = { bg: 'bg-zinc-400/10', text: 'text-zinc-300' }
+const rankColors = [rankMedal(0), rankMedal(1), rankMedal(2)]
 
 function PlayerRow({ p, reversed, leagueId, groupId }: { p: { name: string; position: string; team: string; points: number; player_img: string | null; team_logo: string | null; player_id?: string }; reversed?: boolean; leagueId?: string; groupId?: string }) {
   const navigate = useNavigate()
   const isDef = p.position === 'DEF'
-  const style = positionStyles[p.position] || defaultStyle
+  const style = positionStyle(p.position)
 
   const posBadge = (
     <Badge variant="outline" className={`w-8 text-center justify-center text-[9px] px-0 py-0 h-3.5 leading-none font-semibold flex-shrink-0 ${style.text} ${style.bg} border-current/30`}>
@@ -99,7 +90,7 @@ function TeamSide({
   leagueId?: string
   groupId?: string
 }) {
-  const rankMedal = rank <= 3 ? <Medal className={`size-4 ${rankColors[rank - 1]}`} /> : <span className="text-[10px] text-muted-foreground">#{rank}</span>
+  const medalEl = rank <= 3 ? <Medal className={`size-4 ${rankColors[rank - 1]}`} /> : <span className="text-[10px] text-muted-foreground">#{rank}</span>
 
   const headerContent = (
     <>
@@ -116,13 +107,13 @@ function TeamSide({
         <div className={`text-sm font-semibold truncate max-w-[130px] ${side === 'right' ? 'ml-auto' : ''}`}>{name}</div>
         <div className={`flex items-center gap-1 ${side === 'right' ? 'justify-end' : ''}`}>
           {side === 'right' ? (
-            <>{rankMedal}<span className="text-[10px] text-muted-foreground">{record}</span></>
+            <>{medalEl}<span className="text-[10px] text-muted-foreground">{record}</span></>
           ) : (
-            <><span className="text-[10px] text-muted-foreground">{record}</span>{rankMedal}</>
+            <><span className="text-[10px] text-muted-foreground">{record}</span>{medalEl}</>
           )}
         </div>
       </div>
-      <span className={`text-lg font-bold tabular-nums ${side === 'right' ? 'text-left' : 'text-right'} ${result === 'win' ? 'text-emerald-400' : result === 'loss' ? 'text-red-400' : 'text-muted-foreground'}`}>
+      <span className={`text-lg font-bold tabular-nums ${side === 'right' ? 'text-left' : 'text-right'} ${result === 'win' ? 'text-emerald-600 dark:text-emerald-400' : result === 'loss' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
         {points.toFixed(2)}
       </span>
     </>

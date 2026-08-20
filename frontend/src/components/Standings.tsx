@@ -5,8 +5,9 @@ import { cn } from '../lib/utils'
 import { fetchRankings, fetchTeamStats } from '../lib/api'
 import { Skeleton } from '../components/ui/skeleton'
 import Tooltip from '../components/ui/tooltip'
+import { rankMedal, diffColor } from '../lib/theme'
 
-const rankColors = ['text-yellow-400', 'text-gray-400', 'text-amber-600']
+const rankColors = [rankMedal(0), rankMedal(1), rankMedal(2)]
 
 const TEAM_COLORS = [
   '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24',
@@ -228,7 +229,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
             )}
 
             {mode === 'standard' && (
-              <div className={cn('text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14', diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+              <div className={cn('text-[10px] font-mono tabular-nums text-right flex-shrink-0 w-14', diffColor(diff))}>
                 {diff > 0 ? '+' : ''}{diff.toFixed(1)}
               </div>
             )}
@@ -236,7 +237,7 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
             {mode === 'median' && rankData && rankData.pf_diffs.length > 0 && (() => {
               const medDiff = rankData.pf_diffs[rankData.pf_diffs.length - 1]
               return (
-                <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', medDiff > 0 ? 'text-emerald-400' : medDiff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diffColor(medDiff))}>
                   {medDiff > 0 ? '+' : ''}{medDiff.toFixed(1)}
                 </div>
               )
@@ -268,13 +269,13 @@ export default function Standings({ rosters, hoveredRosterId, onHover, onClick, 
               const effStd = Math.sqrt(effVar)
               return (
                 <>
-                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', optDiff > 0 ? 'text-emerald-400' : optDiff < 0 ? 'text-red-400' : 'text-muted-foreground')}>
+                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', diffColor(optDiff))}>
                     {optDiff > 0 ? '+' : ''}{optDiff}
                   </div>
                   <div className="text-xs font-mono tabular-nums text-right flex-shrink-0 w-14 text-muted-foreground">
                     {effStd.toFixed(1)}
                   </div>
-                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', eff >= 90 ? 'text-emerald-400' : eff >= 80 ? 'text-amber-400' : 'text-red-400')}>
+                  <div className={cn('text-xs font-mono tabular-nums text-right flex-shrink-0 w-14', eff >= 90 ? 'text-emerald-600 dark:text-emerald-400' : eff >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')}>
                     {eff.toFixed(0)}%
                   </div>
                 </>

@@ -2,9 +2,11 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, TrendingUp, Activity, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import Tooltip from './ui/tooltip'
 import EmptyState from './ui/empty-state'
 import { cn } from '../lib/utils'
+import { positionStyle, confidenceBadge, sosBadge } from '../lib/theme'
 import { fetchProjections } from '../lib/api'
 import type { ProjectionPlayer, ProjectionResponse } from '../types'
 
@@ -16,15 +18,7 @@ interface Props {
 
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const
 
-const positionStyles: Record<string, { bg: string; border: string; text: string }> = {
-  QB: { bg: 'bg-sky-500/15', border: 'border-sky-500/30', text: 'text-sky-300' },
-  RB: { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-300' },
-  WR: { bg: 'bg-violet-500/15', border: 'border-violet-500/30', text: 'text-violet-300' },
-  TE: { bg: 'bg-amber-500/15', border: 'border-amber-500/30', text: 'text-amber-300' },
-  K:  { bg: 'bg-zinc-500/15', border: 'border-zinc-500/30', text: 'text-zinc-300' },
-  DEF:{ bg: 'bg-red-500/15', border: 'border-red-500/30', text: 'text-red-300' },
-}
-const defaultStyle = { bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', text: 'text-zinc-300' }
+const PAGE_SIZE = 50
 
 type SortKey = 'projected_points' | 'overall_rank' | 'position_rank' | 'confidence' | 'sos_factor' | 'name'
 
@@ -46,16 +40,14 @@ const STAT_LABELS: Record<string, string> = {
 }
 
 function confidenceLabel(c: number): { label: string; cls: string } {
-  if (c >= 0.66) return { label: 'High', cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
-  if (c >= 0.33) return { label: 'Med', cls: 'text-amber-300 bg-amber-500/15 border-amber-500/30' }
-  return { label: 'Low', cls: 'text-red-300 bg-red-500/15 border-red-500/30' }
+  const label = c >= 0.66 ? 'High' : c >= 0.33 ? 'Med' : 'Low'
+  return { label, cls: confidenceBadge(c) }
 }
 
 function sosLabel(f: number): { label: string; cls: string } {
   const pct = Math.round((f - 1) * 100)
   if (Math.abs(pct) < 1) return { label: '—', cls: 'text-muted-foreground/50' }
-  if (pct > 0) return { label: `+${pct}%`, cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
-  return { label: `${pct}%`, cls: 'text-red-300 bg-red-500/15 border-red-500/30' }
+  return { label: `${pct > 0 ? '+' : ''}${pct}%`, cls: sosBadge(f) }
 }
 
 export default function DraftProjections({ leagueId, groupId, tabParam }: Props) {
@@ -67,6 +59,12 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
   const [sortKey, setSortKey] = useState<SortKey>('projected_points')
   const [sortDesc, setSortDesc] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(1)
+
+  // Reset to the first page whenever the filtered/sorted set changes.
+  useEffect(() => {
+    setPage(1)
+  }, [position, sortKey, sortDesc])
 
   useEffect(() => {
     setLoading(true)
@@ -110,6 +108,10 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
       return (av > bv ? 1 : -1) * dir
     })
   }, [data, position, sortKey, sortDesc])
+
+  const pageCount = Math.max(1, Math.ceil(players.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pagePlayers = players.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const playerCounts = useMemo(() => {
     if (!data) return {} as Record<string, number>
@@ -209,7 +211,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
           All
         </button>
         {POSITIONS.map((pos) => {
-          const st = positionStyles[pos] || defaultStyle
+          const st = positionStyle(pos)
           const active = position === pos
           const count = playerCounts[pos] || 0
           const summary = totalsByPos[pos]
@@ -245,8 +247,8 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
               </tr>
             </thead>
             <tbody>
-              {players.map((p) => {
-                const st = positionStyles[p.position] || defaultStyle
+              {pagePlayers.map((p) => {
+                const st = positionStyle(p.position)
                 const conf = confidenceLabel(p.confidence)
                 const isOpen = expanded.has(p.player_id)
                 return (
@@ -304,6 +306,44 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+            {players.length} player{players.length !== 1 ? 's' : ''} · page {currentPage} of {pageCount}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              Prev
+            </Button>
+            {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant={p === currentPage ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setPage(p)}
+                className="min-w-8"
+              >
+                {p}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pageCount}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,15 +9,15 @@ interface Props {
 }
 
 function segmentColor(ratio: number): string {
-  if (ratio > 0.7) return 'stroke-emerald-400'
-  if (ratio > 0.4) return 'stroke-amber-400'
-  return 'stroke-red-400'
+  if (ratio > 0.7) return 'stroke-emerald-500 dark:stroke-emerald-400'
+  if (ratio > 0.4) return 'stroke-amber-500 dark:stroke-amber-400'
+  return 'stroke-red-500 dark:stroke-red-400'
 }
 
 function bgColor(ratio: number): string {
-  if (ratio > 0.7) return 'text-emerald-300'
-  if (ratio > 0.4) return 'text-amber-300'
-  return 'text-red-300'
+  if (ratio > 0.7) return 'text-emerald-600 dark:text-emerald-300'
+  if (ratio > 0.4) return 'text-amber-600 dark:text-amber-300'
+  return 'text-red-600 dark:text-red-300'
 }
 
 export default function UsagePie({ label, value, max, unit = '', size = 'md' }: Props) {

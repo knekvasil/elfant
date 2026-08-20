@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Table2, ScrollText, Swords, Trophy, ArrowLeftRight, Users, TrendingUp, BarChart3, Gauge } from 'lucide-react'
 import { cn, formatStatus } from '../lib/utils'
+import { statusBadge } from '../lib/theme'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import Tooltip from '../components/ui/tooltip'
 import { Badge } from '../components/ui/badge'
@@ -103,12 +104,7 @@ export default function League() {
   }
 
   const { league, rosters, previous, next, drafts, max_week } = data
-  const statusColor =
-    league.status === 'complete'
-      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-      : league.status === 'in_season'
-        ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-        : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+  const statusColor = statusBadge(league.status).badge
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">

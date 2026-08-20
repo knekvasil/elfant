@@ -3,6 +3,7 @@ import { Medal, Crown, Star, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 import { fetchPlayoffs } from '../lib/api'
+import { rankMedal } from '../lib/theme'
 import type { BracketMatch, PlayoffData } from '../types'
 
 interface Props {
@@ -108,7 +109,7 @@ export default function PlayoffBracketView({ leagueId }: Props) {
       </div>
       <span className={`text-[11px] truncate flex-1 ${isW ? 'font-semibold text-foreground' : 'text-muted-foreground/70'}`}>{n || '—'}</span>
       {s != null && <span className={`text-[10px] font-mono tabular-nums flex-shrink-0 ${isW ? 'text-foreground' : 'text-muted-foreground/50'}`}>{s.toFixed(1)}</span>}
-      {isW && <span className="flex-shrink-0">{poop ? <Trash2 className="size-2.5 text-zinc-400" /> : <Star className="size-2.5 text-yellow-400 fill-yellow-400" />}</span>}
+      {isW && <span className="flex-shrink-0">{poop ? <Trash2 className="size-2.5 text-zinc-500 dark:text-zinc-400" /> : <Star className="size-2.5 text-yellow-500 fill-yellow-500 dark:text-yellow-400 dark:fill-yellow-400" />}</span>}
     </div>
   )
 
@@ -146,7 +147,7 @@ export default function PlayoffBracketView({ leagueId }: Props) {
         <span className="text-xs font-semibold truncate max-w-[120px] text-center">{entry.name}</span>
         <span className="text-[9px] text-muted-foreground truncate max-w-[120px] text-center">{entry.owner}</span>
         <span className="text-[8px] text-muted-foreground/50">{label}</span>
-        <div className={`rounded-t-sm ${isChampOrKing ? 'w-16 h-3' : 'w-14 h-2'} ${label === 'Champion' ? 'bg-yellow-400/40' : label === 'Trash King' ? 'bg-zinc-600/30' : 'bg-gray-300/30'}`} />
+        <div className={`rounded-t-sm ${isChampOrKing ? 'w-16 h-3' : 'w-14 h-2'} ${label === 'Champion' ? 'bg-yellow-500/40 dark:bg-yellow-400/40' : label === 'Trash King' ? 'bg-zinc-500/30 dark:bg-zinc-600/30' : 'bg-gray-400/30 dark:bg-gray-300/30'}`} />
       </div>
     )
   }
@@ -162,12 +163,12 @@ export default function PlayoffBracketView({ leagueId }: Props) {
       {(m1 || trashKing) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-muted/10 rounded-lg border border-border/50 flex items-center justify-center gap-6 py-3 px-2">
-            {runnerEntry && <PodiumEntry entry={runnerEntry} icon={<Medal className="size-4 text-gray-300" />} label="Runner-Up" ringColor="ring-2 ring-gray-300/30" />}
-            {champEntry && <PodiumEntry entry={champEntry} icon={<Crown className="size-5 text-yellow-400" />} label="Champion" ringColor="ring-2 ring-yellow-400/40" size="size-12" />}
-            {thirdEntry && <PodiumEntry entry={thirdEntry} icon={<Medal className="size-4 text-amber-600" />} label="3rd Place" ringColor="ring-2 ring-amber-600/30" />}
+            {runnerEntry && <PodiumEntry entry={runnerEntry} icon={<Medal className={`size-4 ${rankMedal(1)}`} />} label="Runner-Up" ringColor="ring-2 ring-gray-400/30 dark:ring-gray-300/30" />}
+            {champEntry && <PodiumEntry entry={champEntry} icon={<Crown className="size-5 text-yellow-500 dark:text-yellow-400" />} label="Champion" ringColor="ring-2 ring-yellow-500/40 dark:ring-yellow-400/40" size="size-12" />}
+            {thirdEntry && <PodiumEntry entry={thirdEntry} icon={<Medal className={`size-4 ${rankMedal(2)}`} />} label="3rd Place" ringColor="ring-2 ring-amber-600/40 dark:ring-amber-600/30" />}
           </div>
-          <div className="bg-zinc-500/5 rounded-lg border border-zinc-600/20 flex items-center justify-center py-3 px-2">
-            {trashKing && <PodiumEntry entry={trashKing} icon={<Trash2 className="size-5 text-zinc-500" />} label="Trash King" ringColor="ring-2 ring-zinc-600/30" size="size-12" />}
+          <div className="bg-zinc-500/10 dark:bg-zinc-500/5 rounded-lg border border-zinc-600/20 flex items-center justify-center py-3 px-2">
+            {trashKing && <PodiumEntry entry={trashKing} icon={<Trash2 className="size-5 text-zinc-500 dark:text-zinc-400" />} label="Trash King" ringColor="ring-2 ring-zinc-500/40 dark:ring-zinc-600/30" size="size-12" />}
           </div>
         </div>
       )}

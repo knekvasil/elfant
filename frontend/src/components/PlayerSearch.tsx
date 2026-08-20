@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import { cn } from '../lib/utils'
 import { fetchPlayerStats } from '../lib/api'
+import { positionStyle } from '../lib/theme'
 import type { PlayerStats } from '../types'
 
 interface Props {
@@ -14,20 +15,6 @@ interface Props {
 }
 
 const POSITIONS = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DE', 'DT', 'CB', 'S', 'DB'] as const
-const posColors: Record<string, string> = {
-  QB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
-  RB: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
-  WR: 'text-amber-300 border-amber-500/30 bg-amber-500/10',
-  TE: 'text-orange-300 border-orange-500/30 bg-orange-500/10',
-  DEF: 'text-zinc-300 border-zinc-500/30 bg-zinc-500/10',
-  K: 'text-red-300 border-red-500/30 bg-red-500/10',
-  LB: 'text-violet-300 border-violet-500/30 bg-violet-500/10',
-  DE: 'text-fuchsia-300 border-fuchsia-500/30 bg-fuchsia-500/10',
-  DT: 'text-purple-300 border-purple-500/30 bg-purple-500/10',
-  CB: 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10',
-  S: 'text-teal-300 border-teal-500/30 bg-teal-500/10',
-  DB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
-}
 
 export default function PlayerSearch({ leagueId, groupId }: Props) {
   const navigate = useNavigate()
@@ -135,7 +122,7 @@ export default function PlayerSearch({ leagueId, groupId }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold truncate">{p.name}</span>
-                    <Badge variant="outline" className={cn('text-[9px] px-1 py-0 h-3.5 font-semibold', posColors[p.position] || '')}>
+                    <Badge variant="outline" className={cn('text-[9px] px-1 py-0 h-3.5 font-semibold', positionStyle(p.position).text, positionStyle(p.position).border, positionStyle(p.position).bg)}>
                       {p.position}
                     </Badge>
                     {p.team && (
@@ -146,7 +133,7 @@ export default function PlayerSearch({ leagueId, groupId }: Props) {
                     )}
                     <div className="flex items-center gap-0.5 ml-auto">
                       {p.owned ? (
-                        <UserCheck className="size-3 text-emerald-400" />
+                        <UserCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
                       ) : (
                         <UserX className="size-3 text-muted-foreground/40" />
                       )}

@@ -179,11 +179,11 @@ interface Props {
 }
 
 function cellColor(points: number, min: number, max: number): string {
-  if (max === min) return 'bg-yellow-500/30'
+  if (max === min) return 'bg-yellow-500/30 dark:bg-yellow-500/40'
   const ratio = (points - min) / (max - min)
-  if (ratio > 0.7) return 'bg-emerald-500/50'
-  if (ratio > 0.4) return 'bg-yellow-500/35'
-  return 'bg-red-500/35'
+  if (ratio > 0.7) return 'bg-emerald-500/50 dark:bg-emerald-500/60'
+  if (ratio > 0.4) return 'bg-yellow-500/35 dark:bg-yellow-500/40'
+  return 'bg-red-500/35 dark:bg-red-500/50'
 }
 
 export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }: Props) {
@@ -253,7 +253,7 @@ export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }:
                                   <tr key={b.label} className="border-b border-border/10 last:border-0">
                                     <td className="py-px pr-1.5 text-[9px] text-muted-foreground w-24 truncate">{b.label}</td>
                                     <td className="py-px text-right text-[9px] tabular-nums text-muted-foreground/60 w-6">{b.value}</td>
-                                    <td className={cn('py-px text-right text-[10px] tabular-nums font-medium w-14', b.points < 0 ? 'text-red-400' : 'text-amber-400')}>
+                                    <td className={cn('py-px text-right text-[10px] tabular-nums font-medium w-14', b.points < 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
                                       {b.points > 0 ? '+' : ''}{b.points.toFixed(1)}
                                     </td>
                                   </tr>
@@ -262,7 +262,7 @@ export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }:
                               <tfoot>
                                 <tr className="border-t border-border/30">
                                   <td colSpan={2} className="pt-1 text-[10px] font-bold text-right">Total</td>
-                                  <td className="pt-1 text-right text-[10px] font-bold tabular-nums text-amber-400">
+                                  <td className="pt-1 text-right text-[10px] font-bold tabular-nums text-amber-600 dark:text-amber-400">
                                     {week.fantasy_points.toFixed(1)}
                                   </td>
                                 </tr>
@@ -277,7 +277,7 @@ export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }:
                           className={cn(
                             'size-4 rounded-sm flex items-center justify-center text-[6px] font-bold leading-none',
                             cellColor(week.fantasy_points, min, max),
-                            isPost ? 'ring-1 ring-amber-400/50' : '',
+                            isPost ? 'ring-1 ring-amber-500/50 dark:ring-amber-400/50' : '',
                           )}
                         >
                           {week.fantasy_points.toFixed(0)}
@@ -293,14 +293,14 @@ export default function PlayerHeatGrid({ seasons, scoringRules, onHoverSeason }:
       </table>
 
       <div className="flex items-center gap-1 mt-2">
-        <span className="text-[7px] text-red-400/60">low</span>
+        <span className="text-[7px] text-red-500 dark:text-red-400/60">low</span>
         <div className="flex gap-px">
-          <div className="size-2 rounded-sm bg-red-500/35" />
-          <div className="size-2 rounded-sm bg-yellow-500/35" />
-          <div className="size-2 rounded-sm bg-emerald-500/50" />
+          <div className="size-2 rounded-sm bg-red-500/35 dark:bg-red-500/50" />
+          <div className="size-2 rounded-sm bg-yellow-500/35 dark:bg-yellow-500/40" />
+          <div className="size-2 rounded-sm bg-emerald-500/50 dark:bg-emerald-500/60" />
         </div>
-        <span className="text-[7px] text-emerald-400/60">high</span>
-        <span className="text-[7px] text-amber-400/60 ml-1.5">⋆ playoff</span>
+        <span className="text-[7px] text-emerald-600 dark:text-emerald-400/60">high</span>
+        <span className="text-[7px] text-amber-600 dark:text-amber-400/60 ml-1.5">⋆ playoff</span>
       </div>
     </div>
   )

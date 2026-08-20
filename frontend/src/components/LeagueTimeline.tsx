@@ -129,8 +129,8 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks, sea
       </div>
       <div className="flex items-center gap-2 mt-2 text-[8px] text-muted-foreground/50 flex-wrap">
         <span className="font-medium">Key:</span>
-        <span className="flex items-center gap-0.5"><Crown className="size-2.5 text-amber-400" /> Champ</span>
-        <span className="flex items-center gap-0.5"><Trash2 className="size-2.5 text-gray-400" /> TK</span>
+        <span className="flex items-center gap-0.5"><Crown className="size-2.5 text-amber-600 dark:text-amber-400" /> Champ</span>
+        <span className="flex items-center gap-0.5"><Trash2 className="size-2.5 text-gray-500 dark:text-gray-400" /> TK</span>
         <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(120, 55%, 35%)' }} /> 1st</span>
         <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(60, 55%, 35%)' }} /> Mid</span>
         <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(0, 55%, 35%)' }} /> Last</span>

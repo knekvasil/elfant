@@ -21,29 +21,17 @@ import Tooltip from '../components/ui/tooltip'
 import { fetchPlayerCareer, fetchPlayerStats, fetchPlayerSchedule } from '../lib/api'
 import type { PlayerScheduleResponse } from '../lib/api'
 import { cn } from '../lib/utils'
+import { positionStyle, rankTier, trendBadge } from '../lib/theme'
 import type { PlayerCareerResponse, PlayerStats } from '../types'
 
 const idpPositions = ['LB', 'DE', 'DT', 'CB', 'S', 'DB', 'DL', 'OLB', 'ILB', 'MLB', 'NT', 'SS', 'FS', 'EDGE']
 
-const posColors: Record<string, string> = {
-  QB: 'text-sky-300 border-sky-500/30 bg-sky-500/10',
-  RB: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
-  WR: 'text-amber-300 border-amber-500/30 bg-amber-500/10',
-  TE: 'text-orange-300 border-orange-500/30 bg-orange-500/10',
-  DEF: 'text-zinc-300 border-zinc-500/30 bg-zinc-500/10',
-  K: 'text-red-300 border-red-500/30 bg-red-500/10',
-}
-
 function rankColor(rank: number): string {
-  if (rank <= 50) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-  if (rank <= 300) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-  return 'bg-red-500/20 text-red-300 border-red-500/30'
+  return rankTier(rank, 50, 300)
 }
 
 function posRankColor(rank: number): string {
-  if (rank <= 3) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-  if (rank <= 15) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-  return 'bg-red-500/20 text-red-300 border-red-500/30'
+  return rankTier(rank, 3, 15)
 }
 
 function HealthBar({ label, played, total }: { label: string; played: number; total: number }) {
@@ -53,11 +41,11 @@ function HealthBar({ label, played, total }: { label: string; played: number; to
       <span className="w-10 text-muted-foreground font-medium">{label}</span>
       <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
         <div
-          className={cn('h-full rounded-full transition-all', pct >= 85 ? 'bg-emerald-500/50' : pct >= 65 ? 'bg-amber-500/50' : 'bg-red-500/50')}
+          className={cn('h-full rounded-full transition-all', pct >= 85 ? 'bg-emerald-500/50 dark:bg-emerald-500/60' : pct >= 65 ? 'bg-amber-500/50 dark:bg-amber-500/60' : 'bg-red-500/50 dark:bg-red-500/60')}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className={cn('w-12 text-right font-semibold tabular-nums', pct >= 85 ? 'text-emerald-400' : pct >= 65 ? 'text-amber-400' : 'text-red-400')}>
+      <span className={cn('w-12 text-right font-semibold tabular-nums', pct >= 85 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 65 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')}>
         {played}/{total}
       </span>
     </div>
@@ -174,7 +162,7 @@ export default function PlayerDetail() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold truncate">{p.name}</h1>
-                  <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4 font-semibold', posColors[p.position] || '')}>{p.position}</Badge>
+                  <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4 font-semibold', positionStyle(p.position).text, positionStyle(p.position).border, positionStyle(p.position).bg)}>{p.position}</Badge>
                   {team && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-medium flex items-center gap-1">
                       {(cs?.team_logo || schedule?.team_logo) && <img src={cs?.team_logo || schedule?.team_logo} alt="" className="size-3 rounded-full object-contain" />}
@@ -183,14 +171,14 @@ export default function PlayerDetail() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                  {cs?.status && cs.status !== 'Active' && <span className="text-amber-400 font-medium">{cs.status}</span>}
+                  {cs?.status && cs.status !== 'Active' && <span className="text-amber-600 dark:text-amber-400 font-medium">{cs.status}</span>}
                   <span>{allGames} career games</span>
                   <span>{allPoints.toFixed(1)} career points</span>
                   <span>{careerAvg} avg</span>
                 </div>
                 {cs?.owned !== undefined && (
                   <div className="mt-1 flex items-center gap-1.5">
-                    <span className={cn('text-[10px] font-medium flex items-center gap-0.5', cs.owned ? 'text-emerald-400' : 'text-muted-foreground/40')}>
+                    <span className={cn('text-[10px] font-medium flex items-center gap-0.5', cs.owned ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/40')}>
                       {cs.owned ? <UserCheck className="size-3" /> : <UserX className="size-3" />}
                       {cs.owned ? (cs.roster_name || 'Owned') : 'Free Agent'}
                     </span>
@@ -363,9 +351,9 @@ export default function PlayerDetail() {
           const last3Avg = last3.reduce((s, x) => s + x, 0) / last3.length
           const diff = seasonAvg > 0 ? (last3Avg - seasonAvg) / seasonAvg : 0
           const trend: 'up' | 'down' | 'stable' = diff > 0.2 ? 'up' : diff < -0.2 ? 'down' : 'stable'
-          const trendColors = { up: 'text-emerald-400', down: 'text-red-400', stable: 'text-amber-400' }
+          const trendColors = { up: 'text-emerald-600 dark:text-emerald-400', down: 'text-red-600 dark:text-red-400', stable: 'text-amber-600 dark:text-amber-400' }
           const trendBarBgs = { up: 'bg-emerald-500/60', down: 'bg-red-500/60', stable: 'bg-amber-500/60' }
-          const trendColorBgs = { up: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', down: 'bg-red-500/20 text-red-300 border-red-500/30', stable: 'bg-amber-500/20 text-amber-300 border-amber-500/30' }
+          const trendColorBgs = { up: trendBadge('up'), down: trendBadge('down'), stable: trendBadge('stable') }
 
           const last5 = scores.slice(-5)
           const maxVal = Math.max(...last5, 1)
@@ -548,7 +536,7 @@ export default function PlayerDetail() {
                             {diff}
                           </span>
                         )}
-                        <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-400' : g.result === 'L' ? 'text-red-400' : 'text-muted-foreground/40')}>
+                        <span className={cn('tabular-nums font-semibold w-5 text-center shrink-0', g.result === 'W' ? 'text-emerald-600 dark:text-emerald-400' : g.result === 'L' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/40')}>
                           {g.result || '—'}
                         </span>
                       </div>

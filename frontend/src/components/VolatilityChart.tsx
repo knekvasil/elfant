@@ -30,9 +30,9 @@ export default function VolatilityChart({ season }: Props) {
   const yScale = (v: number) => PAD.top + (1 - v / maxCount) * plotH
 
   const bucketColor = (bucketMin: number) => {
-    if (bucketMin >= avg) return 'fill-emerald-500/60'
-    if (bucketMin >= 10) return 'fill-amber-500/50'
-    return 'fill-red-500/50'
+    if (bucketMin >= avg) return 'fill-emerald-500/60 dark:fill-emerald-500/70'
+    if (bucketMin >= 10) return 'fill-amber-500/50 dark:fill-amber-500/60'
+    return 'fill-red-500/50 dark:fill-red-500/60'
   }
 
   return (
@@ -74,15 +74,15 @@ export default function VolatilityChart({ season }: Props) {
 
       {/* Key stats row */}
       <div className="flex items-center justify-center gap-3 text-[9px] tabular-nums -mt-0.5">
-        <span className="text-red-400 font-semibold">{floor.toFixed(1)}</span>
+        <span className="text-red-600 dark:text-red-400 font-semibold">{floor.toFixed(1)}</span>
         <span className="text-muted-foreground/40">|</span>
         <span className="text-primary font-bold">{avg.toFixed(1)}</span>
         <span className="text-muted-foreground/40">|</span>
-        <span className="text-emerald-400 font-semibold">{ceiling.toFixed(1)}</span>
+        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{ceiling.toFixed(1)}</span>
         <span className="text-muted-foreground/40">·</span>
         <span className="text-muted-foreground/50">&sigma;{std_dev.toFixed(1)}</span>
         <span className="text-muted-foreground/40">·</span>
-        <span className="text-amber-400/70">bust {bust_rate}%</span>
+        <span className="text-amber-600 dark:text-amber-400/70">bust {bust_rate}%</span>
       </div>
     </div>
   )
