@@ -1703,6 +1703,47 @@ async def api_player_stats(
                     "bust_rate": round(sum(1 for w in weeks_list if w["fantasy_points"] < 10) / len(weeks_list) * 100, 1) if weeks_list else 0,
                 })
 
+            # Include rostered/drafted players who have no weekly stats yet
+            # (e.g. pre-season rookies) so they still appear in the search list.
+            draft_ids = [d.draft_id for d in session.query(Draft).filter_by(league_id=league_id).all()]
+            pick_ids: set[str] = set()
+            if draft_ids:
+                pick_ids = {
+                    str(p.player_id)
+                    for p in session.query(DraftPick).filter(DraftPick.draft_id.in_(draft_ids)).all()
+                    if p.player_id
+                }
+            relevant_ids = owned_ids | pick_ids
+            if relevant_ids:
+                existing_ids = {p["player_id"] for p in all_players_out}
+                for pid in relevant_ids:
+                    if pid in existing_ids:
+                        continue
+                    pl = player_map.get(pid)
+                    if not pl:
+                        continue
+                    is_owned = pid in owned_ids
+                    all_players_out.append({
+                        "player_id": pid,
+                        "name": pl["name"],
+                        "position": pl["position"],
+                        "team": pl["team"],
+                        "status": pl["status"],
+                        "player_img": pl["player_img"],
+                        "team_logo": f"{TEAM_LOGO}/{pl['team'].lower()}.png" if pl["team"] else None,
+                        "owned": is_owned,
+                        "roster_name": owned_info.get(pid, {}).get("roster_name") if is_owned else None,
+                        "roster_avatar": owned_info.get(pid, {}).get("roster_avatar") if is_owned else None,
+                        "weeks": [],
+                        "total_points": 0,
+                        "avg_points": 0,
+                        "games": 0,
+                        "floor": 0,
+                        "ceiling": 0,
+                        "std_dev": 0,
+                        "bust_rate": 0,
+                    })
+
             # Compute rankings
             if all_players_out:
                 sort_key = {"total": "total_points", "avg": "avg_points", "name": "name"}.get(sort or "total", "total_points")
