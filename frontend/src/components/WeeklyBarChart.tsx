@@ -10,9 +10,9 @@ interface Props {
 }
 
 const TEAM_COLORS = [
-  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24',
+  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#eab308',
   '#fb923c', '#f87171', '#2dd4bf', '#818cf8', '#c084fc',
-  '#4ade80', '#fde68a',
+  '#4ade80', '#f59e0b',
 ]
 
 export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact }: Props) {
@@ -80,7 +80,7 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
               <rect x={x + barW} y={paH} width={barW} height={yScale(0) - paH} fill="#ef4444" fillOpacity={0.5} rx={2} />
               <rect x={x + barW * 2} y={avgH} width={barW} height={yScale(0) - avgH} fill="#a78bfa" fillOpacity={0.5} rx={2} />
               {week.optimal > 0 && (
-                <line x1={x} x2={x + barW * 3} y1={yScale(week.optimal)} y2={yScale(week.optimal)} stroke="#fbbf24" strokeWidth={1} strokeDasharray="3 2" opacity={0.6} />
+                <line x1={x} x2={x + barW * 3} y1={yScale(week.optimal)} y2={yScale(week.optimal)} stroke="#eab308" strokeWidth={1} strokeDasharray="3 2" opacity={0.6} />
               )}
             </g>
           )
@@ -93,7 +93,7 @@ export default function WeeklyBarChart({ leagueId, highlightedRosterIds, compact
             <text x={PAD.left + 41} y={H + 21} className="fill-muted-foreground text-[8px]">PA</text>
             <rect x={PAD.left + 60} y={H + 14} width={8} height={8} fill="#a78bfa" fillOpacity={0.5} rx={1} />
             <text x={PAD.left + 71} y={H + 21} className="fill-muted-foreground text-[8px]">Avg</text>
-            <line x1={PAD.left + 90} x2={PAD.left + 98} y1={H + 18} y2={H + 18} stroke="#fbbf24" strokeWidth={1} strokeDasharray="3 2" opacity={0.6} />
+            <line x1={PAD.left + 90} x2={PAD.left + 98} y1={H + 18} y2={H + 18} stroke="#eab308" strokeWidth={1} strokeDasharray="3 2" opacity={0.6} />
             <text x={PAD.left + 101} y={H + 21} className="fill-muted-foreground text-[8px]">Optimal</text>
           </g>
         )}

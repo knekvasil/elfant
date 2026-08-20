@@ -18,9 +18,9 @@ interface Props {
 }
 
 const TEAM_COLORS = [
-  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24',
+  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#eab308',
   '#fb923c', '#f87171', '#2dd4bf', '#818cf8', '#c084fc',
-  '#4ade80', '#fde68a',
+  '#4ade80', '#f59e0b',
 ]
 
 function rankHue(index: number, total: number): number {
@@ -162,12 +162,12 @@ export default function PowerRankings({ leagueId, rosters, hoveredRosterId, onHo
                   'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 cursor-pointer',
                   isHovered || hl ? 'ring-1 ring-border' : dm ? 'opacity-30' : 'hover:ring-1 hover:ring-border/60',
                 )}
-                style={{ backgroundColor: hl ? `hsla(${rankHue(i, rows.length)}, 65%, 40%, 0.35)` : `hsla(${rankHue(i, rows.length)}, 55%, 35%, 0.15)` }}
+                style={{ backgroundColor: hl ? `hsla(${rankHue(i, rows.length)}, var(--fill-s), var(--fill-l), var(--fill-strong-a))` : `hsla(${rankHue(i, rows.length)}, var(--fill-s), var(--fill-l), var(--fill-a))` }}
                 onMouseEnter={() => onHover?.(r.roster_id)}
                 onMouseLeave={() => onHover?.(null)}
                 onClick={() => onClick?.(r.roster_id)}
               >
-                <div className="w-5 flex-shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${rankHue(i, rows.length)}, 75%, 45%)` }}>{i + 1}</div>
+                <div className="w-5 flex-shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${rankHue(i, rows.length)}, 75%, var(--rank-text-l))` }}>{i + 1}</div>
                 <div className="size-7 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border">
                   {rosters.find(ro => ro.roster_id === r.roster_id)?.owner_avatar ? (
                     <img src={rosters.find(ro => ro.roster_id === r.roster_id)!.owner_avatar!} alt="" className="size-full object-cover" />

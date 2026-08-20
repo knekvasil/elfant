@@ -531,7 +531,7 @@ export default function PlayerDetail() {
                         {hue != null && (
                           <span
                             className="text-[8px] font-bold tabular-nums w-5 text-center shrink-0 rounded-sm px-0.5"
-                            style={{ backgroundColor: `hsl(${hue}, 55%, 25%)`, color: `hsl(${hue}, 75%, 75%)` }}
+                            style={{ backgroundColor: `hsl(${hue}, var(--fill-s), var(--fill-l))`, color: `hsl(${hue}, 75%, var(--rank-text-l))` }}
                           >
                             {diff}
                           </span>

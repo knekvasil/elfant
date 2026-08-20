@@ -318,9 +318,9 @@ export default function LeagueOverview() {
                     }>
                       <div
                         className="flex items-center gap-2 px-2 py-1 rounded-md transition-colors w-full"
-                        style={{ backgroundColor: `hsla(${hue}, 55%, 35%, 0.15)` }}
+                        style={{ backgroundColor: `hsla(${hue}, var(--fill-s), var(--fill-l), var(--fill-a))` }}
                       >
-                        <span className="w-5 shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${hue}, 75%, 45%)` }}>{i + 1}</span>
+                        <span className="w-5 shrink-0 text-center text-[11px] font-bold" style={{ color: `hsl(${hue}, 75%, var(--rank-text-l))` }}>{i + 1}</span>
                         <AvatarImg src={cs.avatar} name={cs.display_name} />
                         <span className="text-xs font-semibold truncate flex-1">{cs.display_name}</span>
                         <span className="text-xs font-bold tabular-nums text-right w-12">{cs.composite.toFixed(0)}</span>

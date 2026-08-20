@@ -5,7 +5,7 @@ interface Props {
   focusedSeason?: number | null
 }
 
-const SEASON_COLORS = ['#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24', '#fb923c', '#f87171', '#2dd4bf']
+const SEASON_COLORS = ['#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#eab308', '#fb923c', '#f87171', '#2dd4bf']
 
 export default function PlayerLineChart({ seasons, focusedSeason }: Props) {
   if (seasons.length === 0) return null

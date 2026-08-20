@@ -18,7 +18,7 @@ function rankHue(rank: number, total: number): number {
 
 function rankBg(rank: number | null | undefined, max: number): string {
   if (rank == null) return 'bg-muted/30'
-  return `hsl(${rankHue(rank, max)}, 55%, 35%)`
+  return `hsl(${rankHue(rank, max)}, var(--fill-s), var(--fill-l))`
 }
 
 function sortedOwners(participants: ParticipantsData): OwnerParticipant[] {
@@ -131,9 +131,9 @@ export default function LeagueTimeline({ groupId, participants, seasonLinks, sea
         <span className="font-medium">Key:</span>
         <span className="flex items-center gap-0.5"><Crown className="size-2.5 text-amber-600 dark:text-amber-400" /> Champ</span>
         <span className="flex items-center gap-0.5"><Trash2 className="size-2.5 text-gray-500 dark:text-gray-400" /> TK</span>
-        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(120, 55%, 35%)' }} /> 1st</span>
-        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(60, 55%, 35%)' }} /> Mid</span>
-        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: 'hsl(0, 55%, 35%)' }} /> Last</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: `hsl(120, var(--fill-s), var(--fill-l))` }} /> 1st</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: `hsl(60, var(--fill-s), var(--fill-l))` }} /> Mid</span>
+        <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm" style={{ backgroundColor: `hsl(0, var(--fill-s), var(--fill-l))` }} /> Last</span>
         <span className="flex items-center gap-0.5"><div className="size-2.5 rounded-sm border border-border/30 bg-muted/30" /> Present</span>
       </div>
     </div>

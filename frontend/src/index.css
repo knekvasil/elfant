@@ -40,6 +40,11 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --sidebar: oklch(0.985 0 0);
+  --fill-s: 62%;
+  --fill-l: 46%;
+  --fill-a: 0.30;
+  --fill-strong-a: 0.55;
+  --rank-text-l: 38%;
 }
 
 .dark {
@@ -76,6 +81,11 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --sidebar: oklch(0.205 0 0);
+  --fill-s: 55%;
+  --fill-l: 35%;
+  --fill-a: 0.15;
+  --fill-strong-a: 0.35;
+  --rank-text-l: 60%;
 }
 
 @theme inline {

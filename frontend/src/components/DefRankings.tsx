@@ -52,7 +52,7 @@ export default function DefRankings({ defense, rankings }: Props) {
         const hue = 120 - ((rank - 1) / 31) * 120
         return (
           <div key={key} className="flex items-center gap-2 text-[10px]">
-            <span className="w-16 shrink-0 text-right font-semibold tabular-nums" style={{ color: `hsl(${hue}, 75%, 45%)` }}>
+            <span className="w-16 shrink-0 text-right font-semibold tabular-nums" style={{ color: `hsl(${hue}, 75%, var(--rank-text-l))` }}>
               #{rank}
             </span>
             <div className="flex-1 h-4 rounded-sm bg-muted/20 overflow-hidden relative">
@@ -60,7 +60,7 @@ export default function DefRankings({ defense, rankings }: Props) {
                 className="h-full rounded-sm transition-all"
                 style={{
                   width: `${((32 - rank) / 31) * 100}%`,
-                  backgroundColor: `hsl(${hue}, 55%, 35%)`,
+                  backgroundColor: `hsl(${hue}, var(--fill-s), var(--fill-l))`,
                 }}
               />
             </div>
@@ -72,7 +72,7 @@ export default function DefRankings({ defense, rankings }: Props) {
       <div className="flex items-center gap-2 mt-1.5 text-[8px] text-muted-foreground/50">
         <span className="w-16 shrink-0 text-right">#1</span>
         <div className="flex-1 flex gap-px">
-          <div className="flex-1 h-1 rounded-full" style={{ background: 'linear-gradient(to right, hsl(120,55%,35%), hsl(0,55%,35%))' }} />
+          <div className="flex-1 h-1 rounded-full" style={{ background: `linear-gradient(to right, hsl(120, var(--fill-s), var(--fill-l)), hsl(0, var(--fill-s), var(--fill-l)))` }} />
         </div>
         <span className="w-12 shrink-0 text-right">#32</span>
         <span className="w-16 shrink-0">NFL Rank</span>

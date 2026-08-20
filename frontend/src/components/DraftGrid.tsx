@@ -157,14 +157,14 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
         }
 
         function zColorFor(value: number, mean: number, std: number): string {
-          if (std === 0) return 'bg-zinc-500/10 border-zinc-500/20 dark:bg-zinc-500/10'
+          if (std === 0) return 'bg-zinc-500/15 border-zinc-500/20 dark:bg-zinc-500/10'
           const z = (value - mean) / std
-          if (z > 1.0)  return 'bg-emerald-500/40 border-emerald-500/40 dark:bg-emerald-500/30 dark:border-emerald-500/30'
-          if (z > 0.5)  return 'bg-emerald-500/25 border-emerald-500/25 dark:bg-emerald-500/20 dark:border-emerald-500/20'
-          if (z > 0)    return 'bg-emerald-500/12 border-emerald-500/12 dark:bg-emerald-500/15 dark:border-emerald-500/15'
-          if (z > -0.5) return 'bg-zinc-500/10 border-zinc-500/20 dark:bg-zinc-500/10'
-          if (z > -1.0) return 'bg-red-500/12 border-red-500/12 dark:bg-red-500/15 dark:border-red-500/15'
-          return 'bg-red-500/30 border-red-500/30 dark:bg-red-500/25 dark:border-red-500/25'
+          if (z > 1.0)  return 'bg-emerald-500/45 border-emerald-500/45 dark:bg-emerald-500/30 dark:border-emerald-500/30'
+          if (z > 0.5)  return 'bg-emerald-500/35 border-emerald-500/35 dark:bg-emerald-500/20 dark:border-emerald-500/20'
+          if (z > 0)    return 'bg-emerald-500/20 border-emerald-500/20 dark:bg-emerald-500/15 dark:border-emerald-500/15'
+          if (z > -0.5) return 'bg-zinc-500/15 border-zinc-500/20 dark:bg-zinc-500/10'
+          if (z > -1.0) return 'bg-red-500/20 border-red-500/20 dark:bg-red-500/15 dark:border-red-500/15'
+          return 'bg-red-500/35 border-red-500/35 dark:bg-red-500/25 dark:border-red-500/25'
         }
 
         for (const p of allPicksWithValue) {

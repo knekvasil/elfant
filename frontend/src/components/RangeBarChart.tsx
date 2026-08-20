@@ -13,9 +13,9 @@ interface Props {
 }
 
 const TEAM_COLORS = [
-  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24',
+  '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#eab308',
   '#fb923c', '#f87171', '#2dd4bf', '#818cf8', '#c084fc',
-  '#4ade80', '#fde68a',
+  '#4ade80', '#f59e0b',
 ]
 
 export default function RangeBarChart({ leagueId, highlightedRosterIds, mode, rosters, compact }: Props) {
