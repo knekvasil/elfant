@@ -105,13 +105,15 @@ uv pip install . nflreadpy
 # Set up the database URL (create a .env file or export directly)
 export ELFANT_DATABASE_URL="postgresql://user:pass@localhost:5432/dev_elfant"
 elfant init                 # Create tables
-elfant sync-players         # Sync player data from Sleeper
+elfant players              # Sync the full player pool from Sleeper (run before each season so rookies appear)
 
 # Run (hot-reload enabled)
 uvicorn elfant.web:app --reload --host 0.0.0.0 --port 8008  # http://localhost:8008
 ```
 
 > **Note:** The dev database is empty initially. Data is populated on-demand when you look up a league. If you need a fuller dataset, run `./scripts/dev-refresh.sh` to copy prod data into `dev_elfant`.
+
+> **Before each new season (pre-draft):** run `elfant players` to refresh the player pool from Sleeper so newly-added rookies are in the DB. The player pool is **not** auto-synced on league lookup (that only refreshes league data), and there is no scheduled job for it. Rookies with no prior-season stats appear in the pre-draft player search and on the projections board with a league-average baseline projection.
 
 ### 3. Frontend
 

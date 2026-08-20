@@ -1744,6 +1744,34 @@ async def api_player_stats(
                         "bust_rate": 0,
                     })
 
+            # Pre-draft fallback: if the current season has no stats and nothing
+            # rostered/drafted is present (e.g. before the draft), show the full
+            # draftable player pool so pre-season rookies are searchable.
+            if not player_stats and not all_players_out:
+                for pid, pl in player_map.items():
+                    if pl["position"] not in ("QB", "RB", "WR", "TE", "K", "DEF"):
+                        continue
+                    all_players_out.append({
+                        "player_id": pid,
+                        "name": pl["name"],
+                        "position": pl["position"],
+                        "team": pl["team"],
+                        "status": pl["status"],
+                        "player_img": pl["player_img"],
+                        "team_logo": f"{TEAM_LOGO}/{pl['team'].lower()}.png" if pl["team"] else None,
+                        "owned": pid in owned_ids,
+                        "roster_name": owned_info.get(pid, {}).get("roster_name") if pid in owned_ids else None,
+                        "roster_avatar": owned_info.get(pid, {}).get("roster_avatar") if pid in owned_ids else None,
+                        "weeks": [],
+                        "total_points": 0,
+                        "avg_points": 0,
+                        "games": 0,
+                        "floor": 0,
+                        "ceiling": 0,
+                        "std_dev": 0,
+                        "bust_rate": 0,
+                    })
+
             # Compute rankings
             if all_players_out:
                 sort_key = {"total": "total_points", "avg": "avg_points", "name": "name"}.get(sort or "total", "total_points")
@@ -2301,6 +2329,40 @@ async def api_league_projections(league_id: str, position: str | None = None):
             "confidence": confidence,
             "statline": statline,
             "usage": usage,
+        })
+
+    # Include rookies (skill-position players with no prior-season history) so
+    # they appear on the pre-draft board with a league-average baseline.
+    projected_ids = {p["player_id"] for p in projections}
+    for pid, pl in player_map.items():
+        if pid in projected_ids:
+            continue
+        pos = pl["position"]
+        if pos not in proj.SKILL_POSITIONS:
+            continue
+        res = proj.rookie_projection(pos, pl["age"])
+        statline = res["statline"]
+        games = res["games"]
+        base_points = round(proj.fantasy_projection(statline, rules), 1)
+        strength_map = opponent_strength.get("rush" if pos == "RB" else "pass", {})
+        opponents = team_to_opponents.get(pl["team"] or "", [])
+        factor = proj.sos_factor(opponents, strength_map, pos)
+        projected_points = round(base_points * factor, 1)
+        projections.append({
+            "player_id": pid,
+            "name": pl["name"],
+            "position": pos,
+            "team": pl["team"] or "",
+            "status": pl["status"],
+            "player_img": pl["player_img"],
+            "team_logo": f"{TEAM_LOGO}/{(pl['team'] or '').lower()}.png" if pl["team"] else None,
+            "projected_points": projected_points,
+            "base_points": base_points,
+            "sos_factor": round(factor, 3),
+            "games": games,
+            "confidence": 0.1,
+            "statline": statline,
+            "usage": {"games_played": 0, "seasons_used": 0},
         })
 
     projections = proj.rank_projections(projections)

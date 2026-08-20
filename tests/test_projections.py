@@ -212,3 +212,31 @@ def test_statline_feeds_scoring_engine():
     sl = {"carries": 200, "rushing_yards": 850, "rushing_tds": 6, "targets": 50, "receptions": 38, "receiving_yards": 300, "receiving_tds": 2}
     pts = fantasy_points(sl, {"rush_yd": 0.1, "rush_td": 6, "rec": 1, "rec_yd": 0.1, "rec_td": 6})
     assert pts > 100
+
+
+def test_rookie_projection_all_skill_positions():
+    rules = {"pass_yd": 0.04, "pass_td": 4, "int": -2, "rush_yd": 0.1, "rush_td": 6,
+             "rec": 1, "rec_yd": 0.1, "rec_td": 6, "fg": 3, "pat": 1}
+    for pos in ("QB", "RB", "WR", "TE", "K"):
+        out = p.rookie_projection(pos, age=22)
+        assert out["games"] == p.DEFAULT_GAMES
+        # A baseline projection must produce a positive point total.
+        pts = p.fantasy_projection(out["statline"], rules)
+        assert pts > 0
+        # Statline must have at least one non-zero raw stat.
+        assert any(v > 0 for v in out["statline"].values())
+
+
+def test_rookie_projection_unknown_position_empty():
+    out = p.rookie_projection("DEF", age=None)
+    assert out["statline"] == {}
+    assert out["games"] == p.DEFAULT_GAMES
+
+
+def test_rookie_projection_respects_age_curve():
+    # QB at age 20 (pre-peak) should get more volume than at age 30 (decline).
+    rules = {"pass_yd": 0.04, "pass_td": 4, "int": -2}
+    young = p.fantasy_projection(p.rookie_projection("QB", age=20)["statline"], rules)
+    old = p.fantasy_projection(p.rookie_projection("QB", age=33)["statline"], rules)
+    assert young > old
+

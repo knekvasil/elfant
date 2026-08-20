@@ -341,6 +341,69 @@ def project_statline(seasons: list[dict], position: str, age: int | None) -> dic
     return {"statline": statline, "games": games}
 
 
+def rookie_projection(position: str, age: int | None) -> dict:
+    """Produce a league-average baseline projection for a rookie with no
+    prior-season history.
+
+    Uses the same position volume + efficiency baselines that the shrinkage
+    logic pulls established players toward, scaled to a default season, and
+    applies the position age curve. Returns the same shape as
+    ``project_statline``: ``{"statline": ..., "games": ...}``.
+    """
+    volume = _POS_BASELINE.get(position, {})
+    eff = _POS_EFFICIENCY_BASELINE.get(position, {})
+    games = DEFAULT_GAMES
+
+    age_curve = AGE_CURVES.get(position)
+    f = age_curve.factor(age) if age_curve else 1.0
+
+    usage: dict[str, float] = {}
+    for k, v in volume.items():
+        usage[k] = v * f
+    for k, v in eff.items():
+        usage[k] = v
+
+    if position == "QB":
+        attempts = usage.get("attempts", 0) * games
+        statline = {
+            "attempts": round(attempts),
+            "completions": round(attempts * usage.get("comp_pct", 0)),
+            "passing_yards": round(attempts * usage.get("yards_per_att", 0)),
+            "passing_tds": round(attempts * usage.get("td_pct", 0)),
+            "passing_interceptions": round(attempts * usage.get("int_pct", 0)),
+        }
+    elif position == "RB":
+        carries = usage.get("carries", 0) * games
+        targets = usage.get("targets", 0) * games
+        rec = targets * usage.get("catch_rate", 0)
+        statline = {
+            "carries": round(carries),
+            "rushing_yards": round(carries * usage.get("yards_per_carry", 0)),
+            "rushing_tds": round(carries * usage.get("rush_td_rate", 0)),
+            "targets": round(targets),
+            "receptions": round(rec),
+            "receiving_yards": round(targets * usage.get("yards_per_target", 0)),
+        }
+    elif position in ("WR", "TE"):
+        targets = usage.get("targets", 0) * games
+        rec = targets * usage.get("catch_rate", 0)
+        statline = {
+            "targets": round(targets),
+            "receptions": round(rec),
+            "receiving_yards": round(targets * usage.get("yards_per_target", 0)),
+            "receiving_tds": round(targets * usage.get("td_per_target", 0)),
+        }
+    elif position == "K":
+        statline = {
+            "fg_made": round(usage.get("fg_made", 0) * games),
+            "pat_made": round(usage.get("pat_made", 0) * games),
+        }
+    else:
+        statline = {}
+
+    return {"statline": statline, "games": games}
+
+
 def fantasy_projection(statline: dict, rules: dict) -> float:
     """Convert a season stat-line to projected fantasy points.
 
