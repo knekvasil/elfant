@@ -139,6 +139,48 @@ def test_thin_sample_more_conservative():
     assert 120 <= out["statline"]["carries"] <= 220
 
 
+def test_sos_factor_neutral_slate():
+    # A schedule matching the league-average baseline → factor ~1.0.
+    strength = {"A": 10.0, "B": 10.0, "C": 10.0, "D": 10.0}
+    factor = p.sos_factor(["A", "B", "C"], strength, "QB")
+    assert factor == pytest.approx(1.0)
+
+
+def test_sos_factor_easy_schedule_boosts():
+    # Opponents that allow more points (higher rating) → easier schedule → >1.
+    strength = {"A": 12.0, "B": 13.0, "C": 11.0, "D": 8.0}
+    factor = p.sos_factor(["A", "B", "C"], strength, "QB")
+    assert factor > 1.0
+    # A hard schedule (low ratings) → <1.
+    hard = p.sos_factor(["D", "D", "D"], strength, "QB")
+    assert hard < 1.0
+
+
+def test_sos_factor_is_clamped_and_weighted_by_position():
+    strength = {t: 15.0 for t in ["A", "B", "C", "D"]}
+    strength["A"] = 20.0
+    # All-easy slate should clamp at the max factor regardless of position.
+    assert p.sos_factor(["A", "A", "A"], strength, "QB") <= 1 + p._SOS_MAX_FACTOR
+    # Kickers get no adjustment.
+    assert p.sos_factor(["A", "A", "A"], strength, "K") == 1.0
+    # DEF keys off a different (empty here) map → neutral.
+    assert p.sos_factor(["A", "A", "A"], {}, "DEF") == 1.0
+    # Missing opponents → neutral.
+    assert p.sos_factor([], strength, "QB") == 1.0
+
+
+def test_sos_factor_scale_differs_by_position():
+    # The same favorable slate should move DEF/QB more than RB (lower weight).
+    strength = {"A": 12.0, "B": 12.0, "C": 12.0, "D": 8.0}
+    off_map = {"A": 12.0, "B": 12.0, "C": 12.0, "D": 8.0}
+    qb = p.sos_factor(["A", "B", "C"], strength, "QB")
+    rb = p.sos_factor(["A", "B", "C"], strength, "RB")
+    assert qb > rb
+    # DEF uses the off map; give it the same ratings to compare weights.
+    df = p.sos_factor(["A", "B", "C"], off_map, "DEF")
+    assert df > rb
+
+
 def test_rank_projections():
     players = [
         {"player_id": "a", "position": "RB", "projected_points": 200},

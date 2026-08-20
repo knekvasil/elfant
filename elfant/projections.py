@@ -20,6 +20,67 @@ SKILL_POSITIONS = ("QB", "RB", "WR", "TE", "K")
 # Recency weights across the trailing seasons (index 0 = most recent).
 RECENCY_WEIGHTS = (0.5, 0.3, 0.2)
 
+# Strength-of-schedule: position → (strength metric, weight).
+#  - pass: opponent pass-defense strength (fantasy pts a defense allows to
+#    pass-catchers/QB). Applies to QBs, WRs, TEs.
+#  - rush: opponent run-defense strength. Applies to RBs (run D is more stable,
+#    so weight is small).
+#  - off:  opponent's own offensive output — drives DEF scoring opportunities
+#    (more opponent plays → more sacks/INTs). Applies to DEF, weighted highest.
+#  - None: no schedule adjustment (kickers).
+_POS_SOS: dict[str, tuple[str | None, float]] = {
+    "QB": ("pass", 0.6),
+    "WR": ("pass", 0.5),
+    "TE": ("pass", 0.5),
+    "RB": ("rush", 0.3),
+    "K": (None, 0.0),
+    "DEF": ("off", 0.7),
+}
+
+# Cap on the schedule-favorability multiplier (e.g. ±8%). SoS is a secondary
+# refinement; keeping it modest avoids reordering ranks on noisy schedule data.
+_SOS_MAX_FACTOR = 0.08
+
+
+def sos_factor(
+    opponents: list[str],
+    strength_map: dict[str, float],
+    position: str,
+) -> float:
+    """Compute a schedule-favorability multiplier from a team's opponent slate.
+
+    ``opponents`` is the team's list of opponent abbreviations (Sleeper format).
+    ``strength_map`` maps team abbreviation → a per-game fantasy rating in the
+    units that make an easier schedule produce a higher value:
+      - for skill positions: fantasy points a defense *allows* to that position
+        group (higher = easier opponent).
+      - for DEF: the opponent's own offensive output (higher = more plays and
+        scoring opportunities for our DEF).
+
+    Returns a multiplier centered on 1.0 (neutral schedule), clamped within
+    ±``_SOS_MAX_FACTOR``. Positions with no adjustment (K) always return 1.0.
+    """
+    metric, weight = _POS_SOS.get(position, (None, 0.0))
+    if metric is None or not opponents or not strength_map:
+        return 1.0
+
+    ratings = [strength_map[o] for o in opponents if o in strength_map]
+    if not ratings:
+        return 1.0
+
+    baseline_vals = [v for v in strength_map.values() if v is not None]
+    if not baseline_vals:
+        return 1.0
+    baseline = sum(baseline_vals) / len(baseline_vals)
+    if baseline <= 0:
+        return 1.0
+
+    avg = sum(ratings) / len(ratings)
+    # Positive ratio → easier-than-average schedule.
+    ratio = avg / baseline - 1.0
+    factor = 1.0 + ratio * weight
+    return max(1.0 - _SOS_MAX_FACTOR, min(1.0 + _SOS_MAX_FACTOR, factor))
+
 
 def _shrink(value: float, baseline: float, weight: float) -> float:
     """Pull a per-game value toward a position baseline.

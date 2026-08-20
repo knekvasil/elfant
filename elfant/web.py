@@ -2050,13 +2050,88 @@ async def api_player_career(league_id: str, player_id: str):
         }
 
 
+_OFF_STAT_KEYS = [
+    "passing_yards", "passing_tds", "passing_interceptions", "passing_2pt_conversions",
+    "rushing_yards", "rushing_tds", "rushing_2pt_conversions",
+    "receptions", "receiving_yards", "receiving_tds", "receiving_2pt_conversions",
+    "fumbles_lost",
+]
+
+
+def _build_opponent_strength(session, seasons: list[int], rules: dict) -> dict:
+    """Build per-team opponent-strength ratings from prior-season weekly stats.
+
+    Returns {"pass": {...}, "rush": {...}, "off": {...}} where each maps a team
+    abbreviation (Sleeper format) → average fantasy points per game:
+      - pass: points a defense allowed to opposing QBs/WRs/TEs (higher = easier
+        schedule for pass-catchers and QBs).
+      - rush: points a defense allowed to opposing RBs (higher = easier for RBs).
+      - off:  a team's own offensive fantasy output (drives DEF scoring
+        opportunities).
+
+    All values are per-game averages across the given seasons, computed with the
+    league's scoring rules.
+    """
+    from elfant.sync.sync import _TEAM_ABBREVIATIONS
+
+    pos_to_metric = {"QB": "pass", "WR": "pass", "TE": "pass", "RB": "rush"}
+
+    # PlayerWeeklyStat has no position column — resolve it from the Player table.
+    player_pos: dict[str, str] = {}
+    for pl in session.query(Player).all():
+        if pl.position in pos_to_metric:
+            player_pos[pl.player_id] = pl.position
+
+    pass_allowed: dict[str, list[float]] = {}
+    rush_allowed: dict[str, list[float]] = {}
+    off_output: dict[str, list[float]] = {}
+
+    rows = (
+        session.query(PlayerWeeklyStat)
+        .filter(PlayerWeeklyStat.season.in_(seasons))
+        .all()
+    )
+    for row in rows:
+        if getattr(row, "season_type", "REG") not in (None, "REG", "regular"):
+            continue
+        # Team defenses are keyed by team abbreviation; skip them here.
+        if row.player_id in _TEAM_ABBREVIATIONS:
+            continue
+        metric = pos_to_metric.get(player_pos.get(row.player_id))
+        if not metric:
+            continue
+        opp = row.opponent
+        team = row.team
+        if not opp or not team:
+            continue
+        sd = {k: getattr(row, k, 0) or 0 for k in _OFF_STAT_KEYS}
+        sd["special_teams_tds"] = row.special_teams_tds or 0
+        sd["fumbles"] = 0
+        fp = fantasy_points(sd, rules)
+        if metric == "pass":
+            pass_allowed.setdefault(opp, []).append(fp)
+        elif metric == "rush":
+            rush_allowed.setdefault(opp, []).append(fp)
+        off_output.setdefault(team, []).append(fp)
+
+    def _avg(d: dict) -> dict:
+        return {t: round(sum(v) / len(v), 2) for t, v in d.items() if v}
+
+    return {
+        "pass": _avg(pass_allowed),
+        "rush": _avg(rush_allowed),
+        "off": _avg(off_output),
+    }
+
+
 @app.get("/api/league/{league_id}/projections")
 async def api_league_projections(league_id: str, position: str | None = None):
     """Return projected season fantasy points for draftable players.
 
     Projections are built from recent-season usage + efficiency (no ML), then
-    converted to fantasy points using the league's scoring rules. For teams
-    (DEF) we project from recent team-defense fantasy points per game.
+    converted to fantasy points using the league's scoring rules. A modest
+    strength-of-schedule adjustment is applied from the upcoming season's
+    schedule. For teams (DEF) we project from recent team-defense FP/g.
     """
     import elfant.projections as proj
 
@@ -2070,6 +2145,10 @@ async def api_league_projections(league_id: str, position: str | None = None):
         except (ValueError, TypeError):
             current_season = 2025
         prior_seasons = [current_season - i for i in range(1, 4) if current_season - i >= 2000]
+
+        # Build opponent-strength ratings from prior-season stats (no current-
+        # season stats exist yet in a pre-draft league).
+        opponent_strength = _build_opponent_strength(session, prior_seasons, rules)
 
         player_map: dict[str, dict] = {}
         for pl in session.query(Player).all():
@@ -2104,6 +2183,27 @@ async def api_league_projections(league_id: str, position: str | None = None):
                 has_draft = True
                 break
 
+    # Load the upcoming season's schedule to build each team's opponent slate.
+    _nf_to_sleeper = {"LA": "LAR", "OAK": "LV", "SD": "LAC", "STL": "LAR"}
+    team_to_opponents: dict[str, list[str]] = {}
+    try:
+        import nflreadpy as nfl
+        sched_df = nfl.load_schedules(seasons=[current_season])
+        if sched_df is not None and not sched_df.is_empty():
+            for row in sched_df.iter_rows(named=True):
+                if row.get("week") is None or row.get("week") == 0:
+                    continue
+                if row.get("season_type") and row.get("season_type") not in (None, "REG", "regular"):
+                    continue
+                home = _nf_to_sleeper.get(row.get("home_team") or "", row.get("home_team") or "")
+                away = _nf_to_sleeper.get(row.get("away_team") or "", row.get("away_team") or "")
+                if not home or not away:
+                    continue
+                team_to_opponents.setdefault(home, []).append(away)
+                team_to_opponents.setdefault(away, []).append(home)
+    except Exception:
+        pass
+
     projections = []
     for pid, pr_rows in rows_by_player.items():
         pl = player_map.get(pid)
@@ -2133,6 +2233,18 @@ async def api_league_projections(league_id: str, position: str | None = None):
         else:
             continue
 
+        # Strength-of-schedule adjustment.
+        base_points = projected_points
+        if pos == "DEF":
+            strength_map = opponent_strength.get("off", {})
+        elif pos == "RB":
+            strength_map = opponent_strength.get("rush", {})
+        else:
+            strength_map = opponent_strength.get("pass", {})
+        opponents = team_to_opponents.get(team, [])
+        factor = proj.sos_factor(opponents, strength_map, pos)
+        projected_points = round(base_points * factor, 1)
+
         projections.append({
             "player_id": pid,
             "name": pl["name"],
@@ -2142,6 +2254,8 @@ async def api_league_projections(league_id: str, position: str | None = None):
             "player_img": pl["player_img"],
             "team_logo": f"{TEAM_LOGO}/{team.lower()}.png" if team else None,
             "projected_points": projected_points,
+            "base_points": base_points,
+            "sos_factor": round(factor, 3),
             "games": games,
             "confidence": confidence,
             "statline": statline,

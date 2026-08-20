@@ -554,6 +554,8 @@ export interface ProjectionPlayer {
   player_img: string | null
   team_logo: string | null
   projected_points: number
+  base_points: number
+  sos_factor: number
   games: number
   confidence: number
   statline: Record<string, number>

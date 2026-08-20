@@ -26,7 +26,7 @@ const positionStyles: Record<string, { bg: string; border: string; text: string 
 }
 const defaultStyle = { bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', text: 'text-zinc-300' }
 
-type SortKey = 'projected_points' | 'overall_rank' | 'position_rank' | 'confidence' | 'name'
+type SortKey = 'projected_points' | 'overall_rank' | 'position_rank' | 'confidence' | 'sos_factor' | 'name'
 
 const STAT_LABELS: Record<string, string> = {
   attempts: 'Att',
@@ -49,6 +49,13 @@ function confidenceLabel(c: number): { label: string; cls: string } {
   if (c >= 0.66) return { label: 'High', cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
   if (c >= 0.33) return { label: 'Med', cls: 'text-amber-300 bg-amber-500/15 border-amber-500/30' }
   return { label: 'Low', cls: 'text-red-300 bg-red-500/15 border-red-500/30' }
+}
+
+function sosLabel(f: number): { label: string; cls: string } {
+  const pct = Math.round((f - 1) * 100)
+  if (Math.abs(pct) < 1) return { label: '—', cls: 'text-muted-foreground/50' }
+  if (pct > 0) return { label: `+${pct}%`, cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
+  return { label: `${pct}%`, cls: 'text-red-300 bg-red-500/15 border-red-500/30' }
 }
 
 export default function DraftProjections({ leagueId, groupId, tabParam }: Props) {
@@ -230,6 +237,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
                 <Th label="Pos" />
                 <Th label="Player" align="left" />
                 <Th label="Pts" k="projected_points" />
+                <Th label="SoS" k="sos_factor" />
                 <Th label="Pos Rk" k="position_rank" />
                 <Th label="Games" />
                 <Th label="Conf" k="confidence" />
@@ -270,6 +278,9 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
                         </button>
                       </td>
                       <td className="px-2 py-2 text-right font-semibold tabular-nums text-xs">{p.projected_points.toFixed(1)}</td>
+                      <td className="px-2 py-2 text-right">
+                        <span className={cn('text-[8px] font-bold px-1.5 py-0.5 rounded border tabular-nums', sosLabel(p.sos_factor).cls)}>{sosLabel(p.sos_factor).label}</span>
+                      </td>
                       <td className="px-2 py-2 text-right text-muted-foreground tabular-nums text-xs">{p.position_rank}</td>
                       <td className="px-2 py-2 text-right text-muted-foreground tabular-nums text-xs">{p.games}</td>
                       <td className="px-2 py-2 text-right">
@@ -281,7 +292,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
                     </tr>
                     {isOpen && (
                       <tr className="border-b border-border/40 bg-muted/10">
-                        <td colSpan={8} className="px-4 py-3">
+                        <td colSpan={9} className="px-4 py-3">
                           <ProjectionCard player={p} />
                         </td>
                       </tr>
@@ -329,6 +340,31 @@ function ProjectionCard({ player }: { player: ProjectionPlayer }) {
           </div>
         </div>
       )}
+
+      <div className="flex-1 min-w-[120px]">
+        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+          <BarChart3 className="size-3" /> Schedule
+        </div>
+        {(() => {
+          const sos = sosLabel(player.sos_factor)
+          const hasAdj = Math.abs(player.sos_factor - 1) > 0.005
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground/60">Base</span>
+                <span className="font-semibold tabular-nums">{player.base_points.toFixed(1)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground/60">Adj</span>
+                <span className="font-semibold tabular-nums">{player.projected_points.toFixed(1)}</span>
+              </div>
+              <span className={cn('inline-block text-[9px] font-bold px-1.5 py-0.5 rounded border', sos.cls)}>
+                {hasAdj ? `${sos.label} schedule` : 'Neutral schedule'}
+              </span>
+            </div>
+          )
+        })()}
+      </div>
 
       <div className="flex-1 min-w-[120px]">
         <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
