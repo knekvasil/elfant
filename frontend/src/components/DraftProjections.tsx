@@ -20,6 +20,20 @@ const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const
 
 const PAGE_SIZE = 50
 
+function getPageList(current: number, total: number): (number | null)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages = new Set<number>([1, total, current - 1, current, current + 1])
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b)
+  const out: (number | null)[] = []
+  let prev = 0
+  for (const p of sorted) {
+    if (p - prev > 1) out.push(null)
+    out.push(p)
+    prev = p
+  }
+  return out
+}
+
 type SortKey = 'projected_points' | 'overall_rank' | 'position_rank' | 'confidence' | 'sos_factor' | 'name'
 
 const STAT_LABELS: Record<string, string> = {
@@ -322,17 +336,21 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
             >
               Prev
             </Button>
-            {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-              <Button
-                key={p}
-                variant={p === currentPage ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setPage(p)}
-                className="min-w-8"
-              >
-                {p}
-              </Button>
-            ))}
+            {getPageList(currentPage, pageCount).map((p, i) =>
+              p === null ? (
+                <span key={`gap-${i}`} className="text-[10px] text-muted-foreground/40 px-1 select-none">…</span>
+              ) : (
+                <Button
+                  key={p}
+                  variant={p === currentPage ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPage(p)}
+                  className="min-w-8"
+                >
+                  {p}
+                </Button>
+              )
+            )}
             <Button
               variant="outline"
               size="sm"

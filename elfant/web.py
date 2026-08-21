@@ -2280,6 +2280,8 @@ async def api_league_projections(league_id: str, position: str | None = None):
             continue
         pos = pl["position"]
         team = pl["team"] or ""
+        if not team:
+            continue
         is_def = pos == "DEF"
         if is_def:
             res = proj.def_projection(pr_rows, rules)
@@ -2339,6 +2341,8 @@ async def api_league_projections(league_id: str, position: str | None = None):
             continue
         pos = pl["position"]
         if pos not in proj.SKILL_POSITIONS:
+            continue
+        if not pl["team"]:
             continue
         res = proj.rookie_projection(pos, pl["age"])
         statline = res["statline"]
