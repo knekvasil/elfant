@@ -240,3 +240,57 @@ def test_rookie_projection_respects_age_curve():
     old = p.fantasy_projection(p.rookie_projection("QB", age=33)["statline"], rules)
     assert young > old
 
+
+def test_rookie_projection_volume_scale():
+    # A backup (low volume_scale) should project for far fewer points than a
+    # starter (full volume_scale).
+    rules = {"pass_yd": 0.04, "pass_td": 4, "int": -2, "rush_yd": 0.1, "rush_td": 6}
+    starter = p.fantasy_projection(p.rookie_projection("RB", age=22, volume_scale=1.0)["statline"], rules)
+    backup = p.fantasy_projection(p.rookie_projection("RB", age=22, volume_scale=0.1)["statline"], rules)
+    assert backup < starter * 0.2
+    # Volume scales but efficiency stays — carries should shrink, not disappear.
+    sl = p.rookie_projection("RB", age=22, volume_scale=0.5)["statline"]
+    assert sl["carries"] > 0
+
+
+def test_draft_capital_weight():
+    assert p.draft_capital_weight(1) > p.draft_capital_weight(2) > p.draft_capital_weight(5)
+    assert p.draft_capital_weight(None) == p.draft_capital_weight(0)  # unknown ~ UDFA
+    assert p.draft_capital_weight(7) > 0
+
+
+def test_role_opportunity():
+    # No incumbent => fully open.
+    assert p.role_opportunity(None, "QB") == 1.0
+    assert p.role_opportunity(0.0, "QB") == 1.0
+    # Elite incumbent (above threshold) => closed.
+    assert p.role_opportunity(25.0, "QB") == 0.0
+    # Weaker incumbent => more open.
+    assert p.role_opportunity(5.0, "QB") > p.role_opportunity(15.0, "QB")
+
+
+def test_rookie_volume_scale_combines_both():
+    # Locked role + late-round pick => near zero.
+    low = p.rookie_volume_scale(0.0, 5)
+    assert low == 0.0
+    # Open role + early pick => high.
+    high = p.rookie_volume_scale(1.0, 1)
+    assert high == pytest.approx(0.95)
+    # A 1st-rounder in a locked role gets little; a 5th-rounder in an open role
+    # also gets little — both signals must align.
+    assert p.rookie_volume_scale(0.1, 1) < 0.2
+    assert p.rookie_volume_scale(1.0, 5) < 0.3
+
+
+def test_player_fpg_recency_weighted():
+    rules = {"rush_yd": 0.1, "rush_td": 6, "rec": 1}
+    # Two seasons; both identical so FPG is deterministic.
+    rows = []
+    for season in (2023, 2024):
+        for w in range(1, 5):
+            rows.append(_mk_row(season, w, rushing_yards=100, rushing_tds=1))
+    fpg = p.player_fpg(rows, rules)
+    assert fpg > 0
+    # No data => 0.
+    assert p.player_fpg([], rules) == 0.0
+

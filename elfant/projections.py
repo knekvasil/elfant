@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from elfant.scoring import fantasy_points
+from elfant.scoring import fantasy_points, STAT_RULES
 
 # Position we care about for projections (DEF handled separately from team stats).
 SKILL_POSITIONS = ("QB", "RB", "WR", "TE", "K")
@@ -341,14 +341,18 @@ def project_statline(seasons: list[dict], position: str, age: int | None) -> dic
     return {"statline": statline, "games": games}
 
 
-def rookie_projection(position: str, age: int | None) -> dict:
-    """Produce a league-average baseline projection for a rookie with no
+def rookie_projection(position: str, age: int | None, volume_scale: float = 1.0) -> dict:
+    """Produce a role-adjusted baseline projection for a rookie with no
     prior-season history.
 
     Uses the same position volume + efficiency baselines that the shrinkage
     logic pulls established players toward, scaled to a default season, and
-    applies the position age curve. Returns the same shape as
-    ``project_statline``: ``{"statline": ..., "games": ...}``.
+    applies the position age curve. ``volume_scale`` (0..1) reduces the volume
+    portion to reflect how much opportunity the rookie actually has (e.g. a
+    5th-round backup behind an elite starter gets a small fraction of a
+    starter's carries/attempts). Efficiency rates stay at the baseline. Returns
+    the same shape as ``project_statline``:
+    ``{"statline": ..., "games": ...}``.
     """
     volume = _POS_BASELINE.get(position, {})
     eff = _POS_EFFICIENCY_BASELINE.get(position, {})
@@ -359,7 +363,7 @@ def rookie_projection(position: str, age: int | None) -> dict:
 
     usage: dict[str, float] = {}
     for k, v in volume.items():
-        usage[k] = v * f
+        usage[k] = v * f * volume_scale
     for k, v in eff.items():
         usage[k] = v
 
@@ -510,10 +514,18 @@ _DEF_ROW_KEYS = [
     "def_4_and_stop", "def_3_and_out", "kicks_blocked",
 ]
 
+# Every raw stat key the scoring engine can consume (offense, defense, kicking,
+# and bucket/penalty extras). Used to convert any weekly row to a statdict.
+_ROW_STAT_KEYS = list(dict.fromkeys(
+    [stat_key for stat_key, _, _ in STAT_RULES]
+    + _DEF_ROW_KEYS
+    + ["fg_att", "pat_att", "yds_allowed"]
+))
+
 
 def _row_to_statdict(row) -> dict:
     """Convert a PlayerWeeklyStat row to the raw-stat dict scoring.py expects."""
-    return {key: getattr(row, key, 0) or 0 for key in _DEF_ROW_KEYS}
+    return {key: getattr(row, key, 0) or 0 for key in _ROW_STAT_KEYS}
 
 
 def rank_projections(players: list[dict]) -> list[dict]:
@@ -527,3 +539,73 @@ def rank_projections(players: list[dict]) -> list[dict]:
         pos_counter[p["position"]] += 1
         p["position_rank"] = pos_counter[p["position"]]
     return players
+
+
+def player_fpg(weekly_rows: list, rules: dict) -> float:
+    """Average fantasy points per game for a player across prior seasons,
+    recency-weighted (most recent counts most). Returns 0.0 with no data."""
+    by_season: dict[int, list] = {}
+    for row in weekly_rows:
+        if getattr(row, "season_type", "REG") not in (None, "REG", "regular"):
+            continue
+        by_season.setdefault(int(getattr(row, "season")), []).append(row)
+
+    fp_per_game: list[tuple[int, float]] = []
+    for season in sorted(by_season):
+        rows = by_season[season]
+        games = len(rows)
+        total = sum(fantasy_points(_row_to_statdict(r), rules) for r in rows)
+        fp_per_game.append((games, total / games))
+
+    if not fp_per_game:
+        return 0.0
+    n = len(fp_per_game)
+    weights = [RECENCY_WEIGHTS[min(n - 1 - i, len(RECENCY_WEIGHTS) - 1)] for i in range(n)]
+    total_w = sum(g * w for (g, _), w in zip(fp_per_game, weights))
+    if not total_w:
+        return 0.0
+    return sum(g * w * v for (g, v), w in zip(fp_per_game, weights)) / total_w
+
+
+# Position-level FP/g thresholds: above this the incumbent clearly holds the job
+# (low rookie opportunity); below it the role is more open.
+_OPP_FPG_HIGH = {"QB": 18.0, "RB": 12.0, "WR": 11.0, "TE": 8.0, "K": 6.0}
+
+
+def role_opportunity(incumbent_fpg: float | None, position: str) -> float:
+    """0..1 how open a team's role is at a position, from the incumbent's
+    prior-season fantasy points per game.
+
+    No incumbent / no production => fully open (1.0). As incumbent production
+    approaches the position's high threshold, opportunity drops toward 0.
+    """
+    if incumbent_fpg is None or incumbent_fpg <= 0:
+        return 1.0
+    high = _OPP_FPG_HIGH.get(position, 10.0)
+    opp = 1.0 - incumbent_fpg / high
+    return max(0.0, min(1.0, opp))
+
+
+def draft_capital_weight(draft_round: int | None) -> float:
+    """0..1 chance a rookie earns a meaningful role, by draft round.
+
+    Early-round picks are much more likely to get work; late-rounders and
+    undrafted free agents rarely earn a role. ``None``/unknown is treated like
+    an undrafted player.
+    """
+    if not draft_round:
+        return 0.08
+    weights = {1: 0.95, 2: 0.75, 3: 0.45, 4: 0.25, 5: 0.15, 6: 0.10, 7: 0.08}
+    return weights.get(draft_round, 0.08)
+
+
+def rookie_volume_scale(opportunity: float, draft_round: int | None) -> float:
+    """Combine team-position opportunity (0..1) with draft capital into a
+    volume multiplier (0..1) for a rookie baseline.
+
+    ``opportunity`` captures whether the team has a void to fill at the
+    position; ``draft_capital_weight`` captures whether *this* rookie is likely
+    to win that role. Both must be high for a rookie to get meaningful volume.
+    """
+    w = draft_capital_weight(draft_round)
+    return max(0.0, min(1.0, opportunity * w))

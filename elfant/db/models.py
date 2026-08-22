@@ -114,6 +114,8 @@ class Player(Base):
     birth_state = Column(String)
     rookie_year = Column(Integer)
     injury_notes = Column(String)
+    draft_round = Column(Integer)
+    draft_ovr = Column(Integer)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

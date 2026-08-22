@@ -167,27 +167,54 @@ def sync_players():
 
 
 def sync_player_ids():
-    """Populate gsis_id on Player records using nflreadpy's ID mapping."""
+    """Populate gsis_id and NFL draft capital on Player records.
+
+    Uses nflreadpy's player-ID mapping (which also carries draft round / overall
+    pick) to fill in gsis_id, draft_round, and draft_ovr for players that are
+    missing them (e.g. newly-synced rookies).
+    """
     try:
         import nflreadpy as nfl
     except ImportError:
         print("nflreadpy not installed. Run: pip install nflreadpy")
         return
 
-    ids = nfl.load_ff_playerids().drop_nulls(subset=["sleeper_id", "gsis_id"])
-    # Convert sleeper_id (Int64) → string for matching
-    id_map = {str(row["sleeper_id"]): row["gsis_id"] for row in ids.iter_rows(named=True)}
+    ids = nfl.load_ff_playerids().drop_nulls(subset=["sleeper_id"])
+
+    def _int(v):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        if f != f:  # NaN
+            return None
+        return int(f)
+
+    id_map = {}
+    for row in ids.iter_rows(named=True):
+        key = str(row["sleeper_id"])
+        id_map[key] = {
+            "gsis_id": row.get("gsis_id") or None,
+            "draft_round": _int(row.get("draft_round")),
+            "draft_ovr": _int(row.get("draft_ovr")),
+        }
 
     with get_session() as session:
         updated = 0
         players = session.query(Player).filter(Player.gsis_id.is_(None)).all()
         for p in players:
-            gsis = id_map.get(p.player_id)
-            if gsis:
-                p.gsis_id = gsis
-                updated += 1
+            info = id_map.get(p.player_id)
+            if not info:
+                continue
+            if info["gsis_id"]:
+                p.gsis_id = info["gsis_id"]
+            if info["draft_round"] is not None:
+                p.draft_round = info["draft_round"]
+            if info["draft_ovr"] is not None:
+                p.draft_ovr = info["draft_ovr"]
+            updated += 1
         session.commit()
-        print(f"Updated {updated} players with gsis_id ({len(players) - updated} unmapped)")
+        print(f"Updated {updated} players with ids/draft capital ({len(players) - updated} unmapped)")
 
 
 # Known NFL team abbreviations (defense stats use these as player_id)

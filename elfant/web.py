@@ -2227,6 +2227,8 @@ async def api_league_projections(league_id: str, position: str | None = None):
                 "team": pl.team or "",
                 "age": pl.age,
                 "status": pl.status or "",
+                "draft_round": pl.draft_round,
+                "draft_ovr": pl.draft_ovr,
                 "player_img": f"{PLAYER_IMG}/{pl.player_id}.jpg" if pl.player_id and pl.player_id.isdigit() else None,
                 "team_logo": f"{TEAM_LOGO}/{pl.team.lower()}.png" if pl.team else None,
             }
@@ -2333,6 +2335,22 @@ async def api_league_projections(league_id: str, position: str | None = None):
             "usage": usage,
         })
 
+    # Prior-season incumbent FP/g per (team, position) — used to infer how open
+    # a role is for a rookie (the "role opportunity" signal). A strong incumbent
+    # (e.g. an elite starting QB) means little room; a void means more room.
+    incumbent_fpg: dict[tuple[str, str], float] = {}
+    for pid, pr_rows in rows_by_player.items():
+        pl = player_map.get(pid)
+        if not pl or not pl["team"] or not pl["position"]:
+            continue
+        if pl["position"] not in proj.SKILL_POSITIONS:
+            continue
+        fpg = proj.player_fpg(pr_rows, rules)
+        if fpg <= 0:
+            continue
+        key = (pl["team"], pl["position"])
+        incumbent_fpg[key] = max(incumbent_fpg.get(key, 0.0), fpg)
+
     # Include rookies (skill-position players with no prior-season history) so
     # they appear on the pre-draft board with a league-average baseline.
     projected_ids = {p["player_id"] for p in projections}
@@ -2344,7 +2362,9 @@ async def api_league_projections(league_id: str, position: str | None = None):
             continue
         if not pl["team"]:
             continue
-        res = proj.rookie_projection(pos, pl["age"])
+        opportunity = proj.role_opportunity(incumbent_fpg.get((pl["team"], pos)), pos)
+        volume_scale = proj.rookie_volume_scale(opportunity, pl["draft_round"])
+        res = proj.rookie_projection(pos, pl["age"], volume_scale=volume_scale)
         statline = res["statline"]
         games = res["games"]
         base_points = round(proj.fantasy_projection(statline, rules), 1)
