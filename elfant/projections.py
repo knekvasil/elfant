@@ -10,6 +10,7 @@ consistent with a league's scoring rules.
 
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass
 
 from elfant.scoring import fantasy_points, STAT_RULES
@@ -160,15 +161,50 @@ _EFFICIENCY_MIN_TRUST = 0.7
 # Default games expected (of 17) when no history is available.
 DEFAULT_GAMES = 15
 
+# Per-game team-level volume budget at each position group. Used to estimate
+# how much of a team's role is already "claimed" by established players, so a
+# rookie only gets a share of the leftover volume (team-share context).
+_TEAM_VOLUME_BUDGET = {
+    "QB": {"attempts": 35.0},
+    "RB": {"carries": 25.0, "targets": 8.0},
+    "WR": {"targets": 24.0},
+    "TE": {"targets": 9.0},
+    "K": {"fg_made": 3.5, "pat_made": 4.0},
+}
 
-def games_expected(seasons: list[dict]) -> int:
-    """Expected games played (0..17) from recent seasons' games played."""
+
+def games_expected(
+    seasons: list[dict],
+    age: int | None = None,
+    position: str | None = None,
+) -> int:
+    """Expected games played (0..17) from recent seasons' games played.
+
+    Applies two extra penalties beyond the average:
+      - injury volatility: erratic games-played history (missed games in some
+        seasons) pulls the expectation down;
+      - age: players past their positional peak lose a bit of expected games.
+    """
     if not seasons:
         return DEFAULT_GAMES
     recent = seasons[: min(len(seasons), 3)]
-    avg_games = sum(s.get("games", 0) for s in recent) / len(recent)
+    games_list = [s.get("games", 0) for s in recent]
+    avg_games = sum(games_list) / len(games_list)
     # Slight regression toward the middle to avoid over-penalizing injuries.
     expected = round(avg_games * 0.9 + DEFAULT_GAMES * 0.1)
+
+    if len(games_list) >= 2:
+        volatility = statistics.pstdev(games_list)
+        # ~1 game shaved per ~1.5 games of standard deviation, capped at 3.
+        expected -= round(min(3, volatility / 1.5))
+
+    if age and position:
+        curve = AGE_CURVES.get(position)
+        if curve and age > curve.peak[1]:
+            years_past = age - curve.peak[1]
+            # Shave up to 2 games for players well past peak.
+            expected -= round(min(2, years_past * curve.decline_per_year * 8))
+
     return max(0, min(17, expected))
 
 
@@ -233,7 +269,13 @@ _EXTRACTORS = {
 }
 
 
-def _project_usage(seasons: list[dict], position: str, age: int | None) -> dict:
+def _project_usage(
+    seasons: list[dict],
+    position: str,
+    age: int | None,
+    volume_baseline: dict | None = None,
+    eff_baseline: dict | None = None,
+) -> dict:
     """Project per-game usage/efficiency metrics from trailing seasons.
 
     ``seasons`` is a list of per-season dicts in chronological order (oldest
@@ -243,14 +285,16 @@ def _project_usage(seasons: list[dict], position: str, age: int | None) -> dict:
     Volume metrics (carries, targets, attempts) shrink toward a league-average
     baseline, while efficiency/rate metrics (TD rate, YPC, YPT, catch rate)
     shrink toward a top-quartile baseline and are preserved more aggressively so
-    elite players don't get mean-reverted into mediocrity.
+    elite players don't get mean-reverted into mediocrity. ``volume_baseline`` /
+    ``eff_baseline`` override the static defaults when a league has enough
+    prior-season data to derive its own.
     """
     extract = _EXTRACTORS.get(position)
     if not extract:
         return {}
 
-    volume_baseline = _POS_BASELINE.get(position, {})
-    eff_baseline = _POS_EFFICIENCY_BASELINE.get(position, {})
+    volume_baseline = volume_baseline if volume_baseline is not None else _POS_BASELINE.get(position, {})
+    eff_baseline = eff_baseline if eff_baseline is not None else _POS_EFFICIENCY_BASELINE.get(position, {})
     metrics = [extract(s) for s in seasons]
     # Weights grow with recency (most recent = last in the oldest-first list);
     # also weight by games played that season.
@@ -290,15 +334,190 @@ def _project_usage(seasons: list[dict], position: str, age: int | None) -> dict:
     return weighted
 
 
-def project_statline(seasons: list[dict], position: str, age: int | None) -> dict:
+def _weighted_percentile(samples: list[tuple[float, float]], q: float) -> float:
+    """Weighted percentile (0..1) of (value, weight) samples."""
+    if not samples:
+        return 0.0
+    ordered = sorted(samples)
+    total_w = sum(w for _, w in ordered)
+    if total_w <= 0:
+        return 0.0
+    target = total_w * q
+    acc = 0.0
+    for v, w in ordered:
+        acc += w
+        if acc >= target:
+            return v
+    return ordered[-1][0]
+
+
+def _player_per_game_metrics(seasons: list[dict], position: str) -> dict[str, float]:
+    """Recency- and games-weighted per-game metrics for one player's seasons."""
+    extract = _EXTRACTORS[position]
+    n = len(seasons)
+    metrics = [extract(s) for s in seasons]
+    all_keys = {k for m in metrics for k in m}
+    weighted: dict[str, float] = {}
+    for key in all_keys:
+        values = []
+        for i, m in enumerate(metrics):
+            games = seasons[i].get("games") or 0
+            recency_idx = min(n - 1 - i, len(RECENCY_WEIGHTS) - 1)
+            values.append((m.get(key, 0.0), RECENCY_WEIGHTS[recency_idx] * games))
+        total_w = sum(w for _, w in values) or 1.0
+        weighted[key] = sum(v * w for v, w in values) / total_w
+    return weighted
+
+
+def league_baselines(
+    rows_by_player: dict[str, list],
+    position_of: dict[str, str],
+    min_games: int = 6,
+) -> tuple[dict, dict]:
+    """Derive per-position volume + efficiency baselines from a league's own
+    prior-season data instead of the static module defaults.
+
+    Volume baselines are games-weighted means of per-game volume across all
+    qualified players at the position; efficiency baselines are games-weighted
+    top-quartile (75th percentile) values. Returns ``(volume_baseline,
+    eff_baseline)`` dicts shaped like ``_POS_BASELINE`` /
+    ``_POS_EFFICIENCY_BASELINE``. Positions with too few qualified players are
+    omitted so callers fall back to the static defaults.
+    """
+    volume_agg: dict[str, dict[str, list[tuple[float, float]]]] = {
+        pos: {k: [] for k in _POS_BASELINE.get(pos, {})} for pos in SKILL_POSITIONS
+    }
+    eff_agg: dict[str, dict[str, list[tuple[float, float]]]] = {
+        pos: {k: [] for k in _POS_EFFICIENCY_BASELINE.get(pos, {})}
+        for pos in SKILL_POSITIONS
+    }
+
+    for pid, rows in rows_by_player.items():
+        pos = position_of.get(pid)
+        if pos not in _EXTRACTORS:
+            continue
+        seasons = build_season_stats(rows)
+        total_games = sum(s.get("games", 0) for s in seasons)
+        if total_games < min_games:
+            continue
+        m = _player_per_game_metrics(seasons, pos)
+        weight = total_games
+        for k in volume_agg.get(pos, {}):
+            volume_agg[pos][k].append((m.get(k, 0.0), weight))
+        for k in eff_agg.get(pos, {}):
+            eff_agg[pos][k].append((m.get(k, 0.0), weight))
+
+    volume_base: dict[str, dict[str, float]] = {}
+    eff_base: dict[str, dict[str, float]] = {}
+    for pos in SKILL_POSITIONS:
+        vb = {}
+        for k, samples in volume_agg.get(pos, {}).items():
+            if not samples:
+                continue
+            total_w = sum(w for _, w in samples)
+            vb[k] = round(sum(v * w for v, w in samples) / total_w, 3) if total_w else 0.0
+        if vb:
+            volume_base[pos] = vb
+        eb = {}
+        for k, samples in eff_agg.get(pos, {}).items():
+            if not samples:
+                continue
+            eb[k] = round(_weighted_percentile(samples, 0.75), 4)
+        if eb:
+            eff_base[pos] = eb
+    return volume_base, eff_base
+
+
+def projection_confidence(
+    seasons: list[dict],
+    season_fpg: list[float] | None = None,
+    current_season: int | None = None,
+) -> float:
+    """0..1 confidence in a projection from data quality.
+
+    Blends four signals: how many seasons are covered, how much recent playing
+    time (weighted by recency) backs the numbers, how fresh the data is, and how
+    consistent the player's year-to-year FP/g has been (lower volatility =
+    higher confidence). ``season_fpg`` is the per-season FP/g list (optional).
+    """
+    if not seasons:
+        return 0.0
+    n = len(seasons)
+    seasons_c = min(1.0, n / 3.0)
+
+    weights = [RECENCY_WEIGHTS[min(n - 1 - i, len(RECENCY_WEIGHTS) - 1)] for i in range(n)]
+    games = sum(s.get("games", 0) * w for s, w in zip(seasons, weights))
+    games_c = min(1.0, games / _CONF_GAMES_CEILING)
+
+    recency_c = 1.0
+    if current_season and seasons[-1].get("season"):
+        years_ago = max(0, current_season - seasons[-1]["season"])
+        recency_c = 1.0 if years_ago <= 1 else max(0.3, 1.0 - (years_ago - 1) * 0.35)
+
+    vol_c = 0.5
+    if season_fpg and len(season_fpg) >= 2:
+        mean = sum(season_fpg) / len(season_fpg)
+        if mean > 0:
+            cv = statistics.pstdev(season_fpg) / mean
+            vol_c = max(0.0, 1.0 - cv * 1.5)
+
+    conf = 0.35 * seasons_c + 0.3 * games_c + 0.2 * recency_c + 0.15 * vol_c
+    return round(max(0.0, min(1.0, conf)), 2)
+
+
+def season_fpg_history(weekly_rows: list, rules: dict) -> list[tuple[int, float]]:
+    """Per-season FP/g (ascending season) for a player's regular-season weeks."""
+    by_season: dict[int, list] = {}
+    for row in weekly_rows:
+        if getattr(row, "season_type", "REG") not in (None, "REG", "regular"):
+            continue
+        by_season.setdefault(int(getattr(row, "season")), []).append(row)
+    out: list[tuple[int, float]] = []
+    for season in sorted(by_season):
+        rows = by_season[season]
+        games = len(rows)
+        if not games:
+            continue
+        total = sum(fantasy_points(_row_to_statdict(r), rules) for r in rows)
+        out.append((season, round(total / games, 2)))
+    return out
+
+
+def rookie_range(base_points: float, volume_scale: float) -> tuple[float, float]:
+    """Low/high (20th–80th percentile-ish) band around a rookie projection.
+
+    Higher ``volume_scale`` (more certain role) tightens the band; a low-volume
+    rookie has a huge floor/ceiling gap around a small baseline.
+    """
+    spread = 0.5 - 0.2 * volume_scale  # 0.3..0.5
+    return round(base_points * (1 - spread), 1), round(base_points * (1 + spread), 1)
+
+
+def team_share_factor(used: dict[str, float], budget: dict[str, float]) -> float:
+    """0..1 fraction of a team's position-group volume already claimed, from
+    the per-game volume ``used`` projected for established players vs the
+    per-game ``budget``. Uses the most-claimed metric (conservative)."""
+    if not used or not budget:
+        return 0.0
+    shares = [used.get(m, 0.0) / cap for m, cap in budget.items() if cap]
+    return max(0.0, min(1.0, max(shares))) if shares else 0.0
+
+
+def project_statline(
+    seasons: list[dict],
+    position: str,
+    age: int | None,
+    volume_baseline: dict | None = None,
+    eff_baseline: dict | None = None,
+) -> dict:
     """Build a full season stat-line dict (per the raw-stat keys that
     ``fantasy_points`` consumes) from projected per-game usage/efficiency.
 
     Returns a dict with the season's total stats ready for scoring.py, plus the
     projected games played.
     """
-    usage = _project_usage(seasons, position, age)
-    games = games_expected(seasons)
+    usage = _project_usage(seasons, position, age, volume_baseline, eff_baseline)
+    games = games_expected(seasons, age=age, position=position)
 
     if position == "QB":
         attempts = usage.get("attempts", 0) * games
@@ -341,7 +560,13 @@ def project_statline(seasons: list[dict], position: str, age: int | None) -> dic
     return {"statline": statline, "games": games}
 
 
-def rookie_projection(position: str, age: int | None, volume_scale: float = 1.0) -> dict:
+def rookie_projection(
+    position: str,
+    age: int | None,
+    volume_scale: float = 1.0,
+    volume_baseline: dict | None = None,
+    eff_baseline: dict | None = None,
+) -> dict:
     """Produce a role-adjusted baseline projection for a rookie with no
     prior-season history.
 
@@ -354,8 +579,8 @@ def rookie_projection(position: str, age: int | None, volume_scale: float = 1.0)
     the same shape as ``project_statline``:
     ``{"statline": ..., "games": ...}``.
     """
-    volume = _POS_BASELINE.get(position, {})
-    eff = _POS_EFFICIENCY_BASELINE.get(position, {})
+    volume = volume_baseline if volume_baseline is not None else _POS_BASELINE.get(position, {})
+    eff = eff_baseline if eff_baseline is not None else _POS_EFFICIENCY_BASELINE.get(position, {})
     games = DEFAULT_GAMES
 
     age_curve = AGE_CURVES.get(position)

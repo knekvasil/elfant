@@ -558,6 +558,12 @@ export interface ProjectionPlayer {
   sos_factor: number
   games: number
   confidence: number
+  is_rookie: boolean
+  kind: 'vet' | 'rookie' | 'unknown'
+  draft_round: number | null
+  range_low: number
+  range_high: number
+  fpg_history: { season: number; fpg: number }[]
   statline: Record<string, number>
   usage: Record<string, number>
   overall_rank?: number
@@ -568,5 +574,7 @@ export interface ProjectionResponse {
   season: number
   scoring_rules: Record<string, number>
   has_draft: boolean
+  total_rosters: number
+  position_ctx: Record<string, { starters: number; replacement: number }>
   players: ProjectionPlayer[]
 }

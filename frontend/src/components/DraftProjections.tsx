@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, TrendingUp, Activity, ChevronDown, ChevronUp } from 'lucide-react'
+import { BarChart3, TrendingUp, Activity, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import Tooltip from './ui/tooltip'
@@ -64,12 +64,44 @@ function sosLabel(f: number): { label: string; cls: string } {
   return { label: `${pct > 0 ? '+' : ''}${pct}%`, cls: sosBadge(f) }
 }
 
+function kindBadge(kind: string): { label: string; cls: string } {
+  if (kind === 'rookie') return { label: 'Rookie', cls: 'text-amber-700 bg-amber-500/15 border-amber-500/30 dark:text-amber-300 dark:bg-amber-500/10' }
+  if (kind === 'unknown') return { label: 'No Data', cls: 'text-zinc-700 bg-zinc-500/15 border-zinc-500/30 dark:text-zinc-300 dark:bg-zinc-500/10' }
+  return { label: '', cls: '' }
+}
+
+function FpgSparkline({ history }: { history: { season: number; fpg: number }[] }) {
+  const vals = history.map((h) => h.fpg)
+  if (vals.length < 2) return null
+  const max = Math.max(...vals)
+  const min = Math.min(...vals)
+  const range = max - min || 1
+  const W = 110
+  const H = 34
+  const PAD = 3
+  const pts = vals
+    .map((v, i) => {
+      const x = PAD + (i / (vals.length - 1)) * (W - 2 * PAD)
+      const y = H - PAD - ((v - min) / range) * (H - 2 * PAD)
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  const area = `M${PAD},${H - PAD} L${pts.replace(/ /g, ' L')} L${W - PAD},${H - PAD} Z`
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible text-primary/70">
+      <polygon points={area} fill="currentColor" opacity={0.08} />
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function DraftProjections({ leagueId, groupId, tabParam }: Props) {
   const navigate = useNavigate()
   const [data, setData] = useState<ProjectionResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [position, setPosition] = useState<string>('ALL')
+  const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('projected_points')
   const [sortDesc, setSortDesc] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -78,7 +110,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
   // Reset to the first page whenever the filtered/sorted set changes.
   useEffect(() => {
     setPage(1)
-  }, [position, sortKey, sortDesc])
+  }, [position, sortKey, sortDesc, search])
 
   useEffect(() => {
     setLoading(true)
@@ -113,6 +145,10 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
     if (!data) return []
     let list = data.players
     if (position !== 'ALL') list = list.filter((p) => p.position === position)
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.team || '').toLowerCase().includes(q))
+    }
     const dir = sortDesc ? -1 : 1
     return [...list].sort((a, b) => {
       if (sortKey === 'name') return a.name.localeCompare(b.name) * dir
@@ -121,7 +157,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
       if (av === bv) return 0
       return (av > bv ? 1 : -1) * dir
     })
-  }, [data, position, sortKey, sortDesc])
+  }, [data, position, search, sortKey, sortDesc])
 
   const pageCount = Math.max(1, Math.ceil(players.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
@@ -201,8 +237,8 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
               <div className="space-y-1 text-[9px] leading-relaxed text-muted-foreground/80">
                 <div className="text-[10px] font-semibold">How projections work</div>
                 <div>Recent-season usage &amp; efficiency are weighted (most recent counts most)</div>
-                <div>Regressed toward position baselines and adjusted for age</div>
-                <div>Converted to fantasy points using your league's scoring rules</div>
+                <div>Regressed toward position baselines derived from this league&apos;s own data and adjusted for age</div>
+                <div>Converted to fantasy points using your league&apos;s scoring rules</div>
                 <div>Low confidence = little/no prior-season history (e.g. rookies)</div>
               </div>
             }>
@@ -213,6 +249,17 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
             <span className="font-semibold text-foreground">{data.players.length}</span> players ·{' '}
             <span className="font-semibold text-foreground">{Math.round(totalPoints)}</span> total projected pts
           </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative mt-3 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search players..."
+            className="w-full rounded-md border border-border/40 bg-muted/20 py-1.5 pl-8 pr-3 text-xs outline-none focus:border-primary/50 focus:bg-muted/30 transition-colors"
+          />
         </div>
       </div>
 
@@ -229,14 +276,17 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
           const active = position === pos
           const count = playerCounts[pos] || 0
           const summary = totalsByPos[pos]
+          const ctx = data.position_ctx?.[pos]
           return (
             <button
               key={pos}
               onClick={() => setPosition(active ? 'ALL' : pos)}
               className={cn('text-xs font-semibold px-3 py-1 rounded-full border transition-all flex items-center gap-1.5', active ? 'bg-primary text-primary-foreground border-primary shadow-md' : cn(st.bg, st.border, st.text, 'hover:opacity-80'))}
+              title={ctx ? `Start ${ctx.starters} · replacement ${ctx.replacement}` : undefined}
             >
               {pos}
-              {summary && <span className={cn('text-[9px] font-normal opacity-70', active ? 'text-primary-foreground/70' : '')}>·{summary.top}</span>}
+              {summary && <span className={cn('text-[9px] font-normal opacity-70', active ? 'text-primary-foreground/70' : '')}>top {summary.top}</span>}
+              {ctx && <span className={cn('text-[9px] font-normal opacity-50', active ? 'text-primary-foreground/70' : '')}>start {ctx.starters}</span>}
               {count > 0 && <span className={cn('text-[9px] font-normal opacity-50', active ? 'text-primary-foreground/70' : '')}>{count}</span>}
             </button>
           )
@@ -245,9 +295,9 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
 
       {/* Board */}
       <div className="rounded-lg border border-border/40 bg-card/30 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
               <tr className="border-b border-border/60">
                 <Th label="#" k="overall_rank" align="left" />
                 <Th label="Pos" />
@@ -264,6 +314,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
               {pagePlayers.map((p) => {
                 const st = positionStyle(p.position)
                 const conf = confidenceLabel(p.confidence)
+                const kb = kindBadge(p.kind)
                 const isOpen = expanded.has(p.player_id)
                 return (
                   <Fragment key={p.player_id}>
@@ -278,17 +329,23 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
                           className="flex items-center gap-2 text-left group"
                         >
                           <div className="size-6 rounded-full bg-muted overflow-hidden ring-1 ring-border flex-shrink-0">
-                            {p.player_img ? (
+                            {p.position === 'DEF' && p.team_logo ? (
+                              <img src={p.team_logo} alt="" className="size-full object-contain" />
+                            ) : p.player_img ? (
                               <img src={p.player_img} alt="" className="size-full object-cover" />
                             ) : (
                               <div className="size-full flex items-center justify-center text-[9px] font-bold text-muted-foreground">{p.name.charAt(0)}</div>
                             )}
                           </div>
                           <div className="min-w-0">
-                            <span className="text-xs font-semibold group-hover:text-primary transition-colors truncate block">{p.name}</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold group-hover:text-primary transition-colors truncate block">{p.name}</span>
+                              {kb.label && <span className={cn('text-[7px] font-bold px-1 py-px rounded border uppercase tracking-wide', kb.cls)}>{kb.label}</span>}
+                            </span>
                             <span className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
-                              {p.team_logo && <img src={p.team_logo} alt="" className="size-2.5 rounded-full object-contain" />}
+                              {p.position !== 'DEF' && p.team_logo && <img src={p.team_logo} alt="" className="size-2.5 rounded-full object-contain" />}
                               {p.team || '—'}
+                              {p.draft_round != null && <span className="ml-0.5">R{p.draft_round}</span>}
                             </span>
                           </div>
                         </button>
@@ -309,7 +366,7 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
                     {isOpen && (
                       <tr className="border-b border-border/40 bg-muted/10">
                         <td colSpan={9} className="px-4 py-3">
-                          <ProjectionCard player={p} />
+                          <ProjectionCard player={p} replacement={data.position_ctx?.[p.position]?.replacement} />
                         </td>
                       </tr>
                     )}
@@ -366,9 +423,10 @@ export default function DraftProjections({ leagueId, groupId, tabParam }: Props)
   )
 }
 
-function ProjectionCard({ player }: { player: ProjectionPlayer }) {
+function ProjectionCard({ player, replacement }: { player: ProjectionPlayer; replacement?: number }) {
   const stats = Object.entries(player.statline || {})
   const isDef = player.position === 'DEF'
+  const vor = replacement != null ? player.projected_points - replacement : null
   return (
     <div className="flex flex-wrap gap-6 items-start text-xs">
       <div className="flex items-center gap-3">
@@ -381,6 +439,26 @@ function ProjectionCard({ player }: { player: ProjectionPlayer }) {
           <div className="text-lg font-semibold tabular-nums">{player.games}</div>
           <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Games</div>
         </div>
+        {player.is_rookie && (
+          <>
+            <div className="h-10 w-px bg-border/40" />
+            <div className="text-center">
+              <div className="text-sm font-semibold tabular-nums text-muted-foreground">{player.range_low.toFixed(0)}–{player.range_high.toFixed(0)}</div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">20th–80th %ile</div>
+            </div>
+          </>
+        )}
+        {vor != null && (
+          <>
+            <div className="h-10 w-px bg-border/40" />
+            <div className="text-center">
+              <div className={cn('text-lg font-semibold tabular-nums', vor >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                {vor >= 0 ? '+' : ''}{vor.toFixed(0)}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">vs Replacement</div>
+            </div>
+          </>
+        )}
       </div>
 
       {!isDef && stats.length > 0 && (
@@ -440,6 +518,24 @@ function ProjectionCard({ player }: { player: ProjectionPlayer }) {
           )
         })()}
       </div>
+
+      {player.fpg_history.length > 0 && (
+        <div className="flex-1 min-w-[120px]">
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+            <TrendingUp className="size-3" /> FP/g Trend
+          </div>
+          <div className="flex items-center gap-2">
+            <FpgSparkline history={player.fpg_history} />
+            <div className="space-y-0.5">
+              {player.fpg_history.slice(-3).map((h) => (
+                <div key={h.season} className="text-[9px] text-muted-foreground/60 tabular-nums">
+                  {h.season} <span className="font-semibold text-foreground/80">{h.fpg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

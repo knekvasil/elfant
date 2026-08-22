@@ -294,3 +294,86 @@ def test_player_fpg_recency_weighted():
     # No data => 0.
     assert p.player_fpg([], rules) == 0.0
 
+
+def test_games_expected_age_penalty():
+    # An aging RB with a full recent history should project for fewer games than
+    # a young RB with the same history.
+    seasons = [{"season": 2023, "games": 17}, {"season": 2024, "games": 16}]
+    young = p.games_expected(seasons, age=26, position="RB")
+    old = p.games_expected(seasons, age=34, position="RB")
+    assert old <= young
+    # Injury volatility: an erratic games history pulls expected games down.
+    erratic = [{"season": 2023, "games": 17}, {"season": 2024, "games": 5}]
+    steady = [{"season": 2023, "games": 16}, {"season": 2024, "games": 17}]
+    assert p.games_expected(erratic, age=26, position="RB") <= p.games_expected(steady, age=26, position="RB")
+
+
+def test_projection_confidence_blends_signals():
+    # More seasons / more games => higher confidence.
+    thin = [{"season": 2024, "games": 8}]
+    rich = [
+        {"season": 2022, "games": 16},
+        {"season": 2023, "games": 17},
+        {"season": 2024, "games": 16},
+    ]
+    assert p.projection_confidence(rich, [10.0, 12.0, 11.0], current_season=2025) > p.projection_confidence(thin, [10.0], current_season=2025)
+    # Volatility lowers confidence.
+    steady = p.projection_confidence(rich, [15.0, 16.0, 15.5], current_season=2025)
+    wild = p.projection_confidence(rich, [5.0, 25.0, 6.0], current_season=2025)
+    assert steady > wild
+
+
+def test_league_baselines_derives_from_data():
+    # Two teams' worth of RBs with consistent usage => baselines near observed.
+    rows_by_player = {}
+    for i, (carries, targets) in enumerate([(300, 60), (250, 50), (280, 55)]):
+        rows_by_player[f"rb{i}"] = []
+        for season in (2023, 2024):
+            for w in range(1, 15):
+                rows_by_player[f"rb{i}"].append(_mk_row(season, w, carries=round(carries / 14), targets=round(targets / 14), rushing_yards=4 * round(carries / 14)))
+    position_of = {f"rb{i}": "RB" for i in range(3)}
+    vol, eff = p.league_baselines(rows_by_player, position_of)
+    assert "RB" in vol
+    # ~19 carries/game observed; baseline should be within a few carries of it.
+    assert 15 < vol["RB"]["carries"] < 23
+    # Efficiency baseline is a top-quartile value of observed YPC (~4.0).
+    assert 3.5 < eff["RB"]["yards_per_carry"] < 5.0
+
+
+def test_league_baselines_skips_positions_without_data():
+    vol, eff = p.league_baselines({}, {})
+    assert "QB" not in vol
+    assert "TE" not in eff
+
+
+def test_season_fpg_history():
+    rules = {"rush_yd": 0.1, "rush_td": 6}
+    rows = [
+        _mk_row(2023, 1, rushing_yards=100, rushing_tds=1),
+        _mk_row(2023, 2, rushing_yards=100, rushing_tds=1),
+        _mk_row(2024, 1, rushing_yards=50, rushing_tds=0),
+        _mk_row(2024, 2, rushing_yards=50, rushing_tds=0),
+    ]
+    hist = p.season_fpg_history(rows, rules)
+    assert [(s, fpg) for s, fpg in hist] == [(2023, 16.0), (2024, 5.0)]
+    assert p.season_fpg_history([], rules) == []
+
+
+def test_rookie_range():
+    low, high = p.rookie_range(100.0, 1.0)
+    assert low < 100 < high
+    # A more certain role (higher volume_scale) gives a narrower band.
+    _, high_conf = p.rookie_range(100.0, 1.0)
+    _, low_conf = p.rookie_range(100.0, 0.1)
+    assert high_conf < low_conf
+
+
+def test_team_share_factor():
+    budget = {"carries": 25.0, "targets": 8.0}
+    # Empty usage => nothing claimed.
+    assert p.team_share_factor({}, budget) == 0.0
+    # One workhorse RB claiming most carries => high share.
+    assert p.team_share_factor({"carries": 24.0}, budget) > 0.9
+    # Uses the most-claimed metric (conservative).
+    assert p.team_share_factor({"carries": 25.0, "targets": 2.0}, budget) == 1.0
+

@@ -2229,6 +2229,8 @@ async def api_league_projections(league_id: str, position: str | None = None):
                 "status": pl.status or "",
                 "draft_round": pl.draft_round,
                 "draft_ovr": pl.draft_ovr,
+                "rookie_year": pl.rookie_year,
+                "years_exp": pl.years_exp,
                 "player_img": f"{PLAYER_IMG}/{pl.player_id}.jpg" if pl.player_id and pl.player_id.isdigit() else None,
                 "team_logo": f"{TEAM_LOGO}/{pl.team.lower()}.png" if pl.team else None,
             }
@@ -2245,6 +2247,11 @@ async def api_league_projections(league_id: str, position: str | None = None):
         rows_by_player: dict[str, list] = {}
         for row in rows:
             rows_by_player.setdefault(row.player_id, []).append(row)
+
+        # Derive per-position volume + efficiency baselines from this league's
+        # own prior-season data (falls back to static defaults per-position).
+        position_of = {pid: pm["position"] for pid, pm in player_map.items()}
+        league_vol, league_eff = proj.league_baselines(rows_by_player, position_of)
 
         # Track whether current league season has an existing draft with picks.
         has_draft = False
@@ -2276,6 +2283,7 @@ async def api_league_projections(league_id: str, position: str | None = None):
         pass
 
     projections = []
+    team_volume_used: dict[tuple[str, str], dict[str, float]] = {}
     for pid, pr_rows in rows_by_player.items():
         pl = player_map.get(pid)
         if not pl or not pl["position"]:
@@ -2292,17 +2300,26 @@ async def api_league_projections(league_id: str, position: str | None = None):
             confidence = res["confidence"]
             statline = {}
             usage = {}
+            fpg_history = proj.season_fpg_history(pr_rows, rules)
+            seasons_used = 0
         elif pos in proj.SKILL_POSITIONS:
             seasons = proj.build_season_stats(pr_rows)
             if not seasons:
                 continue
-            res = proj.project_statline(seasons, pos, pl["age"])
+            res = proj.project_statline(
+                seasons, pos, pl["age"],
+                volume_baseline=league_vol.get(pos),
+                eff_baseline=league_eff.get(pos),
+            )
             statline = res["statline"]
             games = res["games"]
             projected_points = round(proj.fantasy_projection(statline, rules), 1)
-            # Rough confidence: number of prior seasons with data.
-            confidence = round(min(1.0, len(seasons) / 3.0), 2)
-            usage = {"games_played": games, "seasons_used": len(seasons)}
+            fpg_history = proj.season_fpg_history(pr_rows, rules)
+            # Confidence blends seasons covered, games played, data recency and
+            # year-to-year FP/g consistency (volatility).
+            confidence = proj.projection_confidence(seasons, [v for _, v in fpg_history], current_season)
+            seasons_used = len(seasons)
+            usage = {"games_played": games, "seasons_used": seasons_used}
         else:
             continue
 
@@ -2331,9 +2348,25 @@ async def api_league_projections(league_id: str, position: str | None = None):
             "sos_factor": round(factor, 3),
             "games": games,
             "confidence": confidence,
+            "is_rookie": False,
+            "kind": "vet",
+            "draft_round": pl["draft_round"],
+            "range_low": round(base_points * (1 - (1 - confidence) * 0.4), 1),
+            "range_high": round(base_points * (1 + (1 - confidence) * 0.4), 1),
+            "fpg_history": fpg_history,
             "statline": statline,
             "usage": usage,
         })
+
+        # Track projected per-game volume per (team, position) so rookies on the
+        # same team only get a share of the leftover role (team-share context).
+        if pos in proj.SKILL_POSITIONS:
+            budget = proj._TEAM_VOLUME_BUDGET.get(pos)
+            if budget:
+                used_vol = team_volume_used.setdefault((team, pos), {})
+                pg = max(1, games)
+                for metric in budget:
+                    used_vol[metric] = used_vol.get(metric, 0.0) + (statline.get(metric, 0) or 0) / pg
 
     # Prior-season incumbent FP/g per (team, position) — used to infer how open
     # a role is for a rookie (the "role opportunity" signal). A strong incumbent
@@ -2351,8 +2384,11 @@ async def api_league_projections(league_id: str, position: str | None = None):
         key = (pl["team"], pl["position"])
         incumbent_fpg[key] = max(incumbent_fpg.get(key, 0.0), fpg)
 
-    # Include rookies (skill-position players with no prior-season history) so
-    # they appear on the pre-draft board with a league-average baseline.
+    # Include skill-position players with no prior-season history so they appear
+    # on the pre-draft board. True rookies (draft capital / rookie_year signal)
+    # get a role-adjusted baseline; players with no signal at all ("unknown" —
+    # e.g. vets who changed teams without synced history) get the plain
+    # league-average baseline without the opportunity haircut.
     projected_ids = {p["player_id"] for p in projections}
     for pid, pl in player_map.items():
         if pid in projected_ids:
@@ -2362,9 +2398,34 @@ async def api_league_projections(league_id: str, position: str | None = None):
             continue
         if not pl["team"]:
             continue
-        opportunity = proj.role_opportunity(incumbent_fpg.get((pl["team"], pos)), pos)
-        volume_scale = proj.rookie_volume_scale(opportunity, pl["draft_round"])
-        res = proj.rookie_projection(pos, pl["age"], volume_scale=volume_scale)
+
+        rookie_year = pl["rookie_year"]
+        is_rookie = (
+            (rookie_year is not None and rookie_year == current_season)
+            or (pl["draft_round"] is not None and (pl["years_exp"] in (None, 0, 1)))
+        )
+        kind = "rookie" if is_rookie else "unknown"
+
+        if is_rookie:
+            opportunity = proj.role_opportunity(incumbent_fpg.get((pl["team"], pos)), pos)
+            volume_scale = proj.rookie_volume_scale(opportunity, pl["draft_round"])
+        else:
+            # No role-opportunity haircut: the unknown player is treated as a
+            # generic starter until we know otherwise.
+            volume_scale = 1.0
+
+        # Team-share context: established players on the same team already claim
+        # part of the position-group volume, so the rookie only gets leftover.
+        used_vol = team_volume_used.get((pl["team"], pos), {})
+        budget = proj._TEAM_VOLUME_BUDGET.get(pos, {})
+        team_share = proj.team_share_factor(used_vol, budget)
+        volume_scale *= max(0.0, 1.0 - team_share)
+
+        res = proj.rookie_projection(
+            pos, pl["age"], volume_scale=volume_scale,
+            volume_baseline=league_vol.get(pos),
+            eff_baseline=league_eff.get(pos),
+        )
         statline = res["statline"]
         games = res["games"]
         base_points = round(proj.fantasy_projection(statline, rules), 1)
@@ -2372,6 +2433,17 @@ async def api_league_projections(league_id: str, position: str | None = None):
         opponents = team_to_opponents.get(pl["team"] or "", [])
         factor = proj.sos_factor(opponents, strength_map, pos)
         projected_points = round(base_points * factor, 1)
+
+        if is_rookie:
+            # Rookies get a range (20th-80th percentile-ish) around the point
+            # estimate: the band widens when the role is uncertain.
+            range_low, range_high = proj.rookie_range(base_points, volume_scale)
+            confidence = round(0.05 + 0.15 * proj.draft_capital_weight(pl["draft_round"]), 2)
+        else:
+            spread = 0.5
+            range_low, range_high = round(base_points * (1 - spread), 1), round(base_points * (1 + spread), 1)
+            confidence = 0.2
+
         projections.append({
             "player_id": pid,
             "name": pl["name"],
@@ -2384,7 +2456,13 @@ async def api_league_projections(league_id: str, position: str | None = None):
             "base_points": base_points,
             "sos_factor": round(factor, 3),
             "games": games,
-            "confidence": 0.1,
+            "confidence": confidence,
+            "is_rookie": is_rookie,
+            "kind": kind,
+            "draft_round": pl["draft_round"],
+            "range_low": range_low,
+            "range_high": range_high,
+            "fpg_history": [],
             "statline": statline,
             "usage": {"games_played": 0, "seasons_used": 0},
         })
@@ -2393,10 +2471,30 @@ async def api_league_projections(league_id: str, position: str | None = None):
     if position:
         projections = [p for p in projections if p["position"] == position]
 
+    # Replacement-level cutoff per position: the projected points at the last
+    # starter slot (derived from the league's roster setup), so value-over-
+    # replacement can be shown.
+    position_ctx: dict[str, dict] = {}
+    roster_positions = league.roster_positions or []
+    for pos in proj.SKILL_POSITIONS + ("DEF",):
+        starters = roster_positions.count(pos)
+        if starters <= 0:
+            continue
+        pos_players = [p for p in projections if p["position"] == pos]
+        if not pos_players:
+            continue
+        replacement = pos_players[min(starters, len(pos_players)) - 1]["projected_points"]
+        position_ctx[pos] = {
+            "starters": starters,
+            "replacement": round(replacement, 1),
+        }
+
     return {
         "season": current_season,
         "scoring_rules": rules,
         "has_draft": has_draft,
+        "total_rosters": league.total_rosters or 0,
+        "position_ctx": position_ctx,
         "players": projections,
     }
 
