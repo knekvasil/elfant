@@ -103,9 +103,9 @@ export default function League() {
     )
   }
 
-  const { league, rosters, previous, next, drafts, max_week } = data
+  const { league, rosters, previous, next, drafts, max_week, has_started } = data
   const statusColor = statusBadge(league.status).badge
-  const noGamesYet = league.status === 'in_season' && max_week === 0
+  const preSeason = !has_started
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
@@ -193,7 +193,7 @@ export default function League() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="power">
-          {noGamesYet ? (
+          {preSeason ? (
             <EmptyState
               icon={<Gauge className="size-8 text-muted-foreground/30" />}
               title="No season data yet"
@@ -211,7 +211,7 @@ export default function League() {
           )}
         </TabsContent>
         <TabsContent value="charts">
-          {noGamesYet || !teamStats ? (
+          {preSeason || !teamStats ? (
             <EmptyState
               icon={<BarChart3 className="size-8 text-muted-foreground/30" />}
               title="No season data yet"
@@ -229,7 +229,7 @@ export default function League() {
           )}
         </TabsContent>
         <TabsContent value="standings">
-          {noGamesYet ? (
+          {preSeason ? (
             <EmptyState
               icon={<Table2 className="size-8 text-muted-foreground/30" />}
               title="No standings yet"
@@ -320,7 +320,7 @@ export default function League() {
               )
             }
             return drafts.length > 0 ? (
-              <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} hideGrades={noGamesYet} />
+              <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} hideGrades={preSeason} />
             ) : (
               <EmptyState
                 icon={<ScrollText className="size-8 text-muted-foreground/30" />}
@@ -331,18 +331,18 @@ export default function League() {
           })()}
         </TabsContent>
         <TabsContent value="matchups">
-          {max_week > 0 ? (
-            <Matchups leagueId={league.league_id} maxWeek={max_week} groupId={groupId!} />
-          ) : (
+          {preSeason || max_week === 0 ? (
             <EmptyState
               icon={<Swords className="size-8 text-muted-foreground/30" />}
               title="No matchups yet"
               description="Matchups will appear once the season starts."
             />
+          ) : (
+            <Matchups leagueId={league.league_id} maxWeek={max_week} groupId={groupId!} />
           )}
         </TabsContent>
         <TabsContent value="playoffs">
-          {noGamesYet ? (
+          {preSeason ? (
             <EmptyState
               icon={<Trophy className="size-8 text-muted-foreground/30" />}
               title="No playoff data yet"

@@ -271,6 +271,21 @@ async def api_league(league_id: str):
         if latest:
             max_week = latest[0]
 
+        # Sleeper pre-seeds the full schedule as placeholder matchups (all weeks
+        # present, points zeroed) before week 1, so max_week alone can't tell us
+        # whether the season has started. Treat it as started only once any
+        # matchup carries real points.
+        has_started = (
+            session.query(Matchup.id)
+            .filter(
+                Matchup.league_id == league_id,
+                Matchup.points.isnot(None),
+                Matchup.points != 0,
+            )
+            .first()
+            is not None
+        )
+
     return {
         "league": {"league_id": league.league_id, "name": league.name, "season": league.season, "status": league.status, "total_rosters": league.total_rosters},
         "rosters": rosters,
@@ -278,6 +293,7 @@ async def api_league(league_id: str):
         "next": _to_ref(chain[idx + 1]) if idx < len(chain) - 1 else None,
         "drafts": drafts,
         "max_week": max_week,
+        "has_started": has_started,
     }
 
 

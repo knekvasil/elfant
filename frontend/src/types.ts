@@ -290,6 +290,7 @@ export interface LeagueData {
   next: League | null
   drafts: Draft[]
   max_week: number
+  has_started: boolean
 }
 
 export interface RankingRoster {
