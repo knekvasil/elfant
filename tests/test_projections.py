@@ -31,10 +31,13 @@ def test_age_curve_in_peak():
     assert c.factor(20) > 1.0
 
 
-def test_games_expected_rounds_to_17_cap():
+def test_games_expected_rounds_to_cap():
     assert p.games_expected([]) == p.DEFAULT_GAMES
     assert p.games_expected([{"games": 16}, {"games": 17}]) <= 17
-    assert p.games_expected([{"games": 17}, {"games": 17}]) == 17
+    # Even full-season ironmen cap at 15 (not 17) — players realistically miss games.
+    assert p.games_expected([{"games": 17}, {"games": 17}]) == 15
+    # Kickers are exempt: they play every game.
+    assert p.games_expected([{"games": 17}, {"games": 17}], position="K") == 17
 
 
 def test_build_season_stats_regular_only():
@@ -69,6 +72,62 @@ def test_rb_statline_realistic():
     rules = {"rush_yd": 0.1, "rush_td": 6, "rec": 1, "rec_yd": 0.1, "rec_td": 6}
     pts = p.fantasy_projection(sl, rules)
     assert 100 < pts < 300
+
+
+def test_extract_qb_includes_rushing():
+    s = {"games": 16, "attempts": 560, "completions": 380, "passing_yards": 4200,
+         "passing_tds": 30, "passing_interceptions": 10,
+         "carries": 120, "rushing_yards": 600, "rushing_tds": 8}
+    m = p._extract_qb(s)
+    assert m["carries"] == pytest.approx(7.5)  # 120 / 16
+    assert m["yards_per_carry"] == pytest.approx(5.0)
+    assert m["rush_td_rate"] == pytest.approx(8 / 120)
+
+
+def test_qb_statline_includes_rushing():
+    # A dual-threat QB: prior season with meaningful rushing.
+    seasons = [
+        {"season": 2023, "games": 16, "attempts": 560, "completions": 380,
+         "passing_yards": 4200, "passing_tds": 30, "passing_interceptions": 10,
+         "carries": 120, "rushing_yards": 600, "rushing_tds": 8},
+    ]
+    out = p.project_statline(seasons, "QB", 27)
+    sl = out["statline"]
+    assert sl["carries"] > 50
+    assert sl["rushing_yards"] > 200
+    assert sl["rushing_tds"] >= 1
+    # Rushing contributes real fantasy points under standard rules.
+    rules = {"pass_yd": 0.04, "pass_td": 4, "pass_int": -1, "rush_yd": 0.1, "rush_td": 6}
+    pts = p.fantasy_projection(sl, rules)
+    assert pts > 300
+
+
+def test_rookie_projection_qb_includes_rushing():
+    out = p.rookie_projection("QB", age=22)
+    sl = out["statline"]
+    assert sl["carries"] > 0
+    assert sl["rushing_yards"] > 0
+    assert sl["rushing_tds"] >= 0
+    # The baseline carries (4/g) × 15 games should be a modest total.
+    assert 30 <= sl["carries"] <= 90
+
+
+def test_qb_rushing_raises_projection_for_dual_threat():
+    # Same passing line, one mobile one pocket QB: mobile projects higher.
+    mobile = [
+        {"season": 2023, "games": 16, "attempts": 560, "completions": 380,
+         "passing_yards": 4000, "passing_tds": 25, "passing_interceptions": 10,
+         "carries": 140, "rushing_yards": 700, "rushing_tds": 10},
+    ]
+    pocket = [
+        {"season": 2023, "games": 16, "attempts": 560, "completions": 380,
+         "passing_yards": 4000, "passing_tds": 25, "passing_interceptions": 10,
+         "carries": 20, "rushing_yards": 60, "rushing_tds": 0},
+    ]
+    rules = {"pass_yd": 0.04, "pass_td": 4, "pass_int": -1, "rush_yd": 0.1, "rush_td": 6}
+    a = p.fantasy_projection(p.project_statline(mobile, "QB", 26)["statline"], rules)
+    b = p.fantasy_projection(p.project_statline(pocket, "QB", 26)["statline"], rules)
+    assert a > b
 
 
 def test_qb_statline_realistic():
@@ -205,6 +264,50 @@ def test_def_projection():
     out = p.def_projection(rows, rules)
     assert out["projected_points"] > 50
     assert out["games"] > 0
+
+
+def test_def_projection_method_variants():
+    rules = {"sack": 1, "int": 2, "def_td": 6, "safe": 2, "ff": 1, "pts_allow_0": 10, "pts_allow_1_6": 7, "pts_allow_7_13": 4, "pts_allow_14_20": 1, "pts_allow_21_27": 0, "pts_allow_28_34": -1, "pts_allow_35p": -4}
+    rows = []
+    for season in (2023, 2024):
+        for w in range(1, 17):
+            rows.append(_mk_row(season, w, def_sacks=3, def_interceptions=1, pts_allowed=17))
+    base_res = p.def_projection(rows, rules, method="recency")
+    base = base_res["projected_points"]
+    base_fpg = base / base_res["games"]
+    # An elite team (7 sacks/game) shrunk toward a modest league baseline.
+    hot_rows = []
+    for season in (2023, 2024):
+        for w in range(1, 17):
+            hot_rows.append(_mk_row(season, w, def_sacks=7, def_interceptions=2, pts_allowed=10))
+    hot_base = p.def_projection(hot_rows, rules, method="recency")["projected_points"]
+    hot_shrunk = p.def_projection(hot_rows, rules, method="shrink", baseline=base_fpg)["projected_points"]
+    # Shrink pulls the elite team toward the league average: below its own
+    # recency projection but above the average team.
+    assert hot_shrunk < hot_base
+    assert hot_shrunk > base
+    # "avg" blends 30/70 toward baseline → even closer to the average.
+    hot_avg = p.def_projection(hot_rows, rules, method="avg", baseline=base_fpg)["projected_points"]
+    assert hot_avg < hot_shrunk
+    assert hot_avg > base
+    # Unknown position / missing baseline fall back to recency behavior.
+    assert p.def_projection(hot_rows, rules, method="shrink")["projected_points"] == hot_base
+
+
+def test_projection_confidence_custom_weights():
+    seasons = [
+        {"season": 2022, "games": 16},
+        {"season": 2023, "games": 17},
+        {"season": 2024, "games": 16},
+    ]
+    fpg = [10.0, 12.0, 11.0]
+    default = p.projection_confidence(seasons, fpg, current_season=2025)
+    # Pushing all weight onto "seasons covered" (n/3 → 1.0) raises confidence.
+    seasons_only = p.projection_confidence(seasons, fpg, current_season=2025, weights=(1.0, 0.0, 0.0, 0.0))
+    assert seasons_only > default
+    # Pushing all weight onto volatility (cv ≈ 0.09 → high vol_c) also raises it.
+    vol_only = p.projection_confidence(seasons, fpg, current_season=2025, weights=(0.0, 0.0, 0.0, 1.0))
+    assert vol_only > 0.7
 
 
 def test_statline_feeds_scoring_engine():
@@ -366,6 +469,25 @@ def test_rookie_range():
     _, high_conf = p.rookie_range(100.0, 1.0)
     _, low_conf = p.rookie_range(100.0, 0.1)
     assert high_conf < low_conf
+
+
+def test_range_band_is_wide_and_position_specific():
+    # ±1 residual SD is much wider than the old confidence-scaled band.
+    low, high = p.range_band(150.0, "QB", 1.0)
+    assert high - low >= 140  # ~2 × QB SD 85
+    assert low >= 0
+    # QBs have wider bands than TEs.
+    qb_w = p.range_band(150.0, "QB", 0.5)[1] - p.range_band(150.0, "QB", 0.5)[0]
+    te_w = p.range_band(150.0, "TE", 0.5)[1] - p.range_band(150.0, "TE", 0.5)[0]
+    assert qb_w > te_w
+    # Confidence only tightens slightly.
+    hi = p.range_band(150.0, "RB", 1.0)
+    lo = p.range_band(150.0, "RB", 0.0)
+    assert hi[1] - hi[0] < lo[1] - lo[0]
+    # Low base points never go negative.
+    low, high = p.range_band(10.0, "WR", 0.0)
+    assert low == 0.0
+    assert high > 0
 
 
 def test_team_share_factor():

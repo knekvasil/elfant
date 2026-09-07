@@ -430,53 +430,57 @@ async def api_league_overview(league_id: str):
             if not wb and lg.status == "complete":
                 sync_playoffs(lid)
 
-            champ_match = next((b for b in _winners_for(lid) if b.position == 1), None)
-            if champ_match:
-                for role, rid in [("champion", champ_match.winner), ("runner_up", champ_match.loser)]:
-                    info = _resolve_roster(lid, rid)
-                    if not info:
-                        continue
-                    if role == "champion":
-                        s["champion"] = info["display"]
-                        s["champion_owner"] = info["owner_name"]
-                        s["champion_avatar"] = info["avatar"]
-                    else:
-                        s["runner_up"] = info["display"]
-                        s["runner_up_owner"] = info["owner_name"]
+            # Only finalize placements once the season is complete — Sleeper
+            # pre-seeds playoff brackets before week 1, so reading team_1/team_2
+            # from an unfinished season would crown premature champions/trash kings.
+            if lg.status == "complete":
+                champ_match = next((b for b in _winners_for(lid) if b.position == 1), None)
+                if champ_match:
+                    for role, rid in [("champion", champ_match.winner), ("runner_up", champ_match.loser)]:
+                        info = _resolve_roster(lid, rid)
+                        if not info:
+                            continue
+                        if role == "champion":
+                            s["champion"] = info["display"]
+                            s["champion_owner"] = info["owner_name"]
+                            s["champion_avatar"] = info["avatar"]
+                        else:
+                            s["runner_up"] = info["display"]
+                            s["runner_up_owner"] = info["owner_name"]
 
-            third_match = next((b for b in _winners_for(lid) if b.position == 3), None)
-            if third_match:
-                info = _resolve_roster(lid, third_match.winner)
-                if info:
-                    s["third_place"] = info["display"]
-                    s["third_place_owner"] = info["owner_name"]
-                    s["third_place_avatar"] = info["avatar"]
+                third_match = next((b for b in _winners_for(lid) if b.position == 3), None)
+                if third_match:
+                    info = _resolve_roster(lid, third_match.winner)
+                    if info:
+                        s["third_place"] = info["display"]
+                        s["third_place_owner"] = info["owner_name"]
+                        s["third_place_avatar"] = info["avatar"]
 
-            loser_brackets = _losers_for(lid)
-            if loser_brackets:
-                by_pos = {b.position: b for b in loser_brackets if b.position is not None}
-                pos1 = by_pos.get(1)
-                pos3 = by_pos.get(3)
-                if pos1:
-                    rid = pos1.winner or pos1.team_1
-                    info = _resolve_roster(lid, rid)
-                    if info:
-                        s["trash_king"] = info["display"]
-                        s["trash_king_owner"] = info["owner_name"]
-                        s["trash_king_avatar"] = info["avatar"]
-                    rid2 = pos1.loser or pos1.team_2
-                    info2 = _resolve_roster(lid, rid2)
-                    if info2:
-                        s["trash_king_silver"] = info2["display"]
-                        s["trash_king_silver_owner"] = info2["owner_name"]
-                        s["trash_king_silver_avatar"] = info2["avatar"]
-                if pos3:
-                    rid = pos3.winner or pos3.team_1
-                    info = _resolve_roster(lid, rid)
-                    if info:
-                        s["trash_king_bronze"] = info["display"]
-                        s["trash_king_bronze_owner"] = info["owner_name"]
-                        s["trash_king_bronze_avatar"] = info["avatar"]
+                loser_brackets = _losers_for(lid)
+                if loser_brackets:
+                    by_pos = {b.position: b for b in loser_brackets if b.position is not None}
+                    pos1 = by_pos.get(1)
+                    pos3 = by_pos.get(3)
+                    if pos1:
+                        rid = pos1.winner or pos1.team_1
+                        info = _resolve_roster(lid, rid)
+                        if info:
+                            s["trash_king"] = info["display"]
+                            s["trash_king_owner"] = info["owner_name"]
+                            s["trash_king_avatar"] = info["avatar"]
+                        rid2 = pos1.loser or pos1.team_2
+                        info2 = _resolve_roster(lid, rid2)
+                        if info2:
+                            s["trash_king_silver"] = info2["display"]
+                            s["trash_king_silver_owner"] = info2["owner_name"]
+                            s["trash_king_silver_avatar"] = info2["avatar"]
+                    if pos3:
+                        rid = pos3.winner or pos3.team_1
+                        info = _resolve_roster(lid, rid)
+                        if info:
+                            s["trash_king_bronze"] = info["display"]
+                            s["trash_king_bronze_owner"] = info["owner_name"]
+                            s["trash_king_bronze_avatar"] = info["avatar"]
 
             seasons.append(s)
 
@@ -2119,80 +2123,6 @@ async def api_player_career(league_id: str, player_id: str):
         }
 
 
-_OFF_STAT_KEYS = [
-    "passing_yards", "passing_tds", "passing_interceptions", "passing_2pt_conversions",
-    "rushing_yards", "rushing_tds", "rushing_2pt_conversions",
-    "receptions", "receiving_yards", "receiving_tds", "receiving_2pt_conversions",
-    "fumbles_lost",
-]
-
-
-def _build_opponent_strength(session, seasons: list[int], rules: dict) -> dict:
-    """Build per-team opponent-strength ratings from prior-season weekly stats.
-
-    Returns {"pass": {...}, "rush": {...}, "off": {...}} where each maps a team
-    abbreviation (Sleeper format) → average fantasy points per game:
-      - pass: points a defense allowed to opposing QBs/WRs/TEs (higher = easier
-        schedule for pass-catchers and QBs).
-      - rush: points a defense allowed to opposing RBs (higher = easier for RBs).
-      - off:  a team's own offensive fantasy output (drives DEF scoring
-        opportunities).
-
-    All values are per-game averages across the given seasons, computed with the
-    league's scoring rules.
-    """
-    from elfant.sync.sync import _TEAM_ABBREVIATIONS
-
-    pos_to_metric = {"QB": "pass", "WR": "pass", "TE": "pass", "RB": "rush"}
-
-    # PlayerWeeklyStat has no position column — resolve it from the Player table.
-    player_pos: dict[str, str] = {}
-    for pl in session.query(Player).all():
-        if pl.position in pos_to_metric:
-            player_pos[pl.player_id] = pl.position
-
-    pass_allowed: dict[str, list[float]] = {}
-    rush_allowed: dict[str, list[float]] = {}
-    off_output: dict[str, list[float]] = {}
-
-    rows = (
-        session.query(PlayerWeeklyStat)
-        .filter(PlayerWeeklyStat.season.in_(seasons))
-        .all()
-    )
-    for row in rows:
-        if getattr(row, "season_type", "REG") not in (None, "REG", "regular"):
-            continue
-        # Team defenses are keyed by team abbreviation; skip them here.
-        if row.player_id in _TEAM_ABBREVIATIONS:
-            continue
-        metric = pos_to_metric.get(player_pos.get(row.player_id))
-        if not metric:
-            continue
-        opp = row.opponent
-        team = row.team
-        if not opp or not team:
-            continue
-        sd = {k: getattr(row, k, 0) or 0 for k in _OFF_STAT_KEYS}
-        sd["special_teams_tds"] = row.special_teams_tds or 0
-        sd["fumbles"] = 0
-        fp = fantasy_points(sd, rules)
-        if metric == "pass":
-            pass_allowed.setdefault(opp, []).append(fp)
-        elif metric == "rush":
-            rush_allowed.setdefault(opp, []).append(fp)
-        off_output.setdefault(team, []).append(fp)
-
-    def _avg(d: dict) -> dict:
-        return {t: round(sum(v) / len(v), 2) for t, v in d.items() if v}
-
-    return {
-        "pass": _avg(pass_allowed),
-        "rush": _avg(rush_allowed),
-        "off": _avg(off_output),
-    }
-
-
 @app.get("/api/league/{league_id}/projections")
 async def api_league_projections(league_id: str, position: str | None = None):
     """Return projected season fantasy points for draftable players.
@@ -2202,301 +2132,17 @@ async def api_league_projections(league_id: str, position: str | None = None):
     strength-of-schedule adjustment is applied from the upcoming season's
     schedule. For teams (DEF) we project from recent team-defense FP/g.
     """
-    import elfant.projections as proj
+    from elfant.audit import build_projections
 
     with get_session() as session:
         league = session.get(League, league_id)
         if not league:
             raise HTTPException(404, "League not found")
-        rules = league.scoring_settings or {}
         try:
             current_season = int(league.season)
         except (ValueError, TypeError):
             current_season = 2025
-        prior_seasons = [current_season - i for i in range(1, 4) if current_season - i >= 2000]
-
-        # Build opponent-strength ratings from prior-season stats (no current-
-        # season stats exist yet in a pre-draft league).
-        opponent_strength = _build_opponent_strength(session, prior_seasons, rules)
-
-        player_map: dict[str, dict] = {}
-        for pl in session.query(Player).all():
-            player_map[pl.player_id] = {
-                "name": f"{pl.first_name or ''} {pl.last_name or ''}".strip() or pl.player_id,
-                "position": pl.position or "",
-                "team": pl.team or "",
-                "age": pl.age,
-                "status": pl.status or "",
-                "draft_round": pl.draft_round,
-                "draft_ovr": pl.draft_ovr,
-                "rookie_year": pl.rookie_year,
-                "years_exp": pl.years_exp,
-                "player_img": f"{PLAYER_IMG}/{pl.player_id}.jpg" if pl.player_id and pl.player_id.isdigit() else None,
-                "team_logo": f"{TEAM_LOGO}/{pl.team.lower()}.png" if pl.team else None,
-            }
-
-        # Load all weekly stats for prior seasons in one bulk query.
-        rows = (
-            session.query(PlayerWeeklyStat)
-            .filter(PlayerWeeklyStat.season.in_(prior_seasons))
-            .order_by(PlayerWeeklyStat.player_id, PlayerWeeklyStat.season, PlayerWeeklyStat.week)
-            .all()
-        )
-
-        # Group rows by player.
-        rows_by_player: dict[str, list] = {}
-        for row in rows:
-            rows_by_player.setdefault(row.player_id, []).append(row)
-
-        # Derive per-position volume + efficiency baselines from this league's
-        # own prior-season data (falls back to static defaults per-position).
-        position_of = {pid: pm["position"] for pid, pm in player_map.items()}
-        league_vol, league_eff = proj.league_baselines(rows_by_player, position_of)
-
-        # Track whether current league season has an existing draft with picks.
-        has_draft = False
-        for d in session.query(Draft).filter_by(league_id=league_id).all():
-            has_picks = session.query(DraftPick).filter_by(draft_id=d.draft_id).first() is not None
-            if has_picks:
-                has_draft = True
-                break
-
-    # Load the upcoming season's schedule to build each team's opponent slate.
-    _nf_to_sleeper = {"LA": "LAR", "OAK": "LV", "SD": "LAC", "STL": "LAR"}
-    team_to_opponents: dict[str, list[str]] = {}
-    try:
-        import nflreadpy as nfl
-        sched_df = nfl.load_schedules(seasons=[current_season])
-        if sched_df is not None and not sched_df.is_empty():
-            for row in sched_df.iter_rows(named=True):
-                if row.get("week") is None or row.get("week") == 0:
-                    continue
-                if row.get("season_type") and row.get("season_type") not in (None, "REG", "regular"):
-                    continue
-                home = _nf_to_sleeper.get(row.get("home_team") or "", row.get("home_team") or "")
-                away = _nf_to_sleeper.get(row.get("away_team") or "", row.get("away_team") or "")
-                if not home or not away:
-                    continue
-                team_to_opponents.setdefault(home, []).append(away)
-                team_to_opponents.setdefault(away, []).append(home)
-    except Exception:
-        pass
-
-    projections = []
-    team_volume_used: dict[tuple[str, str], dict[str, float]] = {}
-    for pid, pr_rows in rows_by_player.items():
-        pl = player_map.get(pid)
-        if not pl or not pl["position"]:
-            continue
-        pos = pl["position"]
-        team = pl["team"] or ""
-        if not team:
-            continue
-        is_def = pos == "DEF"
-        if is_def:
-            res = proj.def_projection(pr_rows, rules)
-            projected_points = res["projected_points"]
-            games = res["games"]
-            confidence = res["confidence"]
-            statline = {}
-            usage = {}
-            fpg_history = proj.season_fpg_history(pr_rows, rules)
-            seasons_used = 0
-        elif pos in proj.SKILL_POSITIONS:
-            seasons = proj.build_season_stats(pr_rows)
-            if not seasons:
-                continue
-            res = proj.project_statline(
-                seasons, pos, pl["age"],
-                volume_baseline=league_vol.get(pos),
-                eff_baseline=league_eff.get(pos),
-            )
-            statline = res["statline"]
-            games = res["games"]
-            projected_points = round(proj.fantasy_projection(statline, rules), 1)
-            fpg_history = proj.season_fpg_history(pr_rows, rules)
-            # Confidence blends seasons covered, games played, data recency and
-            # year-to-year FP/g consistency (volatility).
-            confidence = proj.projection_confidence(seasons, [v for _, v in fpg_history], current_season)
-            seasons_used = len(seasons)
-            usage = {"games_played": games, "seasons_used": seasons_used}
-        else:
-            continue
-
-        # Strength-of-schedule adjustment.
-        base_points = projected_points
-        if pos == "DEF":
-            strength_map = opponent_strength.get("off", {})
-        elif pos == "RB":
-            strength_map = opponent_strength.get("rush", {})
-        else:
-            strength_map = opponent_strength.get("pass", {})
-        opponents = team_to_opponents.get(team, [])
-        factor = proj.sos_factor(opponents, strength_map, pos)
-        projected_points = round(base_points * factor, 1)
-
-        projections.append({
-            "player_id": pid,
-            "name": pl["name"],
-            "position": pos,
-            "team": team,
-            "status": pl["status"],
-            "player_img": pl["player_img"],
-            "team_logo": f"{TEAM_LOGO}/{team.lower()}.png" if team else None,
-            "projected_points": projected_points,
-            "base_points": base_points,
-            "sos_factor": round(factor, 3),
-            "games": games,
-            "confidence": confidence,
-            "is_rookie": False,
-            "kind": "vet",
-            "draft_round": pl["draft_round"],
-            "range_low": round(base_points * (1 - (1 - confidence) * 0.4), 1),
-            "range_high": round(base_points * (1 + (1 - confidence) * 0.4), 1),
-            "fpg_history": fpg_history,
-            "statline": statline,
-            "usage": usage,
-        })
-
-        # Track projected per-game volume per (team, position) so rookies on the
-        # same team only get a share of the leftover role (team-share context).
-        if pos in proj.SKILL_POSITIONS:
-            budget = proj._TEAM_VOLUME_BUDGET.get(pos)
-            if budget:
-                used_vol = team_volume_used.setdefault((team, pos), {})
-                pg = max(1, games)
-                for metric in budget:
-                    used_vol[metric] = used_vol.get(metric, 0.0) + (statline.get(metric, 0) or 0) / pg
-
-    # Prior-season incumbent FP/g per (team, position) — used to infer how open
-    # a role is for a rookie (the "role opportunity" signal). A strong incumbent
-    # (e.g. an elite starting QB) means little room; a void means more room.
-    incumbent_fpg: dict[tuple[str, str], float] = {}
-    for pid, pr_rows in rows_by_player.items():
-        pl = player_map.get(pid)
-        if not pl or not pl["team"] or not pl["position"]:
-            continue
-        if pl["position"] not in proj.SKILL_POSITIONS:
-            continue
-        fpg = proj.player_fpg(pr_rows, rules)
-        if fpg <= 0:
-            continue
-        key = (pl["team"], pl["position"])
-        incumbent_fpg[key] = max(incumbent_fpg.get(key, 0.0), fpg)
-
-    # Include skill-position players with no prior-season history so they appear
-    # on the pre-draft board. True rookies (draft capital / rookie_year signal)
-    # get a role-adjusted baseline; players with no signal at all ("unknown" —
-    # e.g. vets who changed teams without synced history) get the plain
-    # league-average baseline without the opportunity haircut.
-    projected_ids = {p["player_id"] for p in projections}
-    for pid, pl in player_map.items():
-        if pid in projected_ids:
-            continue
-        pos = pl["position"]
-        if pos not in proj.SKILL_POSITIONS:
-            continue
-        if not pl["team"]:
-            continue
-
-        rookie_year = pl["rookie_year"]
-        is_rookie = (
-            (rookie_year is not None and rookie_year == current_season)
-            or (pl["draft_round"] is not None and (pl["years_exp"] in (None, 0, 1)))
-        )
-        kind = "rookie" if is_rookie else "unknown"
-
-        if is_rookie:
-            opportunity = proj.role_opportunity(incumbent_fpg.get((pl["team"], pos)), pos)
-            volume_scale = proj.rookie_volume_scale(opportunity, pl["draft_round"])
-        else:
-            # No role-opportunity haircut: the unknown player is treated as a
-            # generic starter until we know otherwise.
-            volume_scale = 1.0
-
-        # Team-share context: established players on the same team already claim
-        # part of the position-group volume, so the rookie only gets leftover.
-        used_vol = team_volume_used.get((pl["team"], pos), {})
-        budget = proj._TEAM_VOLUME_BUDGET.get(pos, {})
-        team_share = proj.team_share_factor(used_vol, budget)
-        volume_scale *= max(0.0, 1.0 - team_share)
-
-        res = proj.rookie_projection(
-            pos, pl["age"], volume_scale=volume_scale,
-            volume_baseline=league_vol.get(pos),
-            eff_baseline=league_eff.get(pos),
-        )
-        statline = res["statline"]
-        games = res["games"]
-        base_points = round(proj.fantasy_projection(statline, rules), 1)
-        strength_map = opponent_strength.get("rush" if pos == "RB" else "pass", {})
-        opponents = team_to_opponents.get(pl["team"] or "", [])
-        factor = proj.sos_factor(opponents, strength_map, pos)
-        projected_points = round(base_points * factor, 1)
-
-        if is_rookie:
-            # Rookies get a range (20th-80th percentile-ish) around the point
-            # estimate: the band widens when the role is uncertain.
-            range_low, range_high = proj.rookie_range(base_points, volume_scale)
-            confidence = round(0.05 + 0.15 * proj.draft_capital_weight(pl["draft_round"]), 2)
-        else:
-            spread = 0.5
-            range_low, range_high = round(base_points * (1 - spread), 1), round(base_points * (1 + spread), 1)
-            confidence = 0.2
-
-        projections.append({
-            "player_id": pid,
-            "name": pl["name"],
-            "position": pos,
-            "team": pl["team"] or "",
-            "status": pl["status"],
-            "player_img": pl["player_img"],
-            "team_logo": f"{TEAM_LOGO}/{(pl['team'] or '').lower()}.png" if pl["team"] else None,
-            "projected_points": projected_points,
-            "base_points": base_points,
-            "sos_factor": round(factor, 3),
-            "games": games,
-            "confidence": confidence,
-            "is_rookie": is_rookie,
-            "kind": kind,
-            "draft_round": pl["draft_round"],
-            "range_low": range_low,
-            "range_high": range_high,
-            "fpg_history": [],
-            "statline": statline,
-            "usage": {"games_played": 0, "seasons_used": 0},
-        })
-
-    projections = proj.rank_projections(projections)
-    if position:
-        projections = [p for p in projections if p["position"] == position]
-
-    # Replacement-level cutoff per position: the projected points at the last
-    # starter slot (derived from the league's roster setup), so value-over-
-    # replacement can be shown.
-    position_ctx: dict[str, dict] = {}
-    roster_positions = league.roster_positions or []
-    for pos in proj.SKILL_POSITIONS + ("DEF",):
-        starters = roster_positions.count(pos)
-        if starters <= 0:
-            continue
-        pos_players = [p for p in projections if p["position"] == pos]
-        if not pos_players:
-            continue
-        replacement = pos_players[min(starters, len(pos_players)) - 1]["projected_points"]
-        position_ctx[pos] = {
-            "starters": starters,
-            "replacement": round(replacement, 1),
-        }
-
-    return {
-        "season": current_season,
-        "scoring_rules": rules,
-        "has_draft": has_draft,
-        "total_rosters": league.total_rosters or 0,
-        "position_ctx": position_ctx,
-        "players": projections,
-    }
+        return build_projections(session, league, target_season=current_season, position=position)
 
 
 @app.get("/api/player/{player_id}/schedule")

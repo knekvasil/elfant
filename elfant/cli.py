@@ -135,6 +135,132 @@ def cmd_info(args):
             print(f"  {label}: {count}")
 
 
+def cmd_audit_projections(args):
+    from elfant.audit import audit_league, write_csv, pooled_metrics
+    import os
+
+    seasons = [int(s) for s in args.seasons.split(",")] if args.seasons else None
+    options = _parse_proj_options(args.proj_options)
+    with get_session() as session:
+        results = audit_league(session, args.league_id, seasons, proj_options=options)
+
+    if not results:
+        print(f"No auditable seasons for league {args.league_id} "
+              f"(seasons requested: {seasons or 'all found in chain'}). "
+              "Check the league chain and that stats are synced.")
+        return
+
+    if options:
+        print(f"Projection options: {options}")
+
+    out_dir = args.out_dir or "."
+    for res in results:
+        season = res["season"]
+        path = write_csv(res["players"], os.path.join(out_dir, f"projections_audit_{season}.csv"))
+        print(f"\n=== {season} (league {res['league_id']}) — as-of {res['as_of_season']} ===")
+        print(f"  CSV: {path}")
+        _print_audit_metrics(res["metrics"])
+
+    if len(results) > 1:
+        print(f"\n=== POOLED across {len(results)} audited seasons "
+              f"({len([p for r in results for p in r['players']])} player-seasons) ===")
+        _print_audit_metrics(pooled_metrics(results))
+
+
+def _parse_proj_options(raw: str | None) -> dict:
+    """Parse "key=value,key=value" into a proj_options dict (numeric coerced)."""
+    if not raw:
+        return {}
+    out: dict = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if "=" not in part:
+            continue
+        k, _, v = part.partition("=")
+        try:
+            v = float(v)
+        except ValueError:
+            pass
+        out[k.strip()] = v
+    return out
+
+
+def _print_audit_metrics(metrics: dict):
+    overall = metrics.get("overall") or {}
+    if overall:
+        print("  Overall:")
+        print(f"    n={overall.get('n')} bias={overall.get('bias')} "
+              f"MAE={overall.get('mae')} RMSE={overall.get('rmse')} "
+              f"Pearson={overall.get('pearson')} Spearman={overall.get('spearman')}")
+    print("  By position:")
+    for pos, m in (metrics.get("by_position") or {}).items():
+        print(f"    {pos:3s} n={m.get('n')} bias={m.get('bias')} MAE={m.get('mae')} "
+              f"RMSE={m.get('rmse')} pearson={m.get('pearson')}")
+    print("  By confidence:")
+    for name, m in (metrics.get("by_confidence") or {}).items():
+        print(f"    {name:9s} n={m.get('n')} bias={m.get('bias')} MAE={m.get('mae')} "
+              f"RMSE={m.get('rmse')}")
+    rc = metrics.get("range_calibration") or {}
+    if rc.get("ranged"):
+        print(f"  Range calibration: {rc['in_range']}/{rc['ranged']} in range "
+              f"({rc['hit_rate']})")
+    gm = metrics.get("games") or {}
+    if gm.get("n"):
+        print(f"  Games: n={gm['n']} bias={gm['bias']} MAE={gm['mae']} RMSE={gm['rmse']}")
+    rh = metrics.get("rank_hit_rate") or {}
+    for level in ("top12", "top24"):
+        table = rh.get(level) or {}
+        if not table:
+            continue
+        parts = []
+        for pos, v in table.items():
+            if "avg" in v:  # pooled: averaged per-season hit-rate
+                parts.append(f"{pos}: {v['avg']:.0%} (avg of {v['seasons']})")
+            else:  # single season
+                parts.append(f"{pos}: {v['overlap']}/{v['n']}")
+        print(f"  Rank hit-rate ({level}): {', '.join(parts)}")
+
+
+def cmd_calibrate(args):
+    from elfant.audit import audit_league
+    from elfant import calibrate
+
+    seasons = [int(s) for s in args.seasons.split(",")] if args.seasons else None
+    with get_session() as session:
+        results = audit_league(session, args.league_id, seasons)
+
+    if not results:
+        print(f"No auditable seasons for league {args.league_id}.")
+        return
+
+    rows_by_season = {r["season"]: calibrate.load_rows_from_players(r["players"]) for r in results}
+    rows_by_season = {s: rows for s, rows in rows_by_season.items() if rows}
+    if len(rows_by_season) < 2:
+        print("Calibration needs at least two auditable seasons; "
+              f"got {list(rows_by_season)}.")
+        return
+
+    print("=== Feature fit: leave-one-season-out ===")
+    print(f"  seasons={sorted(rows_by_season)}  alpha(ridge)={calibrate.RIDGE_ALPHA}")
+    for label, subset in (("full board", None), ("top 200 projected", 200)):
+        loso = calibrate.leave_one_out(rows_by_season, top_n=subset)
+        print(f"\n  [{label}]")
+        for test, res in loso["folds"].items():
+            b, m = res["baseline"], res["model"]
+            print(f"    holdout {test}: baseline MAE={b['mae']:6.2f} R2={b['r2']:.3f} | "
+                  f"model MAE={m['mae']:6.2f} R2={m['r2']:.3f}")
+        p = loso["pooled"]
+        b, m = p["baseline"], p["model"]
+        print(f"    POOLED n={p['n']}: baseline MAE={b['mae']:6.2f} RMSE={b['rmse']:6.2f} "
+              f"R2={b['r2']:.3f} | model MAE={m['mae']:6.2f} RMSE={m['rmse']:6.2f} R2={m['r2']:.3f}")
+
+    # Show the top learned weights from the first season's fit.
+    first = next(iter(loso["folds"].values()))
+    print("\n  Top learned weights (largest |coef|, first holdout's training set):")
+    for name, w in sorted(first["weights"], key=lambda x: -abs(x[1]))[:12]:
+        print(f"    {name:24s} {w:+.4f}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="elfant",
@@ -184,6 +310,37 @@ def main():
 
     p_info = sub.add_parser("info", help="Show database summary")
     p_info.set_defaults(func=cmd_info)
+
+    p_audit = sub.add_parser(
+        "audit-projections",
+        help="Backtest draft projections against completed seasons",
+    )
+    p_audit.add_argument("league_id", help="Sleeper league ID (current season's league)")
+    p_audit.add_argument(
+        "--seasons", default=None,
+        help="Comma-separated target seasons to audit (default: all seasons in the league chain)",
+    )
+    p_audit.add_argument(
+        "--out-dir", default=None,
+        help="Directory for per-season CSVs (default: current directory)",
+    )
+    p_audit.add_argument(
+        "--proj-options", default=None,
+        help="Comma-separated key=value projection overrides for prototyping "
+             "(e.g. def_method=shrink,confidence_scaling=0.3)",
+    )
+    p_audit.set_defaults(func=cmd_audit_projections)
+
+    p_cal = sub.add_parser(
+        "calibrate-projections",
+        help="Fit projection features to post-season grades (cross-season)",
+    )
+    p_cal.add_argument("league_id", help="Sleeper league ID (current season's league)")
+    p_cal.add_argument(
+        "--seasons", default=None,
+        help="Comma-separated seasons to fit on (default: all completed in chain)",
+    )
+    p_cal.set_defaults(func=cmd_calibrate)
 
     args = parser.parse_args()
     if not args.command:

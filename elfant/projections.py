@@ -133,7 +133,7 @@ AGE_CURVES: dict[str, AgeCurve] = {
 #    top-quartile baseline and are shrunk less aggressively, because elite
 #    efficiency is the key differentiator we want to preserve.
 _POS_BASELINE = {
-    "QB": {"attempts": 34.0},
+    "QB": {"attempts": 34.0, "carries": 4.0},
     "RB": {"carries": 12.0, "targets": 3.0},
     "WR": {"targets": 8.0},
     "TE": {"targets": 5.5},
@@ -143,7 +143,8 @@ _POS_BASELINE = {
 # Efficiency/rate metrics per position (all other keys in a position's extractor
 # are treated as volume). Each value is the top-quartile baseline for shrinkage.
 _POS_EFFICIENCY_BASELINE = {
-    "QB": {"comp_pct": 0.66, "yards_per_att": 7.6, "td_pct": 0.05, "int_pct": 0.018},
+    "QB": {"comp_pct": 0.66, "yards_per_att": 7.6, "td_pct": 0.05, "int_pct": 0.018,
+           "yards_per_carry": 4.2, "rush_td_rate": 0.02},
     "RB": {"yards_per_carry": 4.5, "rush_td_rate": 0.025, "catch_rate": 0.78, "yards_per_target": 6.8},
     "WR": {"catch_rate": 0.67, "yards_per_target": 8.8, "td_per_target": 0.065},
     "TE": {"catch_rate": 0.72, "yards_per_target": 7.8, "td_per_target": 0.06},
@@ -165,7 +166,7 @@ DEFAULT_GAMES = 15
 # how much of a team's role is already "claimed" by established players, so a
 # rookie only gets a share of the leftover volume (team-share context).
 _TEAM_VOLUME_BUDGET = {
-    "QB": {"attempts": 35.0},
+    "QB": {"attempts": 35.0, "carries": 7.0},
     "RB": {"carries": 25.0, "targets": 8.0},
     "WR": {"targets": 24.0},
     "TE": {"targets": 9.0},
@@ -178,12 +179,16 @@ def games_expected(
     age: int | None = None,
     position: str | None = None,
 ) -> int:
-    """Expected games played (0..17) from recent seasons' games played.
+    """Expected games played (0..15) from recent seasons' games played.
 
     Applies two extra penalties beyond the average:
       - injury volatility: erratic games-played history (missed games in some
         seasons) pulls the expectation down;
       - age: players past their positional peak lose a bit of expected games.
+
+    Capped at 15 (not 17): even ironmen realistically miss games, and the audit
+    shows projecting a full 17 overshoots actual games played. Kickers are the
+    exception — they play every game.
     """
     if not seasons:
         return DEFAULT_GAMES
@@ -205,7 +210,11 @@ def games_expected(
             # Shave up to 2 games for players well past peak.
             expected -= round(min(2, years_past * curve.decline_per_year * 8))
 
-    return max(0, min(17, expected))
+    # Capped at 15 (not 17): even ironmen realistically miss games, and the
+    # audit shows projecting a full 17 overshoots actual games played. Kickers
+    # and team defenses are the exception — they play every game.
+    cap = 17 if position in ("K", "DEF") else 15
+    return max(0, min(cap, expected))
 
 
 def _per_game(s: dict, keys: list[str]) -> dict:
@@ -219,14 +228,21 @@ def _per_game(s: dict, keys: list[str]) -> dict:
 
 
 def _extract_qb(s: dict) -> dict:
-    g = _per_game(s, ["attempts", "completions", "passing_yards", "passing_tds", "passing_interceptions"])
+    g = _per_game(s, [
+        "attempts", "completions", "passing_yards", "passing_tds",
+        "passing_interceptions", "carries", "rushing_yards", "rushing_tds",
+    ])
     attempts = g["attempts"]
+    carries = g["carries"]
     return {
         "attempts": attempts,
         "comp_pct": (g["completions"] / attempts) if attempts else 0,
         "yards_per_att": (g["passing_yards"] / attempts) if attempts else 0,
         "td_pct": (g["passing_tds"] / attempts) if attempts else 0,
         "int_pct": (g["passing_interceptions"] / attempts) if attempts else 0,
+        "carries": carries,
+        "yards_per_carry": (g["rushing_yards"] / carries) if carries else 0,
+        "rush_td_rate": (g["rushing_tds"] / carries) if carries else 0,
     }
 
 
@@ -432,6 +448,7 @@ def projection_confidence(
     seasons: list[dict],
     season_fpg: list[float] | None = None,
     current_season: int | None = None,
+    weights: tuple[float, float, float, float] | None = None,
 ) -> float:
     """0..1 confidence in a projection from data quality.
 
@@ -439,14 +456,17 @@ def projection_confidence(
     time (weighted by recency) backs the numbers, how fresh the data is, and how
     consistent the player's year-to-year FP/g has been (lower volatility =
     higher confidence). ``season_fpg`` is the per-season FP/g list (optional).
+
+    ``weights`` overrides the blend (seasons, games, recency, volatility) — an
+    audit hook for backtesting alternative confidence formulas.
     """
     if not seasons:
         return 0.0
     n = len(seasons)
     seasons_c = min(1.0, n / 3.0)
 
-    weights = [RECENCY_WEIGHTS[min(n - 1 - i, len(RECENCY_WEIGHTS) - 1)] for i in range(n)]
-    games = sum(s.get("games", 0) * w for s, w in zip(seasons, weights))
+    rw = [RECENCY_WEIGHTS[min(n - 1 - i, len(RECENCY_WEIGHTS) - 1)] for i in range(n)]
+    games = sum(s.get("games", 0) * w for s, w in zip(seasons, rw))
     games_c = min(1.0, games / _CONF_GAMES_CEILING)
 
     recency_c = 1.0
@@ -461,7 +481,8 @@ def projection_confidence(
             cv = statistics.pstdev(season_fpg) / mean
             vol_c = max(0.0, 1.0 - cv * 1.5)
 
-    conf = 0.35 * seasons_c + 0.3 * games_c + 0.2 * recency_c + 0.15 * vol_c
+    w = weights if weights is not None else (0.35, 0.3, 0.2, 0.15)
+    conf = w[0] * seasons_c + w[1] * games_c + w[2] * recency_c + w[3] * vol_c
     return round(max(0.0, min(1.0, conf)), 2)
 
 
@@ -493,6 +514,34 @@ def rookie_range(base_points: float, volume_scale: float) -> tuple[float, float]
     return round(base_points * (1 - spread), 1), round(base_points * (1 + spread), 1)
 
 
+# Observed out-of-sample residual spread (points) per position, from the draft
+# projection audit on completed seasons. Used for prediction-interval ranges:
+# a ±1-SD band around the projection is honest about how uncertain these are.
+# Calibrated against the draft-relevant (top-200) players, who have wider
+# residuals than the full board (which is dominated by players who never play).
+_POS_RESIDUAL_SD = {
+    "QB": 110.0,
+    "RB": 80.0,
+    "WR": 65.0,
+    "TE": 55.0,
+    "K": 60.0,
+    "DEF": 55.0,
+}
+
+
+def range_band(base_points: float, position: str, confidence: float) -> tuple[float, float]:
+    """Prediction-interval band (±1 residual SD) around a projection.
+
+    The band is grounded in the audit's observed residual spread rather than the
+    (too-narrow) confidence-scaled estimate. High confidence tightens it only
+    slightly; the floor is never below zero.
+    """
+    sd = _POS_RESIDUAL_SD.get(position, 50.0)
+    width = sd * (1.0 - 0.15 * max(0.0, min(1.0, confidence)))
+    low = max(0.0, base_points - width)
+    return round(low, 1), round(base_points + width, 1)
+
+
 def team_share_factor(used: dict[str, float], budget: dict[str, float]) -> float:
     """0..1 fraction of a team's position-group volume already claimed, from
     the per-game volume ``used`` projected for established players vs the
@@ -521,12 +570,16 @@ def project_statline(
 
     if position == "QB":
         attempts = usage.get("attempts", 0) * games
+        carries = usage.get("carries", 0) * games
         statline = {
             "attempts": round(attempts),
             "completions": round(attempts * usage.get("comp_pct", 0)),
             "passing_yards": round(attempts * usage.get("yards_per_att", 0)),
             "passing_tds": round(attempts * usage.get("td_pct", 0)),
             "passing_interceptions": round(attempts * usage.get("int_pct", 0)),
+            "carries": round(carries),
+            "rushing_yards": round(carries * usage.get("yards_per_carry", 0)),
+            "rushing_tds": round(carries * usage.get("rush_td_rate", 0)),
         }
     elif position == "RB":
         carries = usage.get("carries", 0) * games
@@ -594,12 +647,16 @@ def rookie_projection(
 
     if position == "QB":
         attempts = usage.get("attempts", 0) * games
+        carries = usage.get("carries", 0) * games
         statline = {
             "attempts": round(attempts),
             "completions": round(attempts * usage.get("comp_pct", 0)),
             "passing_yards": round(attempts * usage.get("yards_per_att", 0)),
             "passing_tds": round(attempts * usage.get("td_pct", 0)),
             "passing_interceptions": round(attempts * usage.get("int_pct", 0)),
+            "carries": round(carries),
+            "rushing_yards": round(carries * usage.get("yards_per_carry", 0)),
+            "rushing_tds": round(carries * usage.get("rush_td_rate", 0)),
         }
     elif position == "RB":
         carries = usage.get("carries", 0) * games
@@ -683,13 +740,26 @@ def build_season_stats(weekly_rows: list) -> list[dict]:
     return [by_season[s] for s in sorted(by_season)]
 
 
-def def_projection(weekly_rows: list, rules: dict, age: int | None = None) -> dict:
+def def_projection(
+    weekly_rows: list,
+    rules: dict,
+    age: int | None = None,
+    method: str = "recency",
+    baseline: float | None = None,
+) -> dict:
     """Project a team DEF's season fantasy points.
 
     DEF scoring relies on per-game bucket bonuses (pts_allowed, yds_allowed)
     that can't be reconstructed from a season total, so we compute fantasy
     points per game via scoring.py on each weekly row, then take a recency-
     weighted average and scale by games expected.
+
+    ``method`` selects the aggregation after recency-weighting (an audit hook
+    for backtesting alternatives):
+      - "recency": the recency-weighted FP/g as-is;
+      - "shrink": shrink toward the league-average DEF ``baseline`` FP/g by the
+        confidence from games of history;
+      - "avg": blend 30% recency / 70% league-average baseline.
 
     Returns a dict with ``projected_points`` and ``games``.
     """
@@ -725,7 +795,15 @@ def def_projection(weekly_rows: list, rules: dict, age: int | None = None) -> di
         else 0.0
     )
 
-    games = games_expected([{"games": g} for g, _ in fp_per_game])
+    if method == "shrink" and baseline:
+        # DEF year-to-year is noisy: full trust needs ~4 seasons of history,
+        # so even a 2-season defense shrinks toward the league average.
+        conf = min(1.0, len(fp_per_game) / 4.0)
+        weighted = weighted * conf + baseline * (1 - conf)
+    elif method == "avg" and baseline:
+        weighted = 0.3 * weighted + 0.7 * baseline
+
+    games = games_expected([{"games": g} for g, _ in fp_per_game], position="DEF")
     conf = min(1.0, len(fp_per_game) / 3.0)
     return {"projected_points": round(weighted * games, 1), "games": games, "confidence": round(conf, 2)}
 

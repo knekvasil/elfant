@@ -105,6 +105,7 @@ export default function League() {
 
   const { league, rosters, previous, next, drafts, max_week } = data
   const statusColor = statusBadge(league.status).badge
+  const noGamesYet = league.status === 'in_season' && max_week === 0
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
@@ -192,17 +193,31 @@ export default function League() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="power">
-          <PowerRankings
-            leagueId={league.league_id}
-            rosters={rosters}
-            hoveredRosterId={hoveredRosterId}
-            onHover={handleHover}
-            onClick={handleClick}
-            highlightedRosterIds={activeHighlightIds}
-          />
+          {noGamesYet ? (
+            <EmptyState
+              icon={<Gauge className="size-8 text-muted-foreground/30" />}
+              title="No season data yet"
+              description="Power rankings become available once the season starts."
+            />
+          ) : (
+            <PowerRankings
+              leagueId={league.league_id}
+              rosters={rosters}
+              hoveredRosterId={hoveredRosterId}
+              onHover={handleHover}
+              onClick={handleClick}
+              highlightedRosterIds={activeHighlightIds}
+            />
+          )}
         </TabsContent>
         <TabsContent value="charts">
-          {teamStats ? (
+          {noGamesYet || !teamStats ? (
+            <EmptyState
+              icon={<BarChart3 className="size-8 text-muted-foreground/30" />}
+              title="No season data yet"
+              description="Stats become available once the season starts."
+            />
+          ) : (
             <ScatterPlots
               teamStats={teamStats}
               rosters={rosters}
@@ -211,16 +226,17 @@ export default function League() {
               onClick={handleClick}
               highlightedRosterIds={activeHighlightIds}
             />
-          ) : (
-            <EmptyState
-              icon={<BarChart3 className="size-8 text-muted-foreground/30" />}
-              title="No season data yet"
-              description="Stats become available once the season starts."
-            />
           )}
         </TabsContent>
         <TabsContent value="standings">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {noGamesYet ? (
+            <EmptyState
+              icon={<Table2 className="size-8 text-muted-foreground/30" />}
+              title="No standings yet"
+              description="Standings become available once the season starts."
+            />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-lg border border-border/40 bg-card/30 p-3 self-start">
               <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -289,6 +305,7 @@ export default function League() {
               </div>
             </div>
           </div>
+          )}
         </TabsContent>
         <TabsContent value="draft">
           {(() => {
@@ -303,7 +320,7 @@ export default function League() {
               )
             }
             return drafts.length > 0 ? (
-              <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} />
+              <DraftGrid rosters={rosters} drafts={drafts} leagueId={league.league_id} groupId={groupId!} hideGrades={noGamesYet} />
             ) : (
               <EmptyState
                 icon={<ScrollText className="size-8 text-muted-foreground/30" />}
@@ -325,7 +342,15 @@ export default function League() {
           )}
         </TabsContent>
         <TabsContent value="playoffs">
-          <PlayoffBracket leagueId={league.league_id} />
+          {noGamesYet ? (
+            <EmptyState
+              icon={<Trophy className="size-8 text-muted-foreground/30" />}
+              title="No playoff data yet"
+              description="The playoff bracket becomes available once the season starts."
+            />
+          ) : (
+            <PlayoffBracket leagueId={league.league_id} />
+          )}
         </TabsContent>
         <TabsContent value="players">
           <Card>

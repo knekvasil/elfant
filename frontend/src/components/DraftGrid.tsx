@@ -16,13 +16,14 @@ interface Props {
   drafts: Draft[]
   leagueId: string
   groupId: string
+  hideGrades?: boolean
 }
 
 function gradeFor(pct: number | null): { grade: string; text: string; bg: string } {
   return gradeBadge(pct)
 }
 
-export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props) {
+export default function DraftGrid({ rosters, drafts, leagueId, groupId, hideGrades }: Props) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -55,7 +56,7 @@ export default function DraftGrid({ rosters, drafts, leagueId, groupId }: Props)
 
   const hideTooltip = useCallback(() => setTooltip(null), [])
 
-  const hasStats = rankMap.size > 0
+  const hasStats = rankMap.size > 0 && !hideGrades
 
   if (drafts.length === 0 || drafts.every((d) => (d.picks || []).length === 0)) {
     return (
