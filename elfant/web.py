@@ -196,6 +196,26 @@ def _is_league_stale(league) -> bool:
     return age > 900  # 15 minutes for active seasons
 
 
+def _last_played_week(session, league_id) -> int:
+    """Highest week with any real (non-zero) matchup points.
+
+    Sleeper pre-seeds the full schedule as placeholder matchups (every week
+    present, points zeroed) before week 1, so the max synced week is not a
+    reliable signal for how much of the season has actually been played.
+    """
+    row = (
+        session.query(Matchup.week)
+        .filter(
+            Matchup.league_id == league_id,
+            Matchup.points.isnot(None),
+            Matchup.points != 0,
+        )
+        .order_by(Matchup.week.desc())
+        .first()
+    )
+    return row[0] if row else 0
+
+
 # ---- API Routes ----
 
 @app.get("/api/league/{league_id}")
@@ -240,6 +260,28 @@ async def api_league(league_id: str):
                 sync_transactions(league_id, probe)
                 probe += 1
 
+        # The probe above only fetches weeks beyond existing_max, but Sleeper
+        # pre-seeds the whole schedule before week 1 — so played weeks can still
+        # hold zeroed placeholder rows and real scores never get pulled in.
+        # Backfill every week that has actually started per the NFL state,
+        # always re-syncing the current week so in-progress scores stay fresh.
+        with get_session() as session:
+            state = session.query(NflState).order_by(NflState.id.desc()).first()
+            current_week = (state.display_week or state.week or 0) if state else 0
+
+        if current_week >= 1:
+            with get_session() as session:
+                scored_max = _last_played_week(session, league_id)
+            for w in set(range(scored_max + 1, current_week + 1)) | {current_week}:
+                try:
+                    data = sleeper_api.get_league_matchups(league_id, w)
+                except Exception:
+                    break
+                if not data:
+                    continue
+                sync_matchups(league_id, w)
+                sync_transactions(league_id, w)
+
     except (HTTPError, ConnectionError, Timeout):
         pass
 
@@ -261,30 +303,12 @@ async def api_league(league_id: str):
         def _to_ref(lg):
             return {"league_id": lg.league_id, "name": lg.name, "season": lg.season}
 
-        max_week = 0
-        latest = (
-            session.query(Matchup.week)
-            .filter_by(league_id=league_id)
-            .order_by(Matchup.week.desc())
-            .first()
-        )
-        if latest:
-            max_week = latest[0]
+        max_week = _last_played_week(session, league_id)
 
         # Sleeper pre-seeds the full schedule as placeholder matchups (all weeks
-        # present, points zeroed) before week 1, so max_week alone can't tell us
-        # whether the season has started. Treat it as started only once any
-        # matchup carries real points.
-        has_started = (
-            session.query(Matchup.id)
-            .filter(
-                Matchup.league_id == league_id,
-                Matchup.points.isnot(None),
-                Matchup.points != 0,
-            )
-            .first()
-            is not None
-        )
+        # present, points zeroed) before week 1, so the season counts as started
+        # only once any matchup carries real points.
+        has_started = max_week >= 1
 
     return {
         "league": {"league_id": league.league_id, "name": league.name, "season": league.season, "status": league.status, "total_rosters": league.total_rosters},
@@ -1137,10 +1161,8 @@ async def api_rankings(league_id: str, mode: str = "standard"):
             }
 
         playoff_start = (league.settings or {}).get("playoff_week_start", 99) if league else 99
-        max_week = 0
-        latest = session.query(Matchup.week).filter_by(league_id=league_id).order_by(Matchup.week.desc()).first()
-        if latest:
-            max_week = min(latest[0], playoff_start - 1)
+        played = _last_played_week(session, league_id)
+        max_week = min(played, playoff_start - 1) if played else 0
 
         if max_week < 1:
             return {"weeks": [], "rosters": []}
@@ -1289,10 +1311,8 @@ async def api_team_stats(league_id: str):
             }
 
         playoff_start = (league.settings or {}).get("playoff_week_start", 99) if league else 99
-        max_week = 0
-        latest = session.query(Matchup.week).filter_by(league_id=league_id).order_by(Matchup.week.desc()).first()
-        if latest:
-            max_week = min(latest[0], playoff_start - 1)
+        played = _last_played_week(session, league_id)
+        max_week = min(played, playoff_start - 1) if played else 0
 
         if max_week < 1:
             return {"weeks": [], "rosters": []}
