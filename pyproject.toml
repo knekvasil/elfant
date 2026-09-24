@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Sleeper fantasy football league data sync & query tool"
 requires-python = ">=3.14"
 dependencies = [
-    "sqlalchemy>=2.0",
+    "sqlalchemy>=2.0,<2.1",
     "psycopg2-binary>=2.9",
     "requests>=2.31",
     "fastapi>=0.100",
